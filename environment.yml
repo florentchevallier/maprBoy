@@ -1,0 +1,16 @@
+# Tested on macOS 13 (Intel), micromamba 2.9.0, 2026-09-30.
+#   micromamba create -f environment.yml && micromamba activate wahoondrer-env
+# Still needed outside conda: Java (JRE 17+) and Osmosis on PATH (see README).
+name: wahoondrer-env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - gdal=3.6.4        # ogr2ogr + Python "osgeo"; both must come from the same GDAL
+  - osmium-tool=1.16.0
+  - shapely=2.0.2
+  - geojson=3.3.0
+  - requests
+  - pip
+  - pip:
+      - wahoomc==4.4.0

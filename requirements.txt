@@ -1,0 +1,4 @@
+# pip part of the Wahoondrer environment (the conda-forge part is in environment.yml).
+# WMC declares only "packaging" as a dependency, but it also imports shapely, geojson,
+# requests and osgeo (GDAL); those come from environment.yml.
+wahoomc==4.4.0

@@ -142,6 +142,7 @@ class RegionExtraTests(unittest.TestCase):
                 regions.delete("../x")
 
     def test_one_failure_does_not_stop_the_queue(self):
+        regions.RETRY_DELAYS = (0, 0, 0)
         with tempfile.TemporaryDirectory() as d:
             src = os.path.join(d, "src.pbf"); _write(src, b"y" * 50, "wb")
             regions.MAPS_DIR = os.path.join(d, "maps"); regions.GEOFABRIK = os.path.join(d, "g.json")
@@ -159,26 +160,78 @@ class RegionExtraTests(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(regions.MAPS_DIR, "good-latest.osm.pbf")))
             self.assertFalse(os.path.exists(os.path.join(regions.MAPS_DIR, "bad-latest.osm.pbf.part")))
 
-    def test_redirect_loop_is_reported_as_unavailable(self):
+    def _serve(self, handler_cls):
         import http.server, threading
+        srv = http.server.HTTPServer(("127.0.0.1", 0), handler_cls)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        return srv
 
-        class H(http.server.BaseHTTPRequestHandler):       # like Geofabrik for the old regions
+    def _wait(self, dl, n=100):
+        for _ in range(n):
+            if not dl.status()["running"]:
+                break
+            time.sleep(0.1)
+
+    def test_redirect_loop_is_retried_then_reported(self):
+        import http.server
+
+        class H(http.server.BaseHTTPRequestHandler):       # like Geofabrik's 301 to "<url>/"
             def do_GET(self):
                 self.send_response(301); self.send_header("Location", self.path.rstrip("/") + "/"); self.end_headers()
             def log_message(self, *a): pass
-        srv = http.server.HTTPServer(("127.0.0.1", 0), H); threading.Thread(target=srv.serve_forever, daemon=True).start()
+        srv = self._serve(H); regions.RETRY_DELAYS = (0, 0, 0)
         with tempfile.TemporaryDirectory() as d:
             regions.MAPS_DIR = os.path.join(d, "maps"); regions.GEOFABRIK = os.path.join(d, "g.json")
             url = f"http://127.0.0.1:{srv.server_port}/picardie-latest.osm.pbf"
             _write(regions.GEOFABRIK, json.dumps({"features": [{"properties": {"id": "picardie", "name": "Picardie", "urls": {"pbf": url}}}]}))
             regions._catalog.update(mtime=None, items={})
-            dl = regions.Downloader(); dl.start(["picardie"])
-            for _ in range(80):
-                if not dl.status()["running"]:
-                    break
-                time.sleep(0.1)
+            dl = regions.Downloader(); dl.start(["picardie"]); self._wait(dl)
             srv.shutdown()
-            self.assertIn("no longer offers", dl.status()["failed"]["picardie"])
+            self.assertIn("Tried 4 times", dl.status()["failed"]["picardie"])
+
+    def test_temporary_failure_then_success_and_failed_goes_last(self):
+        import http.server
+        hits = {"n": 0}; order = []
+
+        class H(http.server.BaseHTTPRequestHandler):       # 'flaky' fails twice, then works; 'ok' always works
+            def do_GET(self):
+                order.append(self.path)
+                if "flaky" in self.path:
+                    if self.path == "/flaky.pbf":
+                        hits["n"] += 1
+                    if self.path.endswith("/") or hits["n"] <= 2:      # redirect loop the first two times
+                        self.send_response(301); self.send_header("Location", self.path.rstrip("/") + "/"); self.end_headers(); return
+                self.send_response(200); self.send_header("Content-Length", "20"); self.end_headers(); self.wfile.write(b"z" * 20)
+            def log_message(self, *a): pass
+        srv = self._serve(H); regions.RETRY_DELAYS = (0, 0, 0)
+        with tempfile.TemporaryDirectory() as d:
+            regions.MAPS_DIR = os.path.join(d, "maps"); regions.GEOFABRIK = os.path.join(d, "g.json")
+            base = f"http://127.0.0.1:{srv.server_port}"
+            feats = [{"properties": {"id": k, "name": k, "urls": {"pbf": f"{base}/{k}.pbf"}}} for k in ("flaky", "ok")]
+            _write(regions.GEOFABRIK, json.dumps({"features": feats}))
+            regions._catalog.update(mtime=None, items={})
+            dl = regions.Downloader(); dl.start(["flaky", "ok"]); self._wait(dl)
+            srv.shutdown()
+            st = dl.status()
+            self.assertEqual(st["failed"], {}); self.assertEqual(sorted(st["done"]), ["flaky", "ok"])
+            self.assertEqual(st["done"][0], "ok")                       # the failing one was pushed back
+            self.assertEqual(order[0], "/flaky.pbf"); self.assertIn("/ok.pbf", order)
+
+    def test_404_is_final(self):
+        import http.server
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(404); self.end_headers()
+            def log_message(self, *a): pass
+        srv = self._serve(H)
+        with tempfile.TemporaryDirectory() as d:
+            regions.MAPS_DIR = os.path.join(d, "maps"); regions.GEOFABRIK = os.path.join(d, "g.json")
+            _write(regions.GEOFABRIK, json.dumps({"features": [{"properties": {"id": "x", "name": "X", "urls": {"pbf": f"http://127.0.0.1:{srv.server_port}/x.pbf"}}}]}))
+            regions._catalog.update(mtime=None, items={})
+            dl = regions.Downloader(); dl.start(["x"]); self._wait(dl)
+            srv.shutdown()
+            self.assertIn("any more", dl.status()["failed"]["x"])
 
     def test_link_data_dir(self):
         with tempfile.TemporaryDirectory() as d:

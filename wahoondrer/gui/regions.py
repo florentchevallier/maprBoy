@@ -21,6 +21,8 @@ MAPS_DIR = os.path.join(DL_DIR, "maps")
 GEOFABRIK = os.path.join(DL_DIR, "geofabrik.json")
 SUFFIX = "-latest.osm.pbf"
 OSM_FOLDER = "OSM_data"
+MAX_TRIES = 4                      # attempts per region before giving up
+RETRY_DELAYS = (2, 5, 10)          # seconds to wait when only failing regions are left
 USER_AGENT = "Wahoondrer/0.1 (local tool for personal use)"
 
 _catalog = {"mtime": None, "items": {}}
@@ -203,19 +205,20 @@ class Downloader:
             self._state.update(kw)
 
     def _fetch(self, key, url, target):
-        """Download one file; raises Unavailable (region no longer offered) or OSError."""
+        """Download one file. Raises Unavailable (really gone), Retry (worth trying again) or OSError."""
         part = target + ".part"
         req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
         try:
             r = urllib.request.urlopen(req, timeout=60)
         except urllib.error.HTTPError as exc:
-            if exc.code in (301, 302, 303, 307, 308, 404, 410):
-                raise Unavailable("Geofabrik no longer offers this region at this address "
-                                  f"(HTTP {exc.code}). It is probably an old region: "
-                                  "download the larger parent region instead.")
+            if exc.code in (404, 410):
+                raise Unavailable(f"Geofabrik does not offer this region any more (HTTP {exc.code}).")
+            if exc.code in (301, 302, 303, 307, 308, 429, 500, 502, 503, 504):
+                # Geofabrik sometimes answers with a redirect loop or a busy signal and is fine a few seconds later
+                raise Retry(f"Geofabrik answered HTTP {exc.code} ({exc.reason}).")
             raise OSError(f"HTTP {exc.code} {exc.reason}")
         except urllib.error.URLError as exc:
-            raise OSError(f"network problem: {exc.reason}")
+            raise Retry(f"network problem: {exc.reason}")
         with r, open(part, "wb") as f:
             total = int(r.headers.get("Content-Length") or 0)
             self._set(total=total)
@@ -230,14 +233,26 @@ class Downloader:
                 got += len(chunk)
                 self._set(bytes=got)
         if total and got != total:
-            raise OSError(f"incomplete download ({got} of {total} bytes)")
+            raise Retry(f"incomplete download ({got} of {total} bytes)")
         os.replace(part, target)
 
+    def _wait(self, seconds):
+        end = time.time() + seconds
+        while time.time() < end:
+            if self.cancel_flag:
+                raise InterruptedError("cancelled")
+            time.sleep(0.2)
+
     def _run(self, keys, force):
+        """Queue with retries: a region that fails goes to the END of the queue (the others are
+        tried first); when only failing ones are left we wait a little longer before each new try."""
         os.makedirs(MAPS_DIR, exist_ok=True)
         cat = catalog()
+        queue = list(keys)
+        tries = {}
         try:
-            for key in keys:
+            while queue:
+                key = queue.pop(0)
                 target = os.path.join(MAPS_DIR, key + SUFFIX)
                 if os.path.isfile(target) and not force:
                     with self.lock:
@@ -248,9 +263,20 @@ class Downloader:
                     self._fetch(key, cat[key]["url"], target)
                     with self.lock:
                         self._state["done"].append(key)
+                        self._state["failed"].pop(key, None)
                 except InterruptedError:
                     raise
-                except (Unavailable, OSError) as exc:     # one failure must not stop the others
+                except Retry as exc:
+                    tries[key] = tries.get(key, 0) + 1
+                    if tries[key] >= MAX_TRIES:
+                        with self.lock:
+                            self._state["failed"][key] = f"{exc} Tried {MAX_TRIES} times: try again in a few minutes."
+                    else:
+                        queue.append(key)
+                        self._set(current=f"{key} (try {tries[key] + 1} of {MAX_TRIES} soon)")
+                        if all(tries.get(k) for k in queue):      # only failing regions left: pause
+                            self._wait(RETRY_DELAYS[min(tries[key], len(RETRY_DELAYS)) - 1])
+                except (Unavailable, OSError) as exc:
                     with self.lock:
                         self._state["failed"][key] = str(exc)
                 finally:
@@ -268,3 +294,7 @@ class Downloader:
 
 class Unavailable(Exception):
     """The region is listed in the index but cannot be downloaded any more."""
+
+
+class Retry(Exception):
+    """Temporary problem: trying again later usually works."""

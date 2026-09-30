@@ -183,6 +183,7 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   <div class="actions" style="margin-top:8px"><span class="note">Add a region:</span><span id="regTree" class="actions" style="gap:6px"></span><button id="regAdd" disabled>Download</button></div>
   <div class="note" id="regInfo"></div>
   <div class="warn" id="regMsg"></div>
+  <div><button class="small" id="regRetry" style="display:none">Retry the failed regions</button></div>
 </section>
 
 <section class="card">
@@ -365,7 +366,7 @@ function dataBounds() {
   for (const k of S.tiles) { const [x, y] = k.split("/").map(Number); pts.push(...tileBbox(x, y)); }
   return pts.length ? L.latLngBounds(pts) : null;
 }
-const TYPE_COL = {bike: "#6a3fb0", foot: "#2e9d4f", combined: "#1565c0"}, NO_TYPE_COL = "#888";
+const TYPE_COL = {bike: "#d32f2f", foot: "#1565c0", combined: "#6a3fb0"}, NO_TYPE_COL = "#888";
 const typeCol = t => TYPE_COL[t] || NO_TYPE_COL;
 function drawMapLayers(fit) {
   if (!map) return;
@@ -486,7 +487,7 @@ function renderRegTree() {     // Europe > France > Centre ... one drop-down per
   for (let lvl = 0; ; lvl++) {
     const kids = REG.kids[parent] || []; if (!kids.length) break;
     const sel = document.createElement("select"); sel.style.cssText = "width:auto;max-width:240px";
-    sel.innerHTML = (lvl === 0 ? '<option value="">Continent…</option>' : `<option value="">${esc(REG.by[parent].name)} (whole region)</option>`)
+    sel.innerHTML = (lvl === 0 ? '<option value="">Choose continent…</option>' : `<option value="">${esc(REG.by[parent].name)}: all of it, or choose a part…</option>`)
       + kids.map(k => `<option value="${esc(k.key)}">${esc(k.name)}</option>`).join("");
     sel.value = regPath[lvl] || "";
     sel.onchange = () => { regPath = regPath.slice(0, lvl); if (sel.value) regPath.push(sel.value); renderRegTree(); };
@@ -537,6 +538,9 @@ function showDownload(d) {
     const f = Object.entries(d.failed || {}).map(([k, m]) => `${k}: ${m}`);
     $("#regMsg").textContent = [d.error && d.error !== "cancelled" ? "Download stopped: " + d.error : (d.error ? "Download cancelled." : ""), ...f].filter(Boolean).join("\n");
     $("#regMsg").style.whiteSpace = "pre-line";
+    const failedKeys = Object.keys(d.failed || {});
+    $("#regRetry").style.display = failedKeys.length ? "inline-block" : "none";
+    $("#regRetry").onclick = () => startRegionDownload(failedKeys, false);
   }
 }
 async function startRegionDownload(keys, force) {

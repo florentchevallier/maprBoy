@@ -135,6 +135,10 @@ def main():
     for t in data.tiles:
         print(f"  {t['x']}/{t['y']} : {', '.join(t['countries'])}")
     if args.plan:
+        # machine-readable copy for the web interface (one line, read by wahoondrer/gui/jobs.py)
+        print("PLAN-JSON " + json.dumps({
+            "tiles": [{"x": t["x"], "y": t["y"], "countries": list(t["countries"])} for t in data.tiles],
+            "regions": sorted(data.border_countries)}))
         return
 
     out_c = os.path.join(args.out, "wmc_classique")

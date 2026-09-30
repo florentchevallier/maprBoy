@@ -3,8 +3,8 @@
 
 Usage:
     python3 scripts/kmz_to_osm.py -o wandrer.osm export1.kmz export2.kmz ...
-            [--with-traveled] [--radius-m 250] [--unpaved-always]
-            [--simplify-m 1.5] [--no-merge]
+            [--with-traveled] [--radius-m 250] [--unpaved-always] [--paved-always]
+            [--simplify-m 1.5] [--no-merge] [--no-boundaries]
             [--squadrats squadrats.kml] [--squadrats-levels big,small]
             [--squadrats-buffer 3]
             [--squadrats-small-scope explored-big|band|both]
@@ -53,10 +53,14 @@ def main():
                          "traveled roads; 0 = keep all (default 250)")
     ap.add_argument("--unpaved-always", action="store_true",
                     help="keep all unpaved roads, even outside the radius")
+    ap.add_argument("--paved-always", action="store_true",
+                    help="keep all paved (unvisited) roads, even outside the radius")
     ap.add_argument("--simplify-m", type=float, default=1.5,
                     help="simplification tolerance in m; 0 = none")
     ap.add_argument("--no-merge", action="store_true",
                     help="do not merge chained segments")
+    ap.add_argument("--no-boundaries", action="store_true",
+                    help="do not write the Wandrer achievement boundaries")
     ap.add_argument("--squadrats", metavar="KML",
                     help="Squadrats KML export: add outlines of unexplored squares")
     ap.add_argument("--squadrats-levels", default="big,small",
@@ -92,6 +96,7 @@ def main():
               f"removed, +{r['new_boundaries']} boundaries")
 
     opts = Options(radius_m=args.radius_m, unpaved_always=args.unpaved_always,
+                   paved_always=args.paved_always,
                    simplify_m=args.simplify_m, merge=not args.no_merge)
     segments, ps = process(segments, opts, args.with_traveled)
     print(f"\nProcessing: {ps['input']} segments -> "
@@ -117,6 +122,8 @@ def main():
             print(f"  {level}: {len(explored[level])} explored squares -> "
                   f"{len(lines)} outline ways")
 
+    if args.no_boundaries:
+        boundaries = {}
     stats = write_osm(args.output, segments, boundaries, args.with_traveled, squadrats)
     print(f"\nWrote {args.output}: {stats['ways']} ways, {stats['nodes']} nodes"
           f" ({stats['skipped_visited']} traveled segments skipped)")

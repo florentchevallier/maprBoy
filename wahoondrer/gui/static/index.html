@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wahoondrer</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--ink:#1d1d1b;--mute:#6b6b66;--line:#dcdcd6;--accent:#e8731a;--accent-ink:#fff;
+  --ok:#1a8a3a;--bad:#c62828;--viol:#6a3fb0;--code:#15151a;--codeink:#e6e6e0}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--card:#1f1f1d;--ink:#ecece8;--mute:#9a9a94;--line:#34342f;--ok:#4cc16b;--bad:#ef6a6a;--viol:#a98be0;--code:#0d0d10}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:1000}
+header h1{font-size:18px;margin:0;flex:1}
+header h1 small{color:var(--mute);font-weight:400;margin-left:8px;font-size:13px}
+main{max-width:1040px;margin:0 auto;padding:16px 16px 60px;display:grid;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.card h2{font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.card h2 .n{display:inline-block;background:var(--accent);color:var(--accent-ink);border-radius:50%;width:22px;height:22px;text-align:center;line-height:22px;font-size:12px}
+.card h2 .sp{flex:1}
+.hint{color:var(--mute);font-size:13px;margin:0 0 12px}
+label.row{display:grid;grid-template-columns:150px 1fr auto auto;gap:8px;align-items:center;margin:6px 0}
+input[type=text],input[type=number],select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);font:inherit}
+input[type=number]{max-width:110px}
+button{font:inherit;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.small{padding:3px 10px;font-size:13px}
+button.icon{padding:4px 9px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.chk{display:flex;gap:8px;align-items:flex-start;margin:7px 0}
+.chk input{margin-top:4px}
+.chk small,.note{color:var(--mute);font-size:12.5px;display:block}
+.warn{color:var(--bad);font-size:13px;margin:6px 0}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--mute);font-weight:500}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.off td{opacity:.45}
+tr.hl td{background:color-mix(in srgb,var(--viol) 12%,transparent)}
+.badge{display:inline-block;padding:1px 7px;border-radius:99px;font-size:12px;margin:1px 2px 1px 0;background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ink)}
+.badge.no{background:transparent;color:var(--mute);text-decoration:line-through;opacity:.6}
+#map{height:400px;border-radius:10px;border:1px solid var(--line);margin:8px 0}
+.tilebar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tilebar input[type=text]{flex:1;min-width:200px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:6px 14px;background:transparent}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.pro-only{display:none}
+body.pro div.pro-only,body.pro p.pro-only,body.pro span.pro-only{display:block}
+body.pro span.pro-only.inline{display:inline}
+body.pro label.row.pro-only{display:grid}
+body.pro label.chk.pro-only{display:flex}
+body.pro th.pro-only,body.pro td.pro-only{display:table-cell}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
+@media (max-width:760px){.opts{grid-template-columns:1fr}label.row{grid-template-columns:1fr}}
+pre#log{background:var(--code);color:var(--codeink);border-radius:10px;padding:12px;height:300px;overflow:auto;font:12.5px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:10px 0 0}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12.5px;background:var(--line)}
+.pill.running{background:var(--accent);color:#fff}.pill.done{background:var(--ok);color:#fff}.pill.failed{background:var(--bad);color:#fff}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin:6px 0 2px}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+.bar.ind i{width:35%;animation:slide 1.1s infinite ease-in-out}
+@keyframes slide{0%{margin-left:-35%}100%{margin-left:100%}}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:12px;text-align:center;color:var(--mute);font-size:13.5px;margin:10px 0 0;cursor:pointer}
+.drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--ink)}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(520px,92vw);padding:16px}
+dialog ul{list-style:none;margin:8px 0;padding:0;max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+dialog li{padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--line)}dialog li:hover{background:var(--bg)}
+.path{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;word-break:break-all;color:var(--mute)}
+.leaflet-tooltip.nm{font-size:11px}
+td.tags{white-space:nowrap;padding-left:0}
+.tag{display:inline-block;box-sizing:border-box;padding:1px 0;border-radius:99px;font-size:11px;text-align:center;width:70px;margin-right:3px;color:#fff}
+body.pro .tag{width:92px}
+.tag.unv{background:#e8731a}.tag.unp{background:#9a6a2f}.tag.rid{background:#2e9d4f}.tag.bnd{background:#7a4fc4}
+.tag.no{background:transparent;color:var(--mute);text-decoration:line-through;opacity:.45;border:1px dashed var(--line)}
+button.danger:hover{border-color:var(--bad);color:var(--bad)}
+.help{color:var(--mute);font-size:12.5px;margin:2px 0 8px 24px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Wahoondrer <small>custom Wahoo maps with Wandrer &amp; Squadrats</small></h1>
+  <div class="seg" id="modeSeg" title="Pro shows more options and the numbers inside each export">
+    <button data-mode="simple">Simple</button><button data-mode="pro">Pro</button>
+  </div>
+</header>
+<main>
+
+<section class="card">
+  <h2><span class="n">1</span>Folders</h2>
+  <p class="hint">Easiest: press <b>Set up my folders</b> and choose where they should live. The page creates the folders there, plus one for the OpenStreetMap map data; then drop your Wandrer and Squadrats files into them (here below, or in your file manager with "Open"). Choices are remembered.</p>
+  <div class="actions" style="margin-bottom:8px"><button id="btnSetup" class="primary">Set up my folders…</button><span class="note" id="dataNote"></span></div>
+  <label class="row">Wandrer exports<input type="text" data-path="folders.wandrer"><button data-browse="folders.wandrer">Choose…</button><button data-open="folders.wandrer">Open</button></label>
+  <label class="row">Squadrats exports<input type="text" data-path="folders.squadrats"><button data-browse="folders.squadrats">Choose…</button><button data-open="folders.squadrats">Open</button></label>
+  <label class="row">Output<input type="text" data-path="folders.out"><button data-browse="folders.out">Choose…</button><button data-open="folders.out">Open</button></label>
+  <label class="row">Work files<input type="text" data-path="folders.work"><button data-browse="folders.work">Choose…</button><button data-open="folders.work">Open</button></label>
+  <p class="note">Output: the maps are written to <b>wmc_classique</b> and <b>wmc_wandrer</b> inside it (rebuilt at each run: use a dedicated folder).<span> Work files: temporary files made while building; you can ignore this folder.</span><span class="pro-only inline"> It holds the merged Wandrer data (<b>wandrer.osm</b>) handed to WMC.</span></p>
+  <div id="osmRow" class="note" style="margin-top:8px"></div>
+</section>
+
+<section class="card">
+  <h2><span class="n">2</span>Wandrer exports <span class="sp"></span><button class="icon" id="btnReload" title="Look for new or changed files">🔄</button></h2>
+  <p class="hint">Ticked exports are merged; where they overlap, the most recent one wins. "Near" is the town where you ride most in that export.</p>
+  <div id="scanBox" style="display:none"><div class="note" id="scanText"></div><div class="bar" id="scanBar"><i></i></div></div>
+  <div class="actions" id="actBox" style="margin:4px 0 8px"><span class="note">Which exports to use:</span>
+    <select id="actSel" data-path="activity" style="width:auto"></select><span class="note" id="actNote"></span></div>
+  <p class="note" style="margin:0 0 8px">Wandrer gives three kinds of export: <b>bike</b>, <b>foot</b> and <b>combined</b>. The map is made from one kind.<span class="pro-only inline"> Pro: “all types” mixes them; “latest” follows the type of your newest export.</span></p>
+  <div id="exports"></div>
+  <div class="drop" id="dropWandrer">Drop your Wandrer <b>.kmz</b> files here (or click to choose them)</div>
+  <label class="chk" style="margin-top:10px"><input type="checkbox" data-path="geocode"><span>Look up the town name online <small>sends the approximate centre of each export to OpenStreetMap (Nominatim); nothing else</small></span></label>
+</section>
+
+<section class="card">
+  <h2><span class="n">3</span>Tiles</h2>
+  <p class="hint">Wahoo maps are made of zoom-8 tiles (about 100 × 70 km). Click the map to add or remove a tile. <span style="color:var(--accent)">Orange</span> = to build, coloured rectangles = area covered by an export, one colour per type (hover a row above to find it).</p>
+  <div class="tilebar">
+    <input type="text" id="tilesText" placeholder="e.g. 135/88, 136/88">
+    <button id="tilesFromExports">Use the tiles of my exports</button>
+    <button id="tilesClear">Clear</button>
+  </div>
+  <div class="tilebar" style="margin-top:8px"><button id="mapFit">🔍 Zoom to my data</button><button id="mapLocate">📍 My location</button><span class="note" id="locNote"></span></div>
+  <div id="map"></div>
+  <div class="note" id="mapNote"></div>
+  <div class="note" id="mapLegend"></div>
+</section>
+
+<section class="card">
+  <h2><span class="n">4</span>Wandrer layer</h2>
+  <label class="chk"><input type="checkbox" data-path="wandrer.enabled"><span>Add the Wandrer layer <small>unvisited roads in orange (dashed when unpaved)</small></span></label>
+  <div class="opts">
+    <div>
+      <label class="chk"><input type="checkbox" data-path="wandrer.boundaries" id="optBoundaries"><span>Achievement boundaries <small id="boundNote">subtle violet dashed lines</small></span></label>
+      <label class="row" style="grid-template-columns:150px 1fr">Show unvisited roads
+        <select id="radiusSel">
+          <option value="250">within 250 m of roads I rode</option>
+          <option value="500">within 500 m</option>
+          <option value="1000">within 1 km</option>
+          <option value="0">everywhere in my exports</option>
+          <option value="custom">custom distance…</option></select></label>
+      <label class="row" id="radiusCustom" style="grid-template-columns:150px 110px 1fr;display:none">Distance (m)<input type="number" min="0" step="10" data-path="wandrer.radius_m" data-num="1"><small class="note">0 = everywhere</small></label>
+      <p class="note">Roads farther than this from a road you rode are left out to keep the tiles light. <b>In an area where you have ridden nothing yet, no unvisited road is shown</b>: choose a larger distance or "everywhere" (heavier tiles). Wandrer only counts roads open to the public, so the orange layer shows which ones count.</p>
+    </div>
+    <div class="pro-only">
+      <label class="row" style="grid-template-columns:150px 110px 1fr">Simplify (m)<input type="number" min="0" step="0.5" data-path="wandrer.simplify_m" data-num="1"><small class="note">0 = none</small></label>
+      <label class="chk"><input type="checkbox" data-path="wandrer.with_traveled"><span>Also write the roads already ridden <small>makes tiles heavier; not displayed</small></span></label>
+      <label class="chk"><input type="checkbox" data-path="wandrer.unpaved_always"><span>Keep every unvisited unpaved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
+      <label class="chk"><input type="checkbox" data-path="wandrer.paved_always"><span>Keep every unvisited paved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2><span class="n">5</span>Squadrats layer <span class="sp"></span><button class="icon" id="btnReload2" title="Look for a newer file">🔄</button></h2>
+  <label class="chk"><input type="checkbox" data-path="squadrats.enabled"><span>Outline the squares I have not explored yet <small id="sqFile"></small></span></label>
+  <label class="row pro-only" style="grid-template-columns:150px 1fr">File to use<select id="sqSel" data-path="squadrats.file"></select></label>
+  <div class="opts">
+    <div>
+      <div class="chk"><span>Levels</span>
+        <label style="margin-left:10px"><input type="checkbox" data-level="big"> big squares (z14)</label>
+        <label style="margin-left:10px"><input type="checkbox" data-level="small"> small squares (z17)</label></div>
+      <label class="row" style="grid-template-columns:150px 110px 1fr">Band width (squares)<input type="number" min="0" step="1" data-path="squadrats.buffer" data-num="1"><small class="note">around what you explored</small></label>
+    </div>
+    <div>
+      <label class="row" style="grid-template-columns:1fr">Small squares to outline
+        <select data-path="squadrats.small_scope">
+          <option value="explored-big">all those inside a big square I explored</option>
+          <option value="band">only a band around my small squares</option>
+          <option value="both">both</option>
+        </select></label>
+    </div>
+  </div>
+  <div class="drop" id="dropSquadrats">Drop a new Squadrats <b>.kml</b> file here (the most recent one is used)</div>
+  <p class="note">Squadrats are added to the tiles covered by your Wandrer exports.</p>
+</section>
+
+<section class="card">
+  <h2><span class="n">6</span>Map data from OpenStreetMap <span class="sp"></span><button class="icon" id="btnRegReload" title="Refresh this list">🔄</button></h2>
+  <p class="hint">The base maps are built from OpenStreetMap extracts (Geofabrik regions) kept on your computer. WMC downloads missing regions by itself and renews those older than <span id="maxDays">14</span> days; here you can see them and update or add some yourself. Some are big (Austria ≈ 0.8 GB).</p>
+  <div id="regions"></div>
+  <div id="regDl" style="display:none"><div class="note" id="regDlText"></div><div class="bar" id="regDlBar"><i></i></div><button class="small" id="regCancel">Cancel download</button></div>
+  <div class="actions" style="margin-top:10px"><button id="btnPlan2" title="Lists the tiles and the OSM regions they need">Check which regions my tiles need</button><span class="note" id="planStatus"></span></div>
+  <div class="actions" style="margin-top:8px"><span class="note">Add a region:</span><span id="regTree" class="actions" style="gap:6px"></span><button id="regAdd" disabled>Download</button></div>
+  <div class="note" id="regInfo"></div>
+  <div class="warn" id="regMsg"></div>
+</section>
+
+<section class="card">
+  <h2><span class="n">7</span>Make the maps</h2>
+  <div class="actions">
+    <button id="btnPlan">Check the plan</button>
+    <button id="btnRun" class="primary">Generate maps</button>
+    <button id="btnCancel" disabled>Cancel</button>
+    <label class="chk pro-only" style="margin:0"><input type="checkbox" data-path="build.skip_classic"><span>Reuse the classic tiles already built</span></label>
+    <span id="status" class="pill">idle</span><span id="elapsed" class="note"></span>
+  </div>
+  <div id="runMsg" class="warn"></div>
+  <pre id="log"></pre>
+  <p class="note" id="doneNote"></p>
+</section>
+</main>
+
+<dialog id="dlg"><b>Choose a folder</b><div class="path" id="dlgPath"></div><ul id="dlgList"></ul>
+  <div class="actions"><button id="dlgUp">Up</button><span style="flex:1"></span><button id="dlgCancel">Cancel</button><button id="dlgOk" class="primary">Use this folder</button></div></dialog>
+<input type="file" id="filePick" multiple hidden>
+
+<script>
+"use strict";
+let S = null, ST = null, saveTimer = null, map = null, layerTiles = null, layerExp = null, layerGrid = null, expRects = {}, locMarker = null;
+const $ = (q, r = document) => r.querySelector(q), $$ = (q, r = document) => [...r.querySelectorAll(q)];
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const get = (o, p) => p.split(".").reduce((a, k) => a[k], o);
+const set = (o, p, v) => { const ks = p.split("."); const l = ks.pop(); ks.reduce((a, k) => a[k], o)[l] = v; };
+const api = async (url, body) => {
+  const r = await fetch(url, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json", "X-Wahoondrer": "1"}, body: JSON.stringify(body)});
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
+};
+const mb = n => n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : Math.max(1, Math.round(n / 1e6)) + " MB";
+const num = n => (n ?? 0).toLocaleString("en");
+
+// ---------- tiles (zoom 8)
+const tileOf = (lon, lat) => [Math.floor((lon + 180) / 360 * 256), Math.floor((1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * 256)];
+const tileBbox = (x, y) => { const la = yy => Math.atan(Math.sinh(Math.PI * (1 - 2 * yy / 256))) * 180 / Math.PI; return [[la(y + 1), x / 256 * 360 - 180], [la(y), (x + 1) / 256 * 360 - 180]]; };
+const parseTiles = t => [...new Set(t.split(/[\s,;]+/).filter(Boolean))].sort((a, b) => { const [ax, ay] = a.split("/").map(Number), [bx, by] = b.split("/").map(Number); return ax - bx || ay - by; });
+const activeExports = () => (ST ? ST.exports : []).filter(e => e.active);
+
+// ---------- saving
+function scheduleSave(reload) {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try { await api("/api/settings", S); if (reload) await refresh(); else renderDerived(); } catch (e) { $("#runMsg").textContent = e.message; }
+  }, 350);
+}
+
+// ---------- rendering
+function renderInputs() {
+  $$("[data-path]").forEach(el => {
+    if (el.tagName === "SELECT" && (el.id === "actSel" || el.id === "sqSel")) return;
+    const v = get(S, el.dataset.path);
+    if (el.type === "checkbox") el.checked = !!v; else el.value = v;
+  });
+  $$("[data-level]").forEach(el => el.checked = S.squadrats.levels.includes(el.dataset.level));
+  document.body.classList.toggle("pro", S.mode === "pro");
+  $$("#modeSeg button").forEach(b => b.classList.toggle("on", b.dataset.mode === S.mode));
+  $("#tilesText").value = S.tiles.join(", ");
+  const r = String(S.wandrer.radius_m), preset = ["250", "500", "1000", "0"].includes(r);
+  $("#radiusSel").value = preset ? r : "custom";
+  $("#radiusCustom").style.display = preset ? "none" : "grid";
+  $("#dataNote").textContent = S.folders.data ? "Folders set up in " + S.folders.data : "";
+}
+
+function renderExports() {
+  const ex = ST.exports, box = $("#exports");
+  if (!S.folders.wandrer) { box.innerHTML = '<p class="note">Set up your folders (step 1), then drop your Wandrer files here.</p>'; return; }
+  if (!ex.length) { box.innerHTML = '<p class="note">No KMZ/KML file in this folder yet.</p>'; return; }
+  const acts = new Set(ex.filter(e => e.active).map(e => e.activity).filter(Boolean));
+  const flag = (on, label, n, cls) => `<span class="tag ${on ? cls : "no"}" title="${on ? num(n) + " " + label : "no " + label}">${label}${on && S.mode === "pro" ? " " + num(n) : ""}</span>`;
+  let h = `<table><tr><th></th><th>File</th><th>Exported</th><th>Type</th><th>Near</th><th>This export contains:</th><th>Tiles</th></tr>`;
+  for (const e of ex) {
+    if (e.pending) { h += `<tr class="off"><td></td><td>${esc(e.name)}</td><td colspan="5">waiting to be read…</td></tr>`; continue; }
+    if (e.error) { h += `<tr class="off"><td></td><td>${esc(e.name)}</td><td colspan="5" class="warn">cannot be read: ${esc(e.error)}</td></tr>`; continue; }
+    const near = e.place ? esc(e.place) : (S.geocode ? (e.hub ? "…" : "–") : "–");
+    h += `<tr data-row="${esc(e.name)}" class="${e.active ? "" : "off"}"><td><input type="checkbox" data-ex="${esc(e.name)}" ${S.excluded_exports.includes(e.name) ? "" : "checked"}></td>
+      <td>${esc(e.name)}${e.why && e.why !== "unticked" ? `<div class="note">${esc(e.why)}</div>` : ""}</td><td>${esc(e.date)}</td><td>${esc(e.activity || "?")}</td><td>${near}</td>
+      <td class="tags">${flag(e.untraveled > 0, "unvisited", e.untraveled, "unv")}${flag(e.unpaved > 0, "unpaved", e.unpaved, "unp")}${flag(e.traveled > 0, "ridden", e.traveled, "rid")}${flag(e.boundaries > 0, "boundaries", e.boundaries, "bnd")}</td>
+      <td>${e.tiles.map(t => t.join("/")).join(", ")}</td></tr>`;
+  }
+  h += "</table>";
+  if (acts.size > 1) h += `<p class="warn">Exports of different types are merged (${[...acts].join(", ")}). The same road can be "unvisited" in one and "ridden" in another: check that this is what you want.</p>`;
+  box.innerHTML = h;
+  $$("[data-ex]", box).forEach(c => c.onchange = async () => {
+    const n = c.dataset.ex, i = S.excluded_exports.indexOf(n);
+    if (c.checked && i >= 0) S.excluded_exports.splice(i, 1);
+    if (!c.checked && i < 0) S.excluded_exports.push(n);
+    await api("/api/settings", S); await refresh();
+  });
+  $$("tr[data-row]", box).forEach(tr => {
+    tr.onmouseenter = () => hover(tr.dataset.row, true); tr.onmouseleave = () => hover(tr.dataset.row, false);
+  });
+}
+
+function renderActivity() {
+  const sel = $("#actSel"), count = t => ST.exports.filter(e => e.activity === t).length;
+  const opts = ["bike", "foot", "combined"].map(t => [t, `${t} (${count(t)} file${count(t) === 1 ? "" : "s"})`]);
+  if (S.mode === "pro") opts.push(["any", "all types (mix)"], ["latest", "latest (type of the newest export)"]);
+  sel.innerHTML = opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
+  sel.value = opts.some(o => o[0] === S.activity) ? S.activity : "bike";
+  $("#actNote").textContent = ST.activity_used ? `→ using: ${ST.activity_used}` : "";
+}
+
+function renderDerived() {
+  const ch = activeExports();
+  const hasB = ch.some(e => e.boundaries > 0), cb = $("#optBoundaries");
+  cb.disabled = !hasB;
+  $("#boundNote").textContent = hasB ? "subtle violet dashed lines" : "none in the selected exports";
+  const sq = ST.squadrats, sel = $("#sqSel");
+  sel.innerHTML = '<option value="">most recent</option>' + sq.map(f => `<option value="${esc(f.name)}">${esc(f.name)}</option>`).join("");
+  sel.value = S.squadrats.file;
+  const used = sq.find(f => f.name === ST.squadrats_used);
+  $("#sqFile").textContent = used ? `using ${used.name} (${sq[0].name === used.name ? "most recent" : "chosen by you"})` : (S.folders.squadrats ? "no KML file in the Squadrats folder yet" : "set up your folders first");
+  $("#mapNote").textContent = S.tiles.length ? `${S.tiles.length} tile(s): ${S.tiles.join(", ")}` : "No tile chosen yet.";
+  $("#tilesText").value = S.tiles.join(", ");
+  const usedTypes = [...new Set(activeExports().map(e => e.activity || "?"))];
+  $("#mapLegend").innerHTML = usedTypes.length ? "Exports: " + usedTypes.map(t => `<span style="color:${typeCol(t)}">■</span> ${esc(t)}`).join(" &nbsp; ") : "";
+  drawMapLayers();
+}
+
+// ---------- scan progress
+let scanPoll = null;
+async function rescan() {
+  if (!S.folders.wandrer && !S.folders.squadrats) return;
+  const r = await api("/api/scan", {});
+  watchScan();
+}
+function watchScan() {
+  clearInterval(scanPoll);
+  const step = async () => {
+    const st = await api("/api/scan_status");
+    const box = $("#scanBox"), bar = $("#scanBar");
+    if (st.running) {
+      box.style.display = "block";
+      const what = st.phase === "places" ? "Looking up town names" : "Reading your exports";
+      $("#scanText").textContent = `${what}: ${st.done}/${st.total}${st.current ? " — " + st.current : ""}`;
+      bar.classList.toggle("ind", !st.total); $("i", bar).style.width = st.total ? Math.round(100 * st.done / st.total) + "%" : "";
+      if (st.done !== step.last) { step.last = st.done; await refresh(true); }
+    } else { clearInterval(scanPoll); scanPoll = null; box.style.display = "none"; await refresh(true); }
+  };
+  scanPoll = setInterval(step, 700); step();
+}
+
+// ---------- map
+function loadLeaflet() {
+  return new Promise(res => {
+    if (window.L) return res(true);
+    const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"; document.head.appendChild(css);
+    const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+    s.onload = () => res(true); s.onerror = () => res(false); document.head.appendChild(s);
+  });
+}
+async function initMap() {
+  if (!await loadLeaflet()) { $("#map").outerHTML = '<p class="note">The map could not be loaded (no internet?). Type the tiles in the box above, e.g. 136/88.</p>'; $("#mapFit").disabled = $("#mapLocate").disabled = true; return; }
+  map = L.map("map", {worldCopyJump: true}).setView([48.3, 11.5], 6);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 12, attribution: "© OpenStreetMap"}).addTo(map);
+  layerExp = L.layerGroup().addTo(map); layerTiles = L.layerGroup().addTo(map); layerGrid = L.layerGroup().addTo(map);
+  map.on("click", e => {
+    const [x, y] = tileOf(e.latlng.lng, e.latlng.lat), k = x + "/" + y, i = S.tiles.indexOf(k);
+    if (i >= 0) S.tiles.splice(i, 1); else S.tiles.push(k);
+    S.tiles = parseTiles(S.tiles.join(","));
+    scheduleSave(false); renderDerived();
+  });
+  map.on("moveend", drawGrid);
+  drawMapLayers(true);
+}
+function drawGrid() {
+  if (!map) return; layerGrid.clearLayers();
+  if (map.getZoom() < 5) return;
+  const b = map.getBounds(), [x0, y1] = tileOf(b.getWest(), b.getSouth()), [x1, y0] = tileOf(b.getEast(), b.getNorth());
+  if ((x1 - x0 + 1) * (y1 - y0 + 1) > 400) return;
+  for (let x = x0; x <= x1 + 1; x++) { const w = tileBbox(x, y0)[0][1]; L.polyline([[b.getNorth(), w], [b.getSouth(), w]], {weight: 1, opacity: .35, color: "#888", interactive: false}).addTo(layerGrid); }
+  for (let y = y0; y <= y1 + 1; y++) { const la = tileBbox(0, y)[1][0]; L.polyline([[la, b.getWest()], [la, b.getEast()]], {weight: 1, opacity: .35, color: "#888", interactive: false}).addTo(layerGrid); }
+}
+function dataBounds() {
+  const pts = [];
+  for (const e of activeExports()) if (e.bbox) pts.push([e.bbox[1], e.bbox[0]], [e.bbox[3], e.bbox[2]]);
+  for (const k of S.tiles) { const [x, y] = k.split("/").map(Number); pts.push(...tileBbox(x, y)); }
+  return pts.length ? L.latLngBounds(pts) : null;
+}
+const TYPE_COL = {bike: "#6a3fb0", foot: "#2e9d4f", combined: "#1565c0"}, NO_TYPE_COL = "#888";
+const typeCol = t => TYPE_COL[t] || NO_TYPE_COL;
+function drawMapLayers(fit) {
+  if (!map) return;
+  layerTiles.clearLayers(); layerExp.clearLayers(); expRects = {};
+  for (const e of activeExports()) if (e.bbox) {
+    const r = L.rectangle([[e.bbox[1], e.bbox[0]], [e.bbox[3], e.bbox[2]]], {color: typeCol(e.activity), weight: 2, fill: true, fillOpacity: .06, interactive: false}).addTo(layerExp);
+    r._base = typeCol(e.activity);
+    r.bindTooltip(esc(e.place ? e.place + " — " : "") + esc(e.name), {sticky: true, className: "nm"}); expRects[e.name] = r;
+  }
+  for (const k of S.tiles) { const [x, y] = k.split("/").map(Number);
+    L.rectangle(tileBbox(x, y), {color: "#e8731a", weight: 2, fillOpacity: .18, interactive: false}).bindTooltip(k, {permanent: true, direction: "center"}).addTo(layerTiles); }
+  drawGrid();
+  if (fit) { const b = dataBounds(); if (b) map.fitBounds(b, {maxZoom: 9, padding: [20, 20]}); }
+}
+function hover(name, on) {
+  const r = expRects[name]; if (!r) return;
+  r.setStyle(on ? {weight: 4, fillOpacity: .25, color: "#e8731a"} : {weight: 2, fillOpacity: .06, color: r._base});
+  if (on) { r.openTooltip(r.getBounds().getCenter()); r.bringToFront(); } else r.closeTooltip();
+  $$("tr[data-row]").forEach(tr => tr.classList.toggle("hl", on && tr.dataset.row === name));
+}
+
+// ---------- folders: native dialog first, the page's own browser as a fallback
+let dlgTarget = null, dlgCur = null;
+async function dlgLoad(p) {
+  const r = await api("/api/ls?path=" + encodeURIComponent(p || ""));
+  dlgCur = r.path; $("#dlgPath").textContent = r.path; $("#dlgUp").disabled = !r.parent; $("#dlgUp").dataset.to = r.parent || "";
+  $("#dlgList").innerHTML = r.dirs.map(d => `<li data-d="${esc(d)}">📁 ${esc(d)}</li>`).join("") || '<li style="cursor:default;color:var(--mute)">(no sub-folder)</li>';
+  $$("#dlgList li[data-d]").forEach(li => li.onclick = () => dlgLoad(r.path.replace(/[\/\\]$/, "") + (r.path.includes("\\") ? "\\" : "/") + li.dataset.d));
+}
+async function chooseFolder(prompt, start) {
+  try {
+    const r = await api("/api/pick_folder", {prompt, start});
+    if (!r.unavailable) return r.path;           // null = cancelled
+  } catch (e) { /* fall through to the page's own browser */ }
+  return new Promise(res => {
+    dlgLoad(start || ""); $("#dlg").showModal();
+    $("#dlgOk").onclick = () => { $("#dlg").close(); res(dlgCur); };
+    $("#dlgCancel").onclick = () => { $("#dlg").close(); res(null); };
+  });
+}
+$("#dlgUp").onclick = () => dlgLoad($("#dlgUp").dataset.to);
+$$("[data-browse]").forEach(b => b.onclick = async () => {
+  const key = b.dataset.browse, p = await chooseFolder("Choose a folder", get(S, key));
+  if (p) { set(S, key, p); onFolderChanged(key); }
+});
+$$("[data-open]").forEach(b => b.onclick = async () => {
+  try { await api("/api/open_folder", {path: get(S, b.dataset.open)}); } catch (e) { $("#runMsg").textContent = "Cannot open this folder: " + e.message; }
+});
+$("#btnSetup").onclick = async () => {
+  const base = await chooseFolder("Where should the Wahoondrer folders be created?", S.folders.data);
+  if (!base) return;
+  try { const r = await api("/api/make_folders", {base}); S = r.settings; renderInputs(); await refresh(); await rescan(); }
+  catch (e) { $("#runMsg").textContent = e.message; }
+};
+async function onFolderChanged(key) {
+  if (key === "folders.wandrer" && S.folders.wandrer) {
+    const parent = S.folders.wandrer.replace(/[\/\\][^\/\\]*$/, "");
+    if (!S.folders.out) S.folders.out = parent + "/Output";
+    if (!S.folders.work) S.folders.work = parent + "/Work_files";
+  }
+  renderInputs(); await api("/api/settings", S); await refresh(); await rescan();
+}
+
+// ---------- drag and drop
+function setupDrop(el, kind) {
+  const pick = $("#filePick");
+  const send = async files => {
+    if (!S.folders[kind === "wandrer" ? "wandrer" : "squadrats"]) { $("#runMsg").textContent = "Set up your folders first (step 1)."; return; }
+    let n = 0;
+    for (const f of files) {
+      el.textContent = `Sending ${++n}/${files.length}: ${f.name}…`;
+      try {
+        const r = await fetch(`/api/upload?kind=${kind}&name=${encodeURIComponent(f.name)}`, {method: "POST", headers: {"X-Wahoondrer": "1"}, body: f});
+        const j = await r.json(); if (!r.ok) throw new Error(j.error);
+      } catch (e) { $("#runMsg").textContent = f.name + ": " + e.message; }
+    }
+    el.innerHTML = el.dataset.label; await refresh(); await rescan();
+  };
+  el.dataset.label = el.innerHTML;
+  el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("over"); });
+  el.addEventListener("dragleave", () => el.classList.remove("over"));
+  el.addEventListener("drop", e => { e.preventDefault(); el.classList.remove("over"); send([...e.dataTransfer.files]); });
+  el.addEventListener("click", () => { pick.accept = kind === "wandrer" ? ".kmz,.kml" : ".kml"; pick.onchange = () => { send([...pick.files]); pick.value = ""; }; pick.click(); });
+}
+setupDrop($("#dropWandrer"), "wandrer"); setupDrop($("#dropSquadrats"), "squadrats");
+window.addEventListener("dragover", e => e.preventDefault()); window.addEventListener("drop", e => e.preventDefault());
+
+// ---------- where the OSM data lives (WMC insists on ~/wahooMapsCreatorData: we make that a link)
+async function renderOsm() {
+  const row = $("#osmRow"); if (!row) return;
+  const i = await api("/api/osm_data");
+  if (!S.folders.data) { row.textContent = "OpenStreetMap map data: " + i.real + " (WMC's own folder). Use “Set up my folders” to keep it with your other folders."; return; }
+  if (i.ok) { row.innerHTML = `OpenStreetMap map data: <span class="path">${esc(i.real)}</span> ✓ (${mb(i.size)}; ${esc(i.wmc_dir)} is a link to it)`; return; }
+  if (i.exists && !i.is_link) {
+    row.innerHTML = `OpenStreetMap map data (${mb(i.size)}) is in WMC's own folder <span class="path">${esc(i.real)}</span>. <button class="small" id="osmMove">Move it to ${esc(i.wanted)}</button>`;
+    $("#osmMove").onclick = () => linkOsm(true, i);
+  } else {
+    row.innerHTML = `OpenStreetMap map data is in <span class="path">${esc(i.real)}</span>. <button class="small" id="osmLink">Keep it in ${esc(i.wanted)}</button>`;
+    $("#osmLink").onclick = () => linkOsm(false, i);
+  }
+}
+async function linkOsm(move, i) {
+  if (move && !confirm(`Move ${mb(i.size)} of map data to\n${i.wanted}\nand leave a link at ${i.wmc_dir}?\nNothing is deleted; this is instant on the same disk.`)) return;
+  try { await api("/api/osm_link", {move}); } catch (e) { $("#runMsg").textContent = e.message; }
+  await renderOsm(); await renderRegions();
+}
+
+// ---------- regions (OSM extracts)
+let dlPoll = null, REG = {by: {}, kids: {}, loaded: false}, regPath = [];
+function buildRegTree(list) {
+  REG.by = {}; REG.kids = {};
+  for (const r of list) REG.by[r.key] = r;
+  for (const r of list) (REG.kids[r.parent_key && REG.by[r.parent_key] ? r.parent_key : ""] ||= []).push(r);
+}
+function renderRegTree() {     // Europe > France > Centre ... one drop-down per level
+  const box = $("#regTree"); box.innerHTML = "";
+  let parent = "";
+  for (let lvl = 0; ; lvl++) {
+    const kids = REG.kids[parent] || []; if (!kids.length) break;
+    const sel = document.createElement("select"); sel.style.cssText = "width:auto;max-width:240px";
+    sel.innerHTML = (lvl === 0 ? '<option value="">Continent…</option>' : `<option value="">${esc(REG.by[parent].name)} (whole region)</option>`)
+      + kids.map(k => `<option value="${esc(k.key)}">${esc(k.name)}</option>`).join("");
+    sel.value = regPath[lvl] || "";
+    sel.onchange = () => { regPath = regPath.slice(0, lvl); if (sel.value) regPath.push(sel.value); renderRegTree(); };
+    box.appendChild(sel);
+    if (!regPath[lvl]) break;
+    parent = regPath[lvl];
+  }
+  const t = regPath[regPath.length - 1];
+  $("#regAdd").disabled = !t; $("#regAdd").textContent = t ? "Download " + REG.by[t].name : "Download";
+}
+async function renderRegions(fresh) {
+  const R = await api("/api/regions"), box = $("#regions");
+  $("#maxDays").textContent = R.max_days;
+  let h = "";
+  if (!R.downloaded.length) h += '<p class="note">No region downloaded yet: WMC will fetch what it needs at the first run.</p>';
+  else {
+    h += `<table><tr><th>Region</th><th class="n">Size</th><th>Downloaded</th><th class="n">Age</th><th>Needed by my tiles</th><th></th></tr>`;
+    for (const r of R.downloaded) h += `<tr><td>${esc(r.name)}</td><td class="n">${mb(r.size)}</td><td>${r.date}</td><td class="n">${r.age_days} d${r.age_days > R.max_days ? ' <span class="warn" style="display:inline">(WMC will renew it)</span>' : ""}</td>
+      <td>${R.plan_done ? (r.needed ? "✓" : "–") : "?"}</td><td style="white-space:nowrap"><button class="small" data-upd="${esc(r.key)}" ${R.catalog_ready ? "" : "disabled"}>Update</button> <button class="small danger" data-del="${esc(r.key)}" data-name="${esc(r.name)}" data-size="${r.size}" title="Delete this file from your disk">Delete</button></td></tr>`;
+    h += "</table>";
+  }
+  if (!R.plan_done) h += '<p class="note">Press "Check which regions my tiles need" below to see which regions your tiles need.</p>';
+  if (R.missing.length) h += `<p class="warn">Needed but not downloaded: ${R.missing.map(m => esc(m.name)).join(", ")}. <button class="small" id="regGetMissing">Download them</button></p>`;
+  box.innerHTML = h;
+  $$("[data-upd]", box).forEach(b => b.onclick = () => startRegionDownload([b.dataset.upd], true));
+  $$("[data-del]", box).forEach(b => b.onclick = async () => {
+    if (!confirm(`Delete ${b.dataset.name} (${mb(Number(b.dataset.size))}) from your disk?\nWMC will download it again if a map needs it.`)) return;
+    try { const r = await api("/api/regions_delete", {key: b.dataset.del}); $("#regMsg").textContent = ""; $("#regInfo").textContent = `Deleted: ${mb(r.freed)} freed.`; await renderRegions(); await renderOsm(); }
+    catch (e) { $("#regMsg").textContent = e.message; }
+  });
+  const gm = $("#regGetMissing"); if (gm) gm.onclick = () => startRegionDownload(R.missing.map(m => m.key), false);
+  if (R.catalog_ready && (!REG.loaded || fresh === true)) {
+    const a = await api("/api/regions_available");
+    buildRegTree(a.available); REG.loaded = true; regPath = []; renderRegTree();
+  }
+  $("#regAdd").disabled = !R.catalog_ready || !regPath.length;
+  if (!R.catalog_ready) $("#regMsg").textContent = "The list of all regions is fetched by WMC at the first \"Check the plan\".";
+  showDownload(R.download);
+  if (R.download.running && !dlPoll) dlPoll = setInterval(async () => { const r = await api("/api/regions"); showDownload(r.download); if (!r.download.running) { clearInterval(dlPoll); dlPoll = null; renderRegions(); } }, 900);
+}
+function showDownload(d) {
+  $("#regDl").style.display = d.running ? "block" : "none";
+  if (d.running) {
+    $("#regDlText").textContent = `Downloading ${d.current || "…"}: ${mb(d.bytes)}${d.total ? " / " + mb(d.total) : ""} (${d.done.length} of ${d.queue.length} done)`;
+    $("#regDlBar i").style.width = d.total ? Math.round(100 * d.bytes / d.total) + "%" : "";
+    $("#regDlBar").classList.toggle("ind", !d.total);
+  } else {
+    const f = Object.entries(d.failed || {}).map(([k, m]) => `${k}: ${m}`);
+    $("#regMsg").textContent = [d.error && d.error !== "cancelled" ? "Download stopped: " + d.error : (d.error ? "Download cancelled." : ""), ...f].filter(Boolean).join("\n");
+    $("#regMsg").style.whiteSpace = "pre-line";
+  }
+}
+async function startRegionDownload(keys, force) {
+  $("#regMsg").textContent = "";
+  try { await api("/api/regions_download", {keys, force}); await renderRegions(); } catch (e) { $("#regMsg").textContent = e.message; }
+}
+$("#regAdd").onclick = () => { const k = regPath[regPath.length - 1]; if (k) startRegionDownload([k], false); };
+$("#btnPlan2").onclick = async () => { $("#regMsg").textContent = ""; await start("plan"); if ($("#runMsg").textContent) $("#regMsg").textContent = $("#runMsg").textContent; };
+$("#regCancel").onclick = () => api("/api/regions_cancel", {});
+$("#btnRegReload").onclick = async () => {
+  $("#regInfo").textContent = "Refreshing…";
+  try { await renderRegions(true); await renderOsm(); $("#regInfo").textContent = "Refreshed at " + new Date().toLocaleTimeString(); }
+  catch (e) { $("#regInfo").textContent = ""; $("#regMsg").textContent = e.message; }
+};
+
+// ---------- events
+$$("[data-path]").forEach(el => el.addEventListener("change", () => {
+  if (el.id === "sqSel" || el.id === "actSel") { set(S, el.dataset.path, el.value); api("/api/settings", S).then(refresh); return; }
+  const v = el.type === "checkbox" ? el.checked : (el.dataset.num ? Number(el.value) : el.value);
+  set(S, el.dataset.path, v);
+  if (el.dataset.path.startsWith("folders.")) onFolderChanged(el.dataset.path);
+  else if (el.dataset.path === "geocode") { api("/api/settings", S).then(rescan); }
+  else scheduleSave(el.dataset.path === "wandrer.radius_m");
+}));
+$("#radiusSel").onchange = e => {
+  if (e.target.value === "custom") { $("#radiusCustom").style.display = "grid"; return; }
+  S.wandrer.radius_m = Number(e.target.value); $("#radiusCustom").style.display = "none"; scheduleSave(false);
+};
+$$("[data-level]").forEach(el => el.addEventListener("change", () => {
+  S.squadrats.levels = $$("[data-level]").filter(c => c.checked).map(c => c.dataset.level); scheduleSave(false);
+}));
+$$("#modeSeg button").forEach(b => b.onclick = () => { S.mode = b.dataset.mode; renderInputs(); renderActivity(); renderExports(); scheduleSave(false); });
+$("#tilesText").addEventListener("change", e => { S.tiles = parseTiles(e.target.value); scheduleSave(false); renderDerived(); });
+$("#tilesFromExports").onclick = () => { S.tiles = parseTiles(activeExports().flatMap(e => e.tiles.map(t => t.join("/"))).join(",")); scheduleSave(false); renderDerived(); drawMapLayers(true); };
+$("#tilesClear").onclick = () => { S.tiles = []; scheduleSave(false); renderDerived(); };
+$("#mapFit").onclick = () => { const b = dataBounds(); if (b && map) map.fitBounds(b, {maxZoom: 9, padding: [20, 20]}); };
+$("#mapLocate").onclick = () => {
+  const note = $("#locNote");
+  if (!map) return;
+  if (!navigator.geolocation) { note.textContent = "This browser cannot give its location. Try Chrome or Safari at http://127.0.0.1:8765."; return; }
+  note.textContent = "Waiting for your browser's permission…";
+  navigator.geolocation.getCurrentPosition(pos => {
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    if (locMarker) locMarker.remove();
+    locMarker = L.circleMarker(ll, {radius: 7, color: "#1565c0", fillOpacity: .8}).addTo(map);
+    map.setView(ll, 9); note.textContent = "";
+  }, err => {
+    note.textContent = err.code === 1 ? "Location refused: allow it for this page in the browser (address bar), and for the browser in macOS Settings > Privacy & Security > Location Services."
+      : err.code === 2 ? "Your computer could not find its position (are Location Services on?)."
+      : "No answer after 30 s. If no permission question appeared, open this page in Chrome or Safari (http://127.0.0.1:8765).";
+  }, {timeout: 30000, maximumAge: 600000, enableHighAccuracy: false});
+};
+$("#btnReload").onclick = $("#btnReload2").onclick = async () => { await refresh(); await rescan(); };
+window.addEventListener("focus", () => { if (S && (S.folders.wandrer || S.folders.squadrats)) rescan(); });
+
+// ---------- running
+let since = 0, poll = null;
+async function start(kind) {
+  $("#runMsg").textContent = ""; $("#doneNote").textContent = "";
+  try { await api("/api/settings", S); await api("/api/" + kind, S); since = 0; $("#log").textContent = ""; startPolling(); }
+  catch (e) { $("#runMsg").textContent = e.message; }
+}
+function startPolling() { clearInterval(poll); poll = setInterval(tick, 700); tick(); }
+async function tick() {
+  const j = await api("/api/job?since=" + since); since = j.next;
+  const log = $("#log"), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
+  if (j.lines.length) log.textContent += j.lines.join("\n") + "\n";
+  if (atEnd) log.scrollTop = log.scrollHeight;
+  const st = $("#status"); st.textContent = j.status === "running" ? j.title : j.status; st.className = "pill " + j.status;
+  $("#elapsed").textContent = j.seconds ? j.seconds + " s" : "";
+  const running = j.status === "running";
+  $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = running;
+  $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, step 7)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log in step 7." : ""); $("#btnCancel").disabled = !running;
+  if (!running) { clearInterval(poll); poll = null; renderRegions();
+    if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to the Bolt (one by one, after a backup).`; }
+}
+$("#btnRun").onclick = () => start("run"); $("#btnPlan").onclick = () => start("plan");
+$("#btnCancel").onclick = () => api("/api/cancel", {});
+
+// ---------- start
+async function refresh(keepMap) {
+  ST = await api("/api/state"); S = ST.settings;
+  renderInputs(); renderActivity(); renderExports(); renderDerived();
+  if (!keepMap) renderOsm().catch(() => {});
+}
+(async () => {
+  await refresh();
+  if (ST.job.status !== "idle") { $("#log").textContent = ST.job.lines.join("\n"); since = ST.job.next; startPolling(); }
+  await initMap();
+  renderDerived(); drawMapLayers(true);
+  renderRegions();
+  if (S.folders.wandrer || S.folders.squadrats) rescan();
+})();
+</script>
+</body>
+</html>

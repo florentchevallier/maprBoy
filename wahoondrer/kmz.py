@@ -59,7 +59,7 @@ class Export:
     bbox: tuple = (1e9, 1e9, -1e9, -1e9)            # W, S, E, N
     has_traveled: bool = False
     has_untraveled: bool = False
-    activity: str = ""       # "bike" | "foot" | "" (nom du KML interne)
+    activity: str = ""       # "bike" | "foot" | "combined" ... | "" (from the inner KML name)
     timestamp: str = ""      # "AAAAMMJJ-HH:MM:SS" (nom du Document)
     coverage: object = None  # Coverage (boundaries) or None
 
@@ -95,7 +95,7 @@ def read_export(path):
     exp = Export(name=str(path))
     data, inner = _kml_bytes(path)
     root = ET.fromstring(data)
-    m = re.search(r"wandrer-(bike|foot)", inner.lower())
+    m = re.search(r"wandrer-([a-z]+)-", inner.lower())   # bike, foot, combined...
     exp.activity = m.group(1) if m else ""
     doc_name = root.find("{*}Document/{*}name")
     m = re.search(r"(\d{8}-\d{2}:\d{2}:\d{2})", (doc_name.text or "") if doc_name is not None else "")

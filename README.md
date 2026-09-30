@@ -11,7 +11,7 @@ and bakes your **Wandrer** data (unexplored roads, achievement boundaries) into 
 ## Status
 - Proof of concept validated on tile 136/88 (Bolt v2).
 - `wahoondrer/kmz.py`: reads and merges several exports with de-duplication (newest export wins, ordered by the timestamp inside the KML).
-- `wahoondrer/process.py`: keeps unvisited roads only within a radius of traveled roads (default 250 m), merges chained segments, simplifies geometry.
+- `wahoondrer/process.py`: keeps unvisited roads only within a radius of traveled roads (default 250 m; options to keep every unpaved or every paved road), merges chained segments (always), simplifies geometry.
 - `scripts/build_tiles.py`: classic WMC tiles + Wandrer tiles, output folder with a copy guide for the Bolt.
 - `wahoondrer/squadrats.py`: rebuilds the explored squares from the Squadrats KML and outlines the unexplored ones in a band around them.
 - Planned: GUI (options: keep traveled roads, boundaries on/off, radius, unpaved handling), simple installation.
@@ -31,6 +31,37 @@ python3 scripts/build_tiles.py \
     --xy 135/88,135/89,136/88,136/89 --wandrer ~/wandrer.osm --plan
 ```
 Remove `--plan` for the real run. See `docs/PIPELINE.md` for details.
+
+## Graphical interface (local web page)
+```bash
+wahoondrer-env                     # or any environment where WMC is installed
+python3 scripts/gui.py             # opens http://127.0.0.1:8765/ in your browser
+```
+1. **Folders**: press "Set up my folders" and pick a location; the page creates `Wandrer_exports`,
+   `Squadrats_exports`, `Output`, `Work_files` and `OSM_data` there (or choose your own folders; "Open" shows
+   a folder in your file manager). Drop your `.kmz` / `.kml` files on the page or into those folders.
+   `OSM_data` holds the OpenStreetMap extracts: WMC always reads `~/wahooMapsCreatorData`, so that path
+   becomes a symbolic link to `OSM_data` (created automatically if WMC has no data yet; otherwise the page
+   offers to move the existing data, never without asking).
+2. **Exports**: each export is listed with its date, type (bike, foot, combined), the town where you ride
+   most in it (looked up online, can be switched off), what it contains (coloured tags) and its tiles.
+   "Which exports to use" picks one type: bike (default), foot or combined. Pro mode adds "all types" (mix)
+   and "latest" (type of the newest export). Reading big files takes a while the first time
+   (a progress bar is shown); results are cached.
+3. **Tiles**: click the map (zoom-8 tiles), or use the tiles of your exports. Buttons: zoom to your data, my location.
+4. **Wandrer layer** / 5. **Squadrats layer**: options. The **Simple / Pro** switch (top right) shows more
+   options and the numbers inside each export.
+6. **Map data from OpenStreetMap**: the regions WMC has downloaded (date, size, age); update or delete one,
+   download the ones your tiles need, or add another region. A region Geofabrik no longer offers (old French
+   regions such as Picardie) is reported and skipped; download its parent region instead. WMC renews regions
+   older than 14 days by itself.
+7. **Make the maps**: "Check the plan" lists the tiles and OSM regions needed; "Generate maps" runs
+   `kmz_to_osm.py` then `build_tiles.py` and shows the log.
+
+Settings are remembered in `~/.wahoondrer/settings.json` and a reading cache in `~/.wahoondrer/cache.json`
+(outside the repository). The page only listens on your own computer (127.0.0.1). The map background needs
+an internet connection; without it, type the tiles in the box. Copying to the Bolt is still manual: see
+`README.txt` in the output folder.
 
 ## Installation
 Wahoondrer itself needs only Python 3 (standard library). `scripts/build_tiles.py` also needs
@@ -81,12 +112,14 @@ Record the WMC version (`pip show wahoomc`) when reporting a problem.
 ## Suggested folder layout (outside the repository)
 One data folder, one subfolder per source (any location, quote paths that contain spaces):
 ```
-<data folder>/Wandrer-exports/   KMZ exports
-<data folder>/Wandrer data/      generated wandrer.osm(.pbf), wandrer.osm.tiles.json
-<data folder>/Squadrat exports/  Squadrats KML export
+<data folder>/Wandrer_exports/   KMZ exports
+<data folder>/Squadrats_exports/ Squadrats KML export
+<data folder>/Work_files/        generated wandrer.osm(.pbf), wandrer.osm.tiles.json
+<data folder>/Output/            generated tiles
+<data folder>/OSM_data/          WMC data (downloaded OSM regions, `_config`, `_tiles`, `_output`)
 ```
-WMC hard-codes `~/wahooMapsCreatorData` (downloaded OSM regions, `_config`, `_tiles`,
-`_output`); a symlink is the clean way to move it.
+WMC hard-codes `~/wahooMapsCreatorData`; the GUI makes it a symbolic link to `OSM_data`
+(`ln -s <data folder>/OSM_data ~/wahooMapsCreatorData` does the same by hand).
 
 ## Notes
 - Keep exports of one activity per run if you do not want to mix bike and foot (a warning is printed).

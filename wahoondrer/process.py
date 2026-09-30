@@ -27,6 +27,7 @@ CELL_M = 50.0
 class Options:
     radius_m: float = 250.0        # 0 = no filter: keep all unvisited roads
     unpaved_always: bool = False   # keep unpaved roads whatever the radius
+    paved_always: bool = False     # keep paved roads whatever the radius
     simplify_m: float = 1.5        # 0 = no simplification
     merge: bool = True
     max_way_points: int = 1000
@@ -55,7 +56,7 @@ def _cell(x, y):
     return int(x // CELL_M), int(y // CELL_M)
 
 
-def filter_by_distance(segments, radius_m, unpaved_always=False):
+def filter_by_distance(segments, radius_m, unpaved_always=False, paved_always=False):
     """segments: list of Segment. Return (filtered list, stats)."""
     visited = [s for s in segments if s.state == "visited"]
     vcells = set()
@@ -77,7 +78,7 @@ def filter_by_distance(segments, radius_m, unpaved_always=False):
         if s.state == "visited":
             kept.append(s)
             continue
-        if unpaved_always and s.unpaved:
+        if (unpaved_always and s.unpaved) or (paved_always and not s.unpaved):
             kept.append(s)
             continue
         if any(_cell(x, y) in near for x, y in _densify(s.coords, 100.0)):
@@ -182,7 +183,7 @@ def process(segments, opts, with_traveled=False):
     segs = list(segments.values())
     stats = dict(input=len(segs))
     if opts.radius_m and opts.radius_m > 0:
-        segs, st = filter_by_distance(segs, opts.radius_m, opts.unpaved_always)
+        segs, st = filter_by_distance(segs, opts.radius_m, opts.unpaved_always, opts.paved_always)
         stats["dropped_far"] = st["dropped"]
     if not with_traveled:
         segs = [s for s in segs if s.state != "visited"]

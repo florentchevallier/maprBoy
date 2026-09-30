@@ -1,0 +1,14 @@
+# Données personnelles / lourdes : ne jamais committer
+*.kmz
+*.kml
+*.osm
+*.pbf
+*.map
+*.lzma
+*.lzma.*
+_variants/
+_tiles/
+__pycache__/
+*.pyc
+.DS_Store
+CLAUDE.md

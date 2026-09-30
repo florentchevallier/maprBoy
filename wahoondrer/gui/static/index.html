@@ -372,7 +372,7 @@ const TYPE_COL = {bike: "#c2185b", foot: "#0b5cad", combined: "#222222"}, NO_TYP
 const TYPE_PAT = {bike: "rotate(45)", foot: "rotate(-45)", combined: null};
 const patSize = z => Math.min(64, 7 * Math.pow(1.5, Math.max(0, z - 8)));   // spacing grows when zooming in: never too dense
 function fillPattern(p, t, size) {
-  const c = TYPE_COL[t], rot = TYPE_PAT[t], h = size.toFixed(1);
+  const c = TYPE_COL[t], rot = TYPE_PAT[t], h = (rot ? size : Math.max(5, size * 0.72)).toFixed(1);   // dots a bit denser than hatching
   p.setAttribute("width", h); p.setAttribute("height", h);
   if (rot) { p.setAttribute("patternTransform", rot);
     p.innerHTML = `<rect width="${h}" height="${h}" fill="${c}" fill-opacity=".07"/><line x1="0" y1="0" x2="0" y2="${h}" stroke="${c}" stroke-width="2" stroke-opacity=".75"/>`; }

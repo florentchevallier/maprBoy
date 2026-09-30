@@ -869,46 +869,42 @@
       </m>
    </m>
    <!-- endregion place -->
-   <m zoom-min="14">
-      <m k="amenity">
-         <m v="fuel">
-            <symbol src="icons/fuel.svg" symbol-percent="150"/>
+   <!-- BEGIN generated:poi-theme (from config/poi-rules.json, do not edit by hand) -->
+   <m k="amenity" v="fuel" zoom-min="14">
+      <symbol src="icons/fuel.svg" symbol-percent="150"/>
+   </m>
+   <m k="amenity" v="cafe" zoom-min="15">
+      <symbol src="icons/cafe.svg" symbol-percent="150"/>
+   </m>
+   <m k="amenity" v="drinking_water" zoom-min="14">
+      <symbol src="icons/drinking_water.svg" symbol-percent="150"/>
+   </m>
+   <m k="amenity" v="toilets" zoom-min="14">
+      <m k="access" v="-|customers|private">
+         <m k="fee" v="yes">
+            <symbol src="icons/toilets_paid.svg" symbol-percent="150"/>
          </m>
-         <m v="cafe" zoom-min="15">
-            <symbol src="icons/cafe.svg" symbol-percent="150"/>
+         <m k="fee" v="no">
+            <symbol src="icons/toilets_free.svg" symbol-percent="150"/>
          </m>
-         <m v="drinking_water">
-            <symbol src="icons/drinking_water.svg" symbol-percent="150"/>
-         </m>
-         <m v="toilets">
-            <!-- customers-only / private toilets: nothing drawn -->
-            <m k="access" v="-|customers|private">
-               <m k="fee" v="yes">
-                  <symbol src="icons/toilets_paid.svg" symbol-percent="150"/>
-               </m>
-               <m k="fee" v="no">
-                  <symbol src="icons/toilets_free.svg" symbol-percent="150"/>
-               </m>
-               <m k="fee" v="-|yes|no">
-                  <symbol src="icons/toilets.svg" symbol-percent="150"/>
-               </m>
-            </m>
-         </m>
-      </m>
-
-      <m k="shop">
-         <m v="bakery">
-            <symbol src="icons/bakery.svg"/>
-         </m>
-         <m v="bicycle">
-            <symbol src="icons/shop_bicycle.svg" symbol-percent="150"/>
+         <m k="fee" v="-|yes|no">
+            <symbol src="icons/toilets.svg" symbol-percent="150"/>
          </m>
       </m>
    </m>
-
-   <m k="railway" v="station|stop" zoom-min="13">
+   <m k="shop" v="bakery" zoom-min="14">
+      <symbol src="icons/bakery.svg"/>
+   </m>
+   <m k="shop" v="bicycle" zoom-min="14">
+      <symbol src="icons/shop_bicycle.svg" symbol-percent="150"/>
+   </m>
+   <m k="railway" v="station" zoom-min="13">
       <symbol src="icons/train_station.svg" symbol-percent="130"/>
    </m>
+   <m k="railway" v="stop" zoom-min="13">
+      <symbol src="icons/train_station.svg" symbol-percent="130"/>
+   </m>
+   <!-- END generated:poi-theme -->
 
    <!-- Wandrer overlay : regle de niveau racine (NE PAS imbriquer sous highway=*,
         les ways Wandrer portent highway=wandrer ou aucun highway pour les limites) -->

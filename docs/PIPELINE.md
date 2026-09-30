@@ -29,6 +29,21 @@ Tags: `squadrat=big|small` (no `highway`). Tag mapping: big `zoom-appear=11`, sm
 ## Data scheme
 `highway=wandrer` + `wandrer=visited|unvisited` (+ `surface=unpaved`); boundaries `wandrer=boundary` (rings split into 2 open ways); Squadrats outlines `squadrat=big|small`. IDs: nodes 50e9+, ways 9e9+. Traveled segments are skipped by default (`--with-traveled`): they make tiles heavier and made the urban colour fills disappear on the Bolt.
 
+## POI rules (one table, three generated files)
+POIs are described once in `config/poi-rules.json` (one entry per POI: OSM key/value, zoom, icon, size,
+optional `hide_if` tag values and optional `variants` = another icon depending on a secondary tag).
+`python3 scripts/generate_poi_config.py` then writes the three places a tag must be declared:
+- the tag-mapping XMLs `config/tag-wahoo-poi.xml` (classic tiles) and `config/tag-wahoo-poi-wandrer.xml`
+  (only between the `generated:poi-nodes` / `generated:poi-ways` markers);
+- the VTM theme (between the `generated:poi-theme` markers);
+- `config/tags-to-keep.json` (add-only: missing values are added, nothing is removed).
+Everything outside the markers is left untouched. `--check` only reports what is out of date.
+Icons (SVG) go in `themes/vtm/icons/`; the script refuses an icon that does not exist.
+Example: toilets use `toilets_free.svg` (`fee=no`), `toilets_paid.svg` (`fee=yes`), `toilets.svg` (no `fee`),
+and are hidden when `access` is `customers` or `private`.
+After a change: run the script, regenerate the tiles with `build_tiles.py`, copy the new icons and the theme
+to the Bolt. `tag-wahoo-wandrer.xml` / `tag-wahoo-wandrer-poi-min.xml` are alternative full tag files and are not generated.
+
 ## Pitfalls
 - Every new tag must be added in THREE places: the tag-mapping XMLs (`config/tag-wahoo*.xml`), `config/tags-to-keep.json` (WMC's osmium filter deletes everything not listed there) and the theme. `build_tiles.py` copies the first two into `~/wahooMapsCreatorData/_config`. Forgetting `tags-to-keep.json` silently removed the whole Squadrats layer (tile sizes did not change: use that as a check).
 - Node IDs below 14e9 collide with real OSM nodes -> stray straight lines.

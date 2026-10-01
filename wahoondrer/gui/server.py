@@ -81,7 +81,7 @@ def poi_catalog():
                      "size": p.get("size"), "icon": p["icon"], "enabled": p.get("enabled", True),
                      "variants": [{"tag": v["tag"], "value": v["value"], "icon": v["icon"],
                                    "label": v.get("label") or f'{v["tag"]} = {v["value"]}'} for v in p.get("variants", [])],
-                     "hide_if": p.get("hide_if", {})})
+                     "hide_if": p.get("hide_if", {}), "only_if": p.get("only_if", {})})
     return {"pois": pois, "icons": poi_config.library_icons(paths.icon_dir),
             "shapes": list(poi_config.SHAPES), "colors": list(poi_config.COLORS),
             "zoom_min": poi_config.ZOOM_MIN, "zoom_max": poi_config.ZOOM_MAX}
@@ -101,7 +101,20 @@ def results(out):
         return {"name": os.path.basename(path), "size": os.path.getsize(path),
                 "rel": os.path.relpath(path, out).replace(os.sep, "/")}
 
-    res = {"out": out, "theme": None, "tiles": []}
+    res = {"out": out, "theme": None, "tiles": [], "last_run": None}
+    try:                                    # written by build_tiles.py at the end of each run
+        with open(os.path.join(out, "last_run.json"), encoding="utf-8") as f:
+            res["last_run"] = json.load(f)
+    except (OSError, ValueError):
+        pass
+    try:
+        with open(os.path.join(out, "tiles_info.json"), encoding="utf-8") as f:
+            info = json.load(f)
+    except (OSError, ValueError):
+        info = {}
+    lr = res["last_run"] or {}
+    last_x = {str(k).split("/")[0] for k in lr.get("selected", [])}
+    built = set(lr.get("built", []))
     theme = os.path.join(maps, "vtm-elemnt")
     if os.path.isdir(theme):
         icons = os.path.join(theme, "icons")
@@ -124,7 +137,18 @@ def results(out):
                     labels[m.group(1)] = m.group(2)
                 elif f.endswith((".map.lzma", ".map.lzma.17")):
                     files.append(entry(os.path.join(xdir, f)))
-            res["tiles"].append({"x": int(x), "dir": xdir, "labels": labels, "files": files})
+            items = {}
+            for fe in files:
+                y = fe["name"].split(".")[0]
+                it = items.setdefault(y, {"y": int(y), "label": labels.get(y, ""), "files": [], "new": f"{x}/{y}" in built,
+                                          "mtime": 0, "size": 0,
+                                          "contour": (info.get(f"{x}/{y}") or {}).get("contour", "")})
+                it["files"].append(fe)
+                if fe["name"].endswith(".map.lzma"):
+                    it["size"] = fe["size"]
+                    it["mtime"] = int(os.path.getmtime(os.path.join(xdir, fe["name"])))
+            res["tiles"].append({"x": int(x), "dir": xdir, "labels": labels, "files": files, "last": x in last_x,
+                                 "items": sorted(items.values(), key=lambda i: i["y"])})
     return res
 
 

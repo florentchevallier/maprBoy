@@ -53,7 +53,7 @@ python3 scripts/gui.py             # opens http://127.0.0.1:8765/ in your browse
    options and the numbers inside each export. Each section also has its own small selector (Follow the button /
    Simple / Pro), e.g. everything in Pro except the points of interest.
 6. **Points of interest**: tick the kinds of places to draw (fuel, café, water, toilets, bakery, bike shop,
-   railway, bike repair station, camp site) and choose from which zoom level. Pro adds the icon (library icons or a
+   railway, bike repair station, camp site, shelters: only huts, weather and picnic shelters, never bus stops) and choose from which zoom level. Pro adds the icon (library icons or a
    square / circle / triangle / diamond in red, blue, green, yellow, purple, orange, black or white), the size, and
    "add your own" by OSM tag (check the data first on taginfo / overpass-turbo). The default style of
    `config/poi-rules.json` is never modified: your choices live in `~/.wahoondrer/settings.json`, and "Back to the
@@ -75,6 +75,23 @@ Tick **Add contour lines** in step 8 (Pro mode), or use `--contour` with `script
 from the free Viewfinder Panoramas elevation data (3 arc-seconds: standard lines, not the finest SRTM 1 ones) and
 need **no account**. Wahoondrer's theme draws them in thin grey/brown lines (100 m lines from zoom 12, 50 m from 13,
 10 m from 14). Not tested on a Bolt yet.
+
+Line spacing (Pro mode, or `--contour-spacing`): `10-50-100` (finest), `25-75-150` (default) or `30-90-180`
+(lightest), as fine / medium / thick lines in metres. Medium and thick lines are multiples of the fine step, so
+they always match an existing line; the theme draws thick lines from zoom 12, medium from 13, fine from 14.
+Changing the spacing recomputes the contour lines of the tiles (files made before this setting count as 10-50-100).
+
+Output folder: one tile per coordinates. A new run replaces only the tiles it rebuilds and keeps the others (to keep
+several versions of a tile, with/without Wandrer or relief, copy them elsewhere yourself). The "Files for the Bolt"
+list shows the theme, then the tiles of the last run (🌟 marks the ones just rebuilt), then the other tiles, each with
+its date, nearest town and size (in Pro mode also the contour level it was built with: None / Fine / Medium / Coarse).
+`last_run.json` and `tiles_info.json` in the output folder record the last run and what each tile contains.
+In Pro mode the small map under the contour option also lets you click a tile to take it out or put it back.
+
+Per-tile spacing (Pro mode): tick "Choose the contour lines tile by tile" and a menu appears in the top-right corner
+of each selected tile on the map: None / Fine / Medium / Coarse. Handy for light lines in high mountains and fine
+ones on flat tiles. On the command line: `--contour-tile 136/88=none --contour-tile 136/89=30-90-180`. "None" keeps
+the tile's elevation file aside (`*.osm.off`) so WMC ignores it; it comes back when you pick a spacing again.
 
 One-time setup, in a terminal (it installs `pyhgtmap` in its own small environment in `~/.wahoondrer/`, so it
 cannot disturb GDAL or shapely):

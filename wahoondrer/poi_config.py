@@ -135,11 +135,12 @@ def validate(pois, icon_dir):
                 raise ValueError(f"{name}: a variant needs 'tag' and 'value'")
             if not _TAG_RE.match(v["tag"]) or not _TAG_RE.match(v["value"]):
                 raise ValueError(f"{name}: variant tag/value may only contain letters, digits and _ : . -")
-        for k, vals in p.get("hide_if", {}).items():
-            if not isinstance(vals, list) or not vals:
-                raise ValueError(f"{name}: hide_if['{k}'] must be a non-empty list")
-            if not _TAG_RE.match(k) or not all(isinstance(v, str) and _TAG_RE.match(v) for v in vals):
-                raise ValueError(f"{name}: hide_if tags/values may only contain letters, digits and _ : . -")
+        for field in ("hide_if", "only_if"):
+            for k, vals in p.get(field, {}).items():
+                if not isinstance(vals, list) or not vals:
+                    raise ValueError(f"{name}: {field}['{k}'] must be a non-empty list")
+                if not _TAG_RE.match(k) or not all(isinstance(v, str) and _TAG_RE.match(v) for v in vals):
+                    raise ValueError(f"{name}: {field} tags/values may only contain letters, digits and _ : . -")
     return pois
 
 
@@ -184,8 +185,9 @@ def has_user_choices(user):
 def sub_tags(poi):
     """Secondary (key, value) pairs a POI needs stored in the map."""
     pairs = [(v["tag"], v["value"]) for v in poi.get("variants", [])]
-    for k, vals in poi.get("hide_if", {}).items():
-        pairs += [(k, v) for v in vals]
+    for field in ("hide_if", "only_if"):
+        for k, vals in poi.get(field, {}).items():
+            pairs += [(k, v) for v in vals]
     return pairs
 
 
@@ -226,6 +228,9 @@ def theme_block(pois):
         depth = 1
         for k, vals in p.get("hide_if", {}).items():
             out.append("   " * depth + f'<m k="{k}" v="-|{"|".join(vals)}">')
+            depth += 1
+        for k, vals in p.get("only_if", {}).items():     # whitelist: drawn only for these values
+            out.append("   " * depth + f'<m k="{k}" v="{"|".join(vals)}">')
             depth += 1
         size = f' symbol-percent="{p["size"]}"' if "size" in p else ""
         variants = p.get("variants", [])

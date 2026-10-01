@@ -20,6 +20,9 @@ Usage (WMC installed and importable; Java + osmium required):
 --plan: print the tiles and the OSM regions needed, produce nothing.
 --contour: also add contour lines (needs pyhgtmap, see README; no account needed). Uses the free
   Viewfinder 3 arc-second elevation data (coarser and lighter than SRTM 1).
+--contour-spacing: minor-medium-major line spacing in metres: 10-50-100, 25-75-150 (default) or 30-90-180.
+  Changing it recomputes the contour lines of the tiles.
+--contour-tile X/Y=none|SPACING: another spacing (or none) for one tile; repeat for several tiles.
 --setup-contour: install pyhgtmap once, in its own small environment, and exit.
 """
 
@@ -28,6 +31,7 @@ import glob
 import json
 import os
 import shutil
+import time
 import subprocess
 import sys
 
@@ -100,13 +104,27 @@ def use_poi_rules(path):
     print(f"POIs: {len(pois)} type(s) enabled ({', '.join(p['key'] + '=' + p['value'] for p in pois) or 'none'})")
 
 
+def contour_choices(items):
+    """['136/88=none', ...] -> {'136/88': 'none'}; stops with a clear message on a bad item."""
+    out = {}
+    for item in items:
+        tile, _, value = item.partition("=")
+        try:
+            out[tile.strip()] = contour_lines.choice(value.strip())
+        except ValueError as exc:
+            sys.exit(f"! --contour-tile {item}: {exc}")
+    return out
+
+
 def check_contour_prerequisites():
     if not contour_lines.pyhgtmap_path():
         sys.exit("Contour lines need pyhgtmap. Install it once with:  python3 scripts/build_tiles.py --setup-contour")
 
 
-def generate_contours(tiles):
-    """Contour lines of every tile (one .osm file per tile, reused when already complete)."""
+def generate_contours(tiles, spacing=contour_lines.DEFAULT_PRESET, per_tile=None):
+    """Contour lines of every tile (one .osm file per tile, reused when already complete and made
+    with the same line spacing). per_tile: {"x/y": "none" | preset} overrides the default spacing."""
+    per_tile = per_tile or {}
     exe = contour_lines.pyhgtmap_path()
     hgt_dir = os.path.join(USER_DL_DIR, "hgt")
     os.makedirs(hgt_dir, exist_ok=True)
@@ -114,14 +132,24 @@ def generate_contours(tiles):
     for t in tiles:
         tdir = os.path.join(USER_OUTPUT_DIR, str(t["x"]), str(t["y"]))
         os.makedirs(tdir, exist_ok=True)
+        want = per_tile.get(f"{t['x']}/{t['y']}", spacing)
+        if want == "none":
+            contour_lines.park(tdir)
+            print(f"  tile {t['x']}/{t['y']}: no contour lines (your choice)")
+            continue
+        contour_lines.unpark(tdir)
+        spacing_t = want
         found = sorted(glob.glob(os.path.join(tdir, "elevation*.osm")))
         if len(found) == 1 and contour_lines.file_ok(found[0]):
-            print(f"  tile {t['x']}/{t['y']}: contour lines already computed, reused")
-            continue
-        for f in found:                      # empty or unfinished leftovers
+            if contour_lines.read_marker(tdir) == spacing_t:
+                print(f"  tile {t['x']}/{t['y']}: contour lines ({spacing_t} m) already computed, reused")
+                continue
+            print(f"  tile {t['x']}/{t['y']}: existing contour lines use another spacing "
+                  f"({contour_lines.read_marker(tdir)}), computing them again with {spacing_t}")
+        for f in found:                      # empty, unfinished or other-spacing leftovers
             os.remove(f)
-        print(f"  tile {t['x']}/{t['y']}: computing contour lines (the elevation data is downloaded the first time)")
-        cmd = contour_lines.build_command(exe, t, os.path.join(tdir, "elevation"), hgt_dir, jobs)
+        print(f"  tile {t['x']}/{t['y']}: computing contour lines {spacing_t} m (the elevation data is downloaded the first time)")
+        cmd = contour_lines.build_command(exe, t, os.path.join(tdir, "elevation"), hgt_dir, jobs, spacing_t)
         result = subprocess.run(cmd, check=False)
         made = sorted(glob.glob(os.path.join(tdir, "elevation*.osm")))
         if result.returncode != 0 or not made:
@@ -130,6 +158,7 @@ def generate_contours(tiles):
             sys.exit(f"! pyhgtmap failed for tile {t['x']}/{t['y']} (exit code {result.returncode}).")
         if not all(contour_lines.file_ok(f) for f in made):
             print(f"  ! tile {t['x']}/{t['y']}: almost no elevation data found (open sea?).")
+        contour_lines.write_marker(tdir, spacing_t)
 
 
 def copy_theme(dst_root):
@@ -237,6 +266,10 @@ def main():
     ap.add_argument("--contour", action="store_true", help="add contour lines (needs pyhgtmap, see --setup-contour)")
     ap.add_argument("--poi-rules", help="JSON file with the POIs to enable (written by the web page); "
                                         "default: config/poi-rules.json")
+    ap.add_argument("--contour-spacing", default=contour_lines.DEFAULT_PRESET, choices=list(contour_lines.PRESETS),
+                    help="contour lines minor-medium-major spacing in metres (default %(default)s)")
+    ap.add_argument("--contour-tile", action="append", default=[], metavar="X/Y=SPACING",
+                    help="contour lines of one tile: 'none' or a spacing, e.g. 136/88=none (repeatable)")
     ap.add_argument("--setup-contour", action="store_true",
                     help="install pyhgtmap (once, in its own environment) and exit")
     args = ap.parse_args()
@@ -280,7 +313,7 @@ def main():
     # --- contour lines (one file per tile, reused when already computed) ---
     if args.contour:
         print("\n=== Contour lines (this can take a long time the first time) ===")
-        generate_contours(data.tiles)
+        generate_contours(data.tiles, args.contour_spacing, contour_choices(args.contour_tile))
 
     # --- Phase 1: classic WMC ---
     if not args.skip_classic:
@@ -293,9 +326,6 @@ def main():
         maps.split_filtered_country_files_to_tiles()
         maps.merge_splitted_tiles_with_land_and_sea(True, args.contour, False)
         maps.create_map_files(True, args.tags_classic, False, False)
-    if os.path.isdir(args.out):
-        for d in (out_c, out_w):
-            shutil.rmtree(d, ignore_errors=True)
     labels = {(t["x"], t["y"]): tile_label(USER_OUTPUT_DIR, t["x"], t["y"]) for t in data.tiles}
     for t in data.tiles:
         copy_tile(USER_OUTPUT_DIR, t["x"], t["y"], out_c, labels[(t["x"], t["y"])])
@@ -326,12 +356,32 @@ def main():
                 c = size(os.path.join(out_c, "maps", "tiles", "8", str(t["x"]), f"{t['y']}.map.lzma"))
                 w = size(os.path.join(out_w, "maps", "tiles", "8", str(t["x"]), f"{t['y']}.map.lzma"))
                 report.append((t["x"], t["y"], c, w))
+        if not sel:
+            print("! None of your tiles is covered by the Wandrer file: no Wandrer tile was made.")
         # Bolt theme: always goes with the Wandrer tiles
         copy_theme(out_w)
+    else:
+        print("\n! No --wandrer file given: PHASE 2 (Wandrer) skipped, only the classic tiles were made.")
     if args.contour:                  # contour lines are in the classic tiles too: they need the theme
         copy_theme(out_c)
 
     write_docs(args.out, data.tiles, changed, report, args.contour)
+    with open(os.path.join(args.out, "last_run.json"), "w", encoding="utf-8") as f:   # read by the web interface
+        json.dump({"time": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                   "selected": [f"{t['x']}/{t['y']}" for t in data.tiles],
+                   "built": [f"{x}/{y}" for x, y in changed]}, f)
+    info_path = os.path.join(args.out, "tiles_info.json")      # what each built tile contains (kept between runs)
+    try:
+        with open(info_path, encoding="utf-8") as f:
+            info = json.load(f)
+    except (OSError, ValueError):
+        info = {}
+    choices = contour_choices(args.contour_tile)
+    for x, y in changed:
+        k = f"{x}/{y}"
+        info[k] = {"contour": choices.get(k, args.contour_spacing) if args.contour else "none"}
+    with open(info_path, "w", encoding="utf-8") as f:
+        json.dump(info, f)
     print(f"\nDone. Output folder: {args.out}")
 
 

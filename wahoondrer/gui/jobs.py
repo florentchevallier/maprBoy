@@ -6,7 +6,7 @@ import sys
 import threading
 import time
 
-from .. import poi_config
+from .. import contour, poi_config
 from . import settings as settings_mod
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -117,7 +117,22 @@ def build_commands(s, exports, squadrats_file, plan=False):
     if s["build"]["skip_classic"]:
         b.append("--skip-classic")
     if s["build"].get("contour"):
-        b.append("--contour")
+        spacing = s["build"].get("contour_spacing") or contour.DEFAULT_PRESET
+        try:
+            contour.preset(spacing)
+        except ValueError as exc:
+            raise SettingsError(str(exc))
+        b += ["--contour", "--contour-spacing", spacing]
+        if s["build"].get("contour_per_tile"):           # per-tile choices (menus on the map, Pro)
+            chosen = s["build"].get("contour_tiles") or {}
+            for k in tiles:
+                v = chosen.get(k)
+                if v and v != spacing:
+                    try:
+                        contour.choice(v)
+                    except ValueError as exc:
+                        raise SettingsError(f"Tile {k}: {exc}")
+                    b += ["--contour-tile", f"{k}={v}"]
     if not plan:
         b += poi_args(s)
     if plan:

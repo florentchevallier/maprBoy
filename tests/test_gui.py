@@ -1,3 +1,4 @@
+import glob
 import os
 import tempfile
 import unittest
@@ -285,6 +286,22 @@ class CommandTests(unittest.TestCase):
         s = self.s(); s["build"] = {"skip_classic": False, "contour": True}
         b = jobs.build_commands(s, [], None)[-1][1]
         self.assertIn("--contour", b); self.assertNotIn("--srtm1", b)
+        self.assertEqual(b[b.index("--contour-spacing") + 1], "25-75-150")
+        s["build"]["contour_spacing"] = "30-90-180"
+        b = jobs.build_commands(s, [], None)[-1][1]
+        self.assertEqual(b[b.index("--contour-spacing") + 1], "30-90-180")
+        s["build"].update({"contour_spacing": "25-75-150", "contour_per_tile": True,
+                           "contour_tiles": {"136/88": "none", "136/89": "30-90-180", "999/999": "none", "135/88": "25-75-150"}})
+        s["tiles"] = ["136/88", "136/89", "135/88"]
+        b = jobs.build_commands(s, [], None)[-1][1]
+        pairs = [b[i + 1] for i, a in enumerate(b) if a == "--contour-tile"]
+        self.assertEqual(sorted(pairs), ["136/88=none", "136/89=30-90-180"])   # default and unselected tiles are left out
+        s["build"]["contour_per_tile"] = False
+        self.assertNotIn("--contour-tile", jobs.build_commands(s, [], None)[-1][1])
+        s["build"]["contour_spacing"] = "20-50-100"
+        with self.assertRaises(jobs.SettingsError):
+            jobs.build_commands(s, [], None)
+        s["build"]["contour_spacing"] = "25-75-150"
         s["build"]["contour"] = False
         self.assertNotIn("--contour", jobs.build_commands(s, [], None)[-1][1])
 
@@ -333,7 +350,7 @@ class ContourTests(unittest.TestCase):
     def test_command_matches_wmc_settings_and_needs_no_account(self):
         from wahoondrer import contour
         tile = {"left": 11.25, "bottom": 47.98, "right": 12.65, "top": 48.92}
-        c = contour.build_command("/x/pyhgtmap", tile, "/t/elevation", "/h", 3)
+        c = contour.build_command("/x/pyhgtmap", tile, "/t/elevation", "/h", 3, "10-50-100")
         self.assertEqual(c[0], "/x/pyhgtmap")
         self.assertEqual(c[c.index("-a") + 1], "11.25:47.98:12.65:48.92")
         self.assertEqual(c[c.index("-o") + 1], "/t/elevation")
@@ -341,7 +358,45 @@ class ContourTests(unittest.TestCase):
                     "--no-zero-contour", "--hgtdir=/h", "--start-node-id=20000000000"):
             self.assertIn(opt, c)
         self.assertEqual(c[c.index("-c") + 1], "100,50")
+        self.assertEqual(c[c.index("-s") + 1], "10")
         self.assertFalse([a for a in c if "earthexplorer" in a or "srtm" in a])
+
+    def test_spacing_presets(self):
+        from wahoondrer import contour
+        tile = {"left": 11, "bottom": 47, "right": 12, "top": 48}
+        for name, (step, major, medium) in contour.PRESETS.items():
+            self.assertEqual(major % step, 0, name)       # every line falls on an existing step
+            self.assertEqual(medium % step, 0, name)
+            c = contour.build_command("/x", tile, "/t/e", "/h", 1, name)
+            self.assertEqual(c[c.index("-s") + 1], str(step))
+            self.assertEqual(c[c.index("-c") + 1], f"{major},{medium}")
+        self.assertEqual(contour.build_command("/x", tile, "/t/e", "/h")[
+            contour.build_command("/x", tile, "/t/e", "/h").index("-s") + 1], "25")
+        with self.assertRaises(ValueError):
+            contour.preset("20-50-100")
+
+    def test_park_and_unpark_hide_the_file_from_wmc(self):
+        import tempfile
+        from wahoondrer import contour
+        d = tempfile.mkdtemp()
+        f = os.path.join(d, "elevation_lon1_2lat3_4_view1.osm")
+        open(f, "w").write("x")
+        contour.park(d)
+        self.assertFalse(glob.glob(os.path.join(d, "elevation*.osm")))     # WMC would not merge it
+        self.assertTrue(os.path.isfile(f + ".off"))
+        contour.unpark(d)
+        self.assertTrue(os.path.isfile(f))
+        self.assertEqual(contour.choice("none"), "none")
+        with self.assertRaises(ValueError):
+            contour.choice("fine")
+
+    def test_spacing_marker(self):
+        import tempfile
+        from wahoondrer import contour
+        d = tempfile.mkdtemp()
+        self.assertEqual(contour.read_marker(d), contour.LEGACY_PRESET)   # files made before the setting
+        contour.write_marker(d, "30-90-180")
+        self.assertEqual(contour.read_marker(d), "30-90-180")
 
     def test_file_ok_rejects_empty_or_unfinished_files(self):
         import tempfile
@@ -422,6 +477,18 @@ class PoiTests(unittest.TestCase):
         self.assertTrue((paths.icon_dir / "shape-triangle-purple.svg").is_file())
         self.assertIn("bench", open(paths.tags_to_keep, encoding="utf-8").read())
 
+    def test_only_if_whitelist(self):
+        icons = self.pc.Paths().icon_dir
+        shelter = [p for p in self.base if p["value"] == "shelter"][0]
+        self.assertNotIn("public_transport", shelter["only_if"]["shelter_type"])
+        self.pc.validate([shelter], icons)
+        self.assertIn(("shelter_type", "weather_shelter"), self.pc.sub_tags(shelter))
+        block = "\n".join(self.pc.theme_block([shelter]))
+        self.assertIn('<m k="shelter_type" v="weather_shelter|', block)
+        self.assertIn('<m k="access" v="-|customers|private">', block)
+        with self.assertRaises(ValueError):
+            self.pc.validate([dict(shelter, only_if={"shelter_type": []})], icons)
+
     def test_poi_args(self):
         old = settings.SETTINGS_PATH
         settings.SETTINGS_PATH = os.path.join(self.tmp.name, "settings.json")
@@ -480,7 +547,18 @@ class ResultsTests(unittest.TestCase):
             for junk in (os.path.join(maps, "vtm-elemnt", ".DS_Store"), os.path.join(maps, "vtm-elemnt", "icons", "Thumbs.db"),
                          os.path.join(maps, "tiles", "8", "136", "._88.map.lzma")):
                 _write(junk, "x")
+            os.makedirs(os.path.join(maps, "tiles", "8", "137"))
+            _write(os.path.join(maps, "tiles", "8", "137", "89.map.lzma"), "abcdef")
+            _write(os.path.join(out, "last_run.json"), json.dumps({"selected": ["136/88"], "built": ["136/88"]}))
+            _write(os.path.join(out, "tiles_info.json"), json.dumps({"136/88": {"contour": "25-75-150"}}))
             r = server.results(out)
+            self.assertEqual(r["tiles"][0]["items"][0]["contour"], "25-75-150")
+            self.assertEqual(r["tiles"][1]["items"][0]["contour"], "")
+            self.assertEqual([(t["x"], t["last"]) for t in r["tiles"]], [(136, True), (137, False)])
+            it = r["tiles"][0]["items"][0]
+            self.assertEqual((it["y"], it["new"], it["label"], it["size"]), (88, True, "Munich", 3))
+            self.assertGreater(it["mtime"], 0)
+            self.assertFalse(r["tiles"][1]["items"][0]["new"])
             self.assertEqual([f["name"] for f in r["theme"]["files"]], ["vtm-elemnt.xml"])
             self.assertEqual(r["theme"]["files"][0]["name"], "vtm-elemnt.xml")
             self.assertEqual(len(r["theme"]["icons"]), 1)

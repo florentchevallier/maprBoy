@@ -60,6 +60,8 @@ table.pois td.k{color:var(--mute);font-size:12px}
 .customform{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
 .customform input[type=text]{width:150px}
 .customform select{width:auto}
+#tileList .tl{display:inline-flex;align-items:center;gap:6px;margin:2px 14px 2px 0;font-size:13px}#tileList select{width:auto;font-size:12px;padding:2px 4px}
+.tilemenu select{width:96px;font-size:12px;padding:2px 4px;box-shadow:0 1px 3px #0004}
 details.var{font-size:12.5px;color:var(--mute)}
 details.var summary{cursor:pointer}
 details.var div{margin:3px 0 0 4px;color:var(--ink)}
@@ -69,6 +71,7 @@ details.var div{margin:3px 0 0 4px;color:var(--ink)}
 .rfile .sz{color:var(--mute);font-size:12.5px}
 .rdir{display:flex;gap:8px;align-items:center;margin:8px 0 2px;font-weight:600}
 .rin{margin-left:22px}
+.rtile{margin:12px 0 0}.cdate{width:150px;white-space:nowrap}.ccity{width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ccont{display:none}.pro .ccont{display:inline-block;width:118px;white-space:nowrap}.newslot{min-width:96px;text-align:right}.newtile{background:#fff3d6;color:#8a5a00;border-radius:6px;padding:0 6px;font-size:12.5px}
 .opts{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
 @media (max-width:760px){.opts{grid-template-columns:1fr}label.row{grid-template-columns:1fr}}
 pre#log{background:var(--code);color:var(--codeink);border-radius:10px;padding:12px;height:300px;overflow:auto;font:12.5px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:10px 0 0}
@@ -112,7 +115,7 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   <label class="row">Squadrats exports<input type="text" data-path="folders.squadrats"><button data-browse="folders.squadrats">Choose…</button><button data-open="folders.squadrats">Open</button></label>
   <label class="row">Output<input type="text" data-path="folders.out"><button data-browse="folders.out">Choose…</button><button data-open="folders.out">Open</button></label>
   <label class="row">Work files<input type="text" data-path="folders.work"><button data-browse="folders.work">Choose…</button><button data-open="folders.work">Open</button></label>
-  <p class="note">Output: the maps are written to <b>wmc_classic</b> and <b>wahoondrer_maps</b> inside it (rebuilt at each run: use a dedicated folder).<span> Work files: temporary files made while building; you can ignore this folder.</span><span class="pro-only inline"> It holds the merged Wandrer data (<b>wandrer.osm</b>) handed to WMC.</span></p>
+  <p class="note">Output: the maps are written to <b>wmc_classic</b> and <b>wahoondrer_maps</b> inside it (one tile per coordinates: a new run replaces only the tiles it rebuilds and keeps the others; to keep several versions of a tile, copy it elsewhere yourself).<span> Work files: temporary files made while building; you can ignore this folder.</span><span class="pro-only inline"> It holds the merged Wandrer data (<b>wandrer.osm</b>) handed to WMC.</span></p>
   <div id="osmRow" class="note" style="margin-top:8px"></div>
 </section>
 
@@ -234,6 +237,10 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   </div>
   <div class="pro-only" id="contourBox" style="margin-top:8px">
     <label class="chk"><input type="checkbox" data-path="build.contour"><span>Add contour lines (relief) <small>needs <b>pyhgtmap</b> (one-time install); the first run is much longer and the tiles heavier</small></span></label>
+    <label class="row" style="grid-template-columns:150px auto 1fr">Contour spacing<select data-path="build.contour_spacing" style="width:auto"><option value="10-50-100">Fine: 10 / 50 / 100 m</option><option value="25-75-150">Medium: 25 / 75 / 150 m (default)</option><option value="30-90-180">Coarse: 30 / 90 / 180 m</option></select><small class="note">thin / medium / thick lines; changing it recomputes the lines</small></label>
+    <label class="chk"><input type="checkbox" data-path="build.contour_per_tile"><span>Choose the contour lines tile by tile <small>one choice per selected tile, in the list, or in the top right corner of the tile on the map below (click a tile to take it out or put it back)</small></span></label>
+    <div id="tileList" style="display:none;margin:4px 0 0 26px"></div>
+    <div id="map2" style="display:none;height:340px;margin:8px 0 0 26px;border-radius:8px"></div>
     <p class="note" id="contourStatus"></p>
   </div>
   <div id="runMsg" class="warn"></div>
@@ -249,7 +256,7 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
 
 <script>
 "use strict";
-let S = null, ST = null, saveTimer = null, map = null, layerTiles = null, layerExp = null, layerGrid = null, expRects = {}, locMarker = null;
+let S = null, ST = null, saveTimer = null, map = null, map2 = null, layerMenus = null, layerMenus2 = null, layerRect2 = null, layerTiles = null, layerExp = null, layerGrid = null, expRects = {}, locMarker = null;
 const $ = (q, r = document) => r.querySelector(q), $$ = (q, r = document) => [...r.querySelectorAll(q)];
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const get = (o, p) => p.split(".").reduce((a, k) => a[k], o);
@@ -268,10 +275,11 @@ const parseTiles = t => [...new Set(t.split(/[\s,;]+/).filter(Boolean))].sort((a
 const activeExports = () => (ST ? ST.exports : []).filter(e => e.active);
 
 // ---------- saving
+let unsaved = false;   // a change is waiting to be saved: a refresh must not overwrite it with the older saved copy
 function scheduleSave(reload) {
-  clearTimeout(saveTimer);
+  clearTimeout(saveTimer); unsaved = true;
   saveTimer = setTimeout(async () => {
-    try { await api("/api/settings", S); if (reload) await refresh(); else renderDerived(); } catch (e) { $("#runMsg").textContent = e.message; }
+    try { await api("/api/settings", S); unsaved = false; if (reload) await refresh(); else renderDerived(); } catch (e) { unsaved = false; $("#runMsg").textContent = e.message; }
   }, 350);
 }
 
@@ -392,6 +400,7 @@ async function initMap() {
   map = L.map("map", {worldCopyJump: true}).setView([48.3, 11.5], 6);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 12, attribution: "© OpenStreetMap"}).addTo(map);
   layerExp = L.layerGroup().addTo(map); layerTiles = L.layerGroup().addTo(map); layerGrid = L.layerGroup().addTo(map);
+  layerMenus = L.layerGroup().addTo(map);
   map.on("click", e => {
     const [x, y] = tileOf(e.latlng.lng, e.latlng.lat), k = x + "/" + y, i = S.tiles.indexOf(k);
     if (i >= 0) S.tiles.splice(i, 1); else S.tiles.push(k);
@@ -399,7 +408,7 @@ async function initMap() {
     scheduleSave(false); renderDerived();
   });
   map.on("moveend", drawGrid);
-  map.on("zoomend", updatePatterns);
+  map.on("zoomend", () => { updatePatterns(); drawTileMenus(); });
   drawMapLayers(true);
 }
 function drawGrid() {
@@ -459,8 +468,67 @@ function drawMapLayers(fit) {
   }
   for (const k of S.tiles) { const [x, y] = k.split("/").map(Number);
     L.rectangle(tileBbox(x, y), {color: "#e8731a", weight: 2, fillOpacity: .18, interactive: false}).bindTooltip(k, {permanent: true, direction: "center"}).addTo(layerTiles); }
-  drawGrid();
+  drawGrid(); drawTileMenus();
   if (fit) { const b = dataBounds(); if (b) map.fitBounds(b, {maxZoom: 9, padding: [20, 20]}); }
+}
+// per-tile contour menus (Pro): None / Fine / Medium / Coarse in the top right corner of each selected tile
+const CONTOUR_CHOICES = [["none", "None"], ["10-50-100", "Fine"], ["25-75-150", "Medium"], ["30-90-180", "Coarse"]];
+const contourName = v => !v ? "" : "Contours: " + ({"none": "None", "10-50-100": "Fine", "25-75-150": "Medium", "30-90-180": "Coarse"}[v] || v);
+function setTileContour(k, v) {
+  S.build.contour_tiles = S.build.contour_tiles || {};
+  if (v === S.build.contour_spacing) delete S.build.contour_tiles[k]; else S.build.contour_tiles[k] = v;
+  scheduleSave(false); drawTileMenus();
+}
+function renderTileList() {
+  const box = $("#tileList"); if (!box) return;
+  const on = S && S.build && S.build.contour && S.build.contour_per_tile && S.tiles.length;
+  box.style.display = on ? "block" : "none"; if (!on) return;
+  const chosen = S.build.contour_tiles || {};
+  box.innerHTML = S.tiles.map(k => `<span class="tl">${k} <select data-k="${k}">` + CONTOUR_CHOICES.map(([v, t]) => `<option value="${v}"${v === (chosen[k] || S.build.contour_spacing) ? " selected" : ""}>${t}</option>`).join("") + "</select></span>").join("");
+  $$("select", box).forEach(sel => sel.onchange = () => setTileContour(sel.dataset.k, sel.value));
+}
+const dropped = new Set();   // tiles taken out on the small map: shown dashed so they can be put back
+function drawMenusOn(m, layer) {
+  layer.clearLayers();
+  const def = S.build.contour_spacing, chosen = S.build.contour_tiles || {};
+  for (const k of S.tiles) {
+    const [x, y] = k.split("/").map(Number), bb = tileBbox(x, y);
+    const w = m.latLngToContainerPoint([bb[1][0], bb[1][1]]).x - m.latLngToContainerPoint([bb[0][0], bb[0][1]]).x;
+    if (w < 60) continue;                                // tile too small on screen for a menu
+    const small = w < 130, val = chosen[k] || def;
+    const html = `<select title="Contour lines of tile ${k}"${small ? ' style="width:62px;font-size:10px;padding:1px"' : ""}>` + CONTOUR_CHOICES.map(([v, t]) => `<option value="${v}"${v === val ? " selected" : ""}>${t}</option>`).join("") + "</select>";
+    const mk = L.marker([bb[1][0], bb[1][1]], {icon: L.divIcon({className: "tilemenu", html, iconSize: [small ? 62 : 96, 26], iconAnchor: [(small ? 62 : 96) + 4, -4]}), keyboard: false}).addTo(layer);
+    const el = mk.getElement(); if (!el) continue;
+    L.DomEvent.disableClickPropagation(el); L.DomEvent.disableScrollPropagation(el);
+    el.querySelector("select").addEventListener("change", e => setTileContour(k, e.target.value));
+  }
+}
+function drawTileMenus() {
+  renderTileList();
+  const on = S && S.build && S.build.contour && S.build.contour_per_tile && modeOf("make") === "pro";
+  if (map && layerMenus) { layerMenus.clearLayers(); if (on) drawMenusOn(map, layerMenus); }
+  const box = $("#map2"); if (!box) return;
+  box.style.display = on && window.L ? "block" : "none";
+  if (!on || !window.L) return;
+  S.tiles.forEach(k => dropped.delete(k));
+  if (!map2) {                                           // a second, smaller map right under the option (a mirror of the first)
+    map2 = L.map("map2", {worldCopyJump: true}).setView([48.3, 11.5], 6);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 12, attribution: "© OpenStreetMap"}).addTo(map2);
+    layerRect2 = L.layerGroup().addTo(map2); layerMenus2 = L.layerGroup().addTo(map2);
+    map2.on("zoomend", () => drawTileMenus());
+    map2.on("click", e => {                              // click a tile to take it out or put it back, as on the map of step 3
+      const [x, y] = tileOf(e.latlng.lng, e.latlng.lat), k = x + "/" + y, i = S.tiles.indexOf(k);
+      if (i >= 0) { S.tiles.splice(i, 1); dropped.add(k); } else S.tiles.push(k);
+      S.tiles = parseTiles(S.tiles.join(","));
+      scheduleSave(false); renderDerived();
+    });
+  }
+  map2.invalidateSize();
+  layerRect2.clearLayers(); const pts = [];
+  for (const k of dropped) { const [x, y] = k.split("/").map(Number); L.rectangle(tileBbox(x, y), {color: "#888", weight: 1.5, dashArray: "5 5", fillOpacity: .03, interactive: false}).addTo(layerRect2); }
+  for (const k of S.tiles) { const [x, y] = k.split("/").map(Number), bb = tileBbox(x, y); pts.push(...bb); L.rectangle(bb, {color: "#e8731a", weight: 2, fillOpacity: .1, interactive: false}).addTo(layerRect2); }
+  if (pts.length && (!map2._fitted || !map2.getBounds().contains(pts))) { map2._fitted = true; map2.fitBounds(pts, {padding: [30, 30]}); }   // no zoom jump while clicking tiles
+  drawMenusOn(map2, layerMenus2);
 }
 function hover(name, on) {
   const r = expRects[name]; if (!r) return;
@@ -645,6 +713,7 @@ $$("[data-path]").forEach(el => el.addEventListener("change", () => {
   if (el.dataset.path.startsWith("folders.")) onFolderChanged(el.dataset.path);
   else if (el.dataset.path === "geocode") { api("/api/settings", S).then(rescan); }
   else scheduleSave(el.dataset.path === "wandrer.radius_m");
+  if (el.dataset.path.startsWith("build.contour")) drawTileMenus();
 }));
 $("#radiusSel").onchange = e => {
   if (e.target.value === "custom") { $("#radiusCustom").style.display = "grid"; return; }
@@ -653,11 +722,11 @@ $("#radiusSel").onchange = e => {
 $$("[data-level]").forEach(el => el.addEventListener("change", () => {
   S.squadrats.levels = $$("[data-level]").filter(c => c.checked).map(c => c.dataset.level); scheduleSave(false);
 }));
-$$("#modeSeg button").forEach(b => b.onclick = () => { S.mode = b.dataset.mode; renderInputs(); renderActivity(); renderExports(); renderPois(); if (modeOf("make") === "pro") renderContour(); scheduleSave(false); });
+$$("#modeSeg button").forEach(b => b.onclick = () => { S.mode = b.dataset.mode; renderInputs(); renderActivity(); renderExports(); renderPois(); drawTileMenus(); if (modeOf("make") === "pro") renderContour(); scheduleSave(false); });
 $$("select[data-secmode]").forEach(sel => sel.onchange = () => {
   S.ui = S.ui || {sections: {}}; S.ui.sections = S.ui.sections || {};
   if (sel.value) S.ui.sections[sel.dataset.secmode] = sel.value; else delete S.ui.sections[sel.dataset.secmode];
-  applyModes(); renderActivity(); renderExports(); renderPois(); if (modeOf("make") === "pro") renderContour(); scheduleSave(false);
+  applyModes(); renderActivity(); renderExports(); renderPois(); drawTileMenus(); if (modeOf("make") === "pro") renderContour(); scheduleSave(false);
 });
 $("#tilesText").addEventListener("change", e => { S.tiles = parseTiles(e.target.value); scheduleSave(false); renderDerived(); });
 $("#tilesFromExports").onclick = () => { S.tiles = parseTiles(activeExports().flatMap(e => e.tiles.map(t => t.join("/"))).join(",")); scheduleSave(false); renderDerived(); drawMapLayers(true); };
@@ -732,7 +801,7 @@ function poiSetOv(id, field, value, dflt) {
 }
 const POI_OPEN = new Set();
 function variantsHtml(p, o) {
-  if (!p.variants.length && !Object.keys(p.hide_if || {}).length) return "";
+  if (!p.variants.length && !Object.keys(p.hide_if || {}).length && !Object.keys(p.only_if || {}).length) return "";
   const img = i => `<img class="poi-ico" src="${icoUrl(i)}" alt="">`;
   let h = "";
   if (o.icon) h += "<div>Your icon replaces the variants.</div>";
@@ -742,6 +811,8 @@ function variantsHtml(p, o) {
   }
   const hide = Object.entries(p.hide_if || {}).map(([k, v]) => k + " = " + v.join(" / ")).join("; ");
   if (hide) h += `<div class="note">Not shown when: ${esc(hide)}</div>`;
+  const only = Object.entries(p.only_if || {}).map(([k, v]) => k + " = " + v.join(" / ")).join("; ");
+  if (only) h += `<div class="note">Only shown when: ${esc(only)}</div>`;
   return `<details class="var" data-id="${esc(p.id)}"${POI_OPEN.has(p.id) ? " open" : ""}><summary>${p.variants.length ? "Variants (" + p.variants.length + ")" : "Rules"}</summary>${h}</details>`;
 }
 function renderPois() {
@@ -821,7 +892,7 @@ async function loadPois() {
 
 // ---------- result files (what to copy to the Bolt)
 const fileUrl = rel => "/api/file?rel=" + encodeURIComponent(rel);
-const fileRow = (f, extra) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a>${extra ? `<span class="sz">${esc(extra)}</span>` : ""}<span class="sz">${mb(f.size)}</span></div>`;
+const fileRow = (f, extra, newTile) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${newTile ? '<span class="newtile">🌟 New tile!</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
 async function renderResults() {
   const box = $("#results");
   if (!S.folders.out) { box.innerHTML = ""; return; }
@@ -835,14 +906,18 @@ async function renderResults() {
     if (r.theme.icons.length) h += `<details class="var"><summary>icons/ (${r.theme.icons.length}) — only if the Bolt has none yet; do not overwrite icons that already work</summary>${r.theme.icons.map(f => fileRow(f)).join("")}</details>`;
     h += "</div>";
   }
-  if (r.tiles.length) {
-    h += `<div class="rdir">2. Tiles <span class="note">→ Bolt: maps/tiles/8/</span></div>`;
-    r.tiles.forEach(t => {
-      h += `<div class="rdir" style="font-weight:500">📁 ${t.x}/ <span style="flex:1"></span><button class="small" data-opendir="${esc(t.dir)}">Open folder</button></div><div class="rin">`;
-      h += t.files.map(f => { const y = f.name.split(".")[0]; return fileRow(f, t.labels[y] || ""); }).join("");
-      h += "</div>";
-    });
-  }
+  const dateOf = t => t ? new Date(t * 1000).toLocaleString("en-GB", {day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"}) : "";
+  const tileGroup = t => {
+    let g = `<div class="rdir" style="font-weight:500">📁 ${t.x}/ <span style="flex:1"></span><button class="small" data-opendir="${esc(t.dir)}">Open folder</button></div><div class="rin">`;
+    for (const it of t.items) {
+      const extra = [dateOf(it.mtime), it.label || "", contourName(it.contour)];
+      g += `<div class="rtile">` + it.files.map(f => fileRow(f, extra, it.new)).join("") + "</div>";
+    }
+    return g + "</div>";
+  };
+  const lastT = r.tiles.filter(t => t.last), otherT = r.tiles.filter(t => !t.last);
+  if (lastT.length) h += `<div class="rdir">2. Tiles of the last run <span class="note">→ Bolt: maps/tiles/8/</span></div>` + lastT.map(tileGroup).join("");
+  if (otherT.length) h += `<div class="rdir">${lastT.length ? "3. Other tiles" : "2. Tiles"} <span class="note">${lastT.length ? "made by earlier runs" : "→ Bolt: maps/tiles/8/"}</span></div>` + otherT.map(tileGroup).join("");
   box.innerHTML = h;
 }
 $("#results").addEventListener("dragstart", e => {
@@ -857,7 +932,8 @@ $("#results").addEventListener("click", async e => {
 
 // ---------- start
 async function refresh(keepMap) {
-  ST = await api("/api/state"); S = ST.settings;
+  const fresh = await api("/api/state"); ST = fresh;
+  if (!unsaved) S = fresh.settings; else ST.settings = S;
   renderInputs(); renderActivity(); renderExports(); renderDerived();
   if (!keepMap) { renderOsm().catch(() => {}); if (modeOf("make") === "pro") renderContour(); }
   renderPois();

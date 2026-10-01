@@ -35,6 +35,11 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
 from wahoondrer import contour as contour_lines  # noqa: E402
+from wahoondrer import poi_config  # noqa: E402
+from wahoondrer.tiles import label_file_name  # noqa: E402
+
+# Where config/ and themes/ are read from: the repository, or a private copy written for the user's POIs.
+ASSETS = REPO
 
 from wahoomc.constants import USER_CONFIG_DIR, USER_DL_DIR, USER_OUTPUT_DIR, USER_WAHOO_MC  # noqa: E402
 from wahoomc.downloader import download_tooling  # noqa: E402
@@ -61,7 +66,7 @@ def sync_config():
     WMC config folder (WMC's osmium filter drops every tag not listed there)."""
     dst = os.path.join(USER_CONFIG_DIR, "tag_wahoo_adjusted")
     os.makedirs(dst, exist_ok=True)
-    src = os.path.join(REPO, "config")
+    src = os.path.join(ASSETS, "config")
     for name in os.listdir(src):
         if name.startswith("tag-wahoo") and name.endswith(".xml"):
             shutil.copy2(os.path.join(src, name), os.path.join(dst, name))
@@ -80,6 +85,19 @@ def to_pbf(osm_path):
         print(f"Converting {osm_path} -> {pbf} (osmium)")
         subprocess.run(["osmium", "cat", osm_path, "-o", pbf, "--overwrite"], check=True)
     return os.path.abspath(pbf), base + ".tiles.json"
+
+
+def use_poi_rules(path):
+    """Write config/ and the theme for the user's POIs into a private copy and read them from there."""
+    global ASSETS
+    with open(path, encoding="utf-8") as f:
+        pois = json.load(f)["pois"]
+    dst = os.path.join(os.path.expanduser("~"), ".wahoondrer", "generated")
+    try:
+        ASSETS = str(poi_config.prepare_tree(dst, pois, REPO).root)
+    except ValueError as exc:
+        sys.exit(f"! POI settings: {exc}")
+    print(f"POIs: {len(pois)} type(s) enabled ({', '.join(p['key'] + '=' + p['value'] for p in pois) or 'none'})")
 
 
 def check_contour_prerequisites():
@@ -117,9 +135,10 @@ def generate_contours(tiles):
 def copy_theme(dst_root):
     vtm_dst = os.path.join(dst_root, "maps", "vtm-elemnt")
     os.makedirs(vtm_dst, exist_ok=True)
-    shutil.copy2(os.path.join(REPO, "themes", "vtm", "vtm-elemnt.xml"), vtm_dst)
-    shutil.copytree(os.path.join(REPO, "themes", "vtm", "icons"),
-                    os.path.join(vtm_dst, "icons"), dirs_exist_ok=True)
+    shutil.copy2(os.path.join(ASSETS, "themes", "vtm", "vtm-elemnt.xml"), vtm_dst)
+    shutil.copytree(os.path.join(ASSETS, "themes", "vtm", "icons"),
+                    os.path.join(vtm_dst, "icons"), dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns(".*", "Thumbs.db", "ehthumbs.db", "desktop.ini"))
 
 
 def prepare(xy, args):
@@ -184,12 +203,12 @@ def tile_label(src_dir, x, y):
 def copy_tile(src_dir, x, y, dst_root, label=""):
     tdir = os.path.join(dst_root, "maps", "tiles", "8", str(x))
     os.makedirs(tdir, exist_ok=True)
-    if label:
-        import re
-        safe = re.sub(r'[\\/:*?"<>|]', "", label)[:60].strip()
-        if safe:
-            with open(os.path.join(tdir, f"{y} - {safe}.txt"), "w", encoding="utf-8") as f:
-                f.write(f"Tile 8/{x}/{y}: {label}\nInfo file only: do NOT copy it to the Bolt.\n")
+    for old in glob.glob(os.path.join(tdir, f"{y} - *.txt")) + glob.glob(os.path.join(tdir, f"{y}_*.txt")):
+        os.remove(old)                      # a previous run (other name or other label)
+    name = label_file_name(y, label) if label else None
+    if name:
+        with open(os.path.join(tdir, name), "w", encoding="utf-8") as f:
+            f.write(f"Tile 8/{x}/{y}: {label}\nInfo file only: do NOT copy it to the Bolt.\n")
     base = os.path.join(src_dir, str(x), str(y))
     for ext in (".map.lzma", ".map.lzma.17"):
         shutil.copy2(base + ext, os.path.join(tdir, f"{y}{ext}"))
@@ -216,6 +235,8 @@ def main():
                     help="reuse the classic tiles already built in _tiles")
     ap.add_argument("--force-download", action="store_true")
     ap.add_argument("--contour", action="store_true", help="add contour lines (needs pyhgtmap, see --setup-contour)")
+    ap.add_argument("--poi-rules", help="JSON file with the POIs to enable (written by the web page); "
+                                        "default: config/poi-rules.json")
     ap.add_argument("--setup-contour", action="store_true",
                     help="install pyhgtmap (once, in its own environment) and exit")
     args = ap.parse_args()
@@ -225,6 +246,8 @@ def main():
     if not args.xy:
         ap.error("--xy is required")
 
+    if args.poi_rules:
+        use_poi_rules(args.poi_rules)
     initialize_work_directories()
     adjustments_due_to_breaking_changes()
     download_tooling()
@@ -313,7 +336,7 @@ def main():
 
 
 def mo(n):
-    return f"{n / 1e6:.1f} Mo"
+    return f"{n / 1e6:.1f} MB"
 
 
 def write_docs(out, tiles, changed, report, contour=False):
@@ -332,7 +355,7 @@ def write_docs(out, tiles, changed, report, contour=False):
     L.append("1. BACKUP: first copy the Bolt's maps/tiles/8 folder to your computer.")
     L.append("2. Copy FILES one by one (or one tile folder x at a time). Do not replace a")
     L.append("   whole folder: the Bolt may then delete neighbouring tiles that are not here.")
-    L.append("   Files named like '88 - Munich.txt' only tell you which city a tile covers: do NOT copy them.")
+    L.append("   Files named like '88_Munich.txt' only tell you which city a tile covers: do NOT copy them.")
     L.append("")
     L.append("A. Tiles with Wandrer  (wahoondrer_maps/maps/tiles/8/...)  -> Bolt: maps/tiles/8/...")
     for x, y in changed:

@@ -6,6 +6,9 @@ import sys
 import threading
 import time
 
+from .. import poi_config
+from . import settings as settings_mod
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TILE_OK = set("0123456789/")
 
@@ -35,6 +38,24 @@ def _inside(path, parent):
     return path == parent or path.startswith(parent + os.sep)
 
 
+def poi_args(s):
+    """['--poi-rules', file] when the user changed POIs (the effective list is written next to the settings),
+    else [] (the defaults of config/poi-rules.json are used)."""
+    user = s.get("pois") or {}
+    if not poi_config.has_user_choices(user):
+        return []
+    try:
+        pois = [p for p in poi_config.effective_pois(poi_config.read_rules(), user) if p.get("enabled", True)]
+        poi_config.validate(pois, poi_config.Paths().icon_dir)
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise SettingsError(f"POI settings: {exc}")
+    path = os.path.join(os.path.dirname(settings_mod.SETTINGS_PATH), "poi-rules.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"pois": pois}, f, indent=2)
+    return ["--poi-rules", path]
+
+
 def build_commands(s, exports, squadrats_file, plan=False):
     """Return [(title, argv), ...].
 
@@ -54,7 +75,7 @@ def build_commands(s, exports, squadrats_file, plan=False):
         folder = os.path.expanduser(s["folders"][name] or "")
         if folder and os.path.realpath(out) == os.path.realpath(folder):
             raise SettingsError("The output folder must not be an export folder "
-                                "(its wmc_* sub-folders are deleted at each run).")
+                                "(its wmc_classic and wahoondrer_maps sub-folders are deleted at each run).")
 
     w, q = s["wandrer"], s["squadrats"]
     use_wandrer = bool(w["enabled"] and exports)
@@ -97,6 +118,8 @@ def build_commands(s, exports, squadrats_file, plan=False):
         b.append("--skip-classic")
     if s["build"].get("contour"):
         b.append("--contour")
+    if not plan:
+        b += poi_args(s)
     if plan:
         b.append("--plan")
     cmds.append(("Plan: tiles and OSM regions" if plan else "Build the map tiles", b))

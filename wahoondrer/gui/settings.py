@@ -36,6 +36,8 @@ DEFAULTS = {
         "small_scope": "explored-big",
     },
     "build": {"skip_classic": False, "contour": False},
+    "ui": {"sections": {}},          # per-section Simple/Pro choice: {"pois": "simple" | "pro"}; missing = follow `mode`
+    "pois": {"overrides": {}, "custom": []},   # the user's POI choices, apart from the defaults in config/poi-rules.json
 }
 
 
@@ -46,7 +48,7 @@ def _merge(base, new):
         if k not in base:
             continue
         if isinstance(base[k], dict) and isinstance(v, dict):
-            out[k] = _merge(base[k], v)
+            out[k] = _merge(base[k], v) if base[k] else copy.deepcopy(v)   # empty dict = free-form keys
         else:
             out[k] = v
     return out

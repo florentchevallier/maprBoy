@@ -47,11 +47,28 @@ tr.hl td{background:color-mix(in srgb,var(--viol) 12%,transparent)}
 .seg button{border:0;border-radius:0;padding:6px 14px;background:transparent}
 .seg button.on{background:var(--accent);color:var(--accent-ink)}
 .pro-only{display:none}
-body.pro div.pro-only,body.pro p.pro-only,body.pro span.pro-only{display:block}
-body.pro span.pro-only.inline{display:inline}
-body.pro label.row.pro-only{display:grid}
-body.pro label.chk.pro-only{display:flex}
-body.pro th.pro-only,body.pro td.pro-only{display:table-cell}
+.pro div.pro-only,.pro p.pro-only,.pro span.pro-only{display:block}
+.pro span.pro-only.inline{display:inline}
+.pro label.row.pro-only{display:grid}
+.pro label.chk.pro-only{display:flex}
+.pro th.pro-only,.pro td.pro-only{display:table-cell}
+select.secmode{width:auto;margin-left:auto;padding:2px 6px;font-size:12px;color:var(--mute);font-weight:400}
+.poi-ico{width:22px;height:22px;vertical-align:middle;background:#8884;border-radius:4px;padding:1px}
+table.pois select{width:auto;padding:3px 5px}
+table.pois input[type=number]{width:70px;padding:3px 5px}
+table.pois td.k{color:var(--mute);font-size:12px}
+.customform{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.customform input[type=text]{width:150px}
+.customform select{width:auto}
+details.var{font-size:12.5px;color:var(--mute)}
+details.var summary{cursor:pointer}
+details.var div{margin:3px 0 0 4px;color:var(--ink)}
+#results h3{font-size:14px;margin:14px 0 4px}
+.rfile{display:flex;gap:8px;align-items:center;padding:3px 6px;border:1px solid var(--line);border-radius:7px;margin:3px 0;cursor:grab;background:var(--bg)}
+.rfile a{color:var(--ink);text-decoration:none;flex:1}
+.rfile .sz{color:var(--mute);font-size:12.5px}
+.rdir{display:flex;gap:8px;align-items:center;margin:8px 0 2px;font-weight:600}
+.rin{margin-left:22px}
 .opts{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
 @media (max-width:760px){.opts{grid-template-columns:1fr}label.row{grid-template-columns:1fr}}
 pre#log{background:var(--code);color:var(--codeink);border-radius:10px;padding:12px;height:300px;overflow:auto;font:12.5px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:10px 0 0}
@@ -71,7 +88,7 @@ dialog li{padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--line)}di
 .leaflet-tooltip.nm{font-size:11px}
 td.tags{white-space:nowrap;padding-left:0}
 .tag{display:inline-block;box-sizing:border-box;padding:1px 0;border-radius:99px;font-size:11px;text-align:center;width:70px;margin-right:3px;color:#fff}
-body.pro .tag{width:92px}
+.pro .tag{width:92px}
 .tag.unv{background:#e8731a}.tag.unp{background:#9a6a2f}.tag.rid{background:#2e9d4f}.tag.bnd{background:#7a4fc4}
 .tag.no{background:transparent;color:var(--mute);text-decoration:line-through;opacity:.45;border:1px dashed var(--line)}
 button.danger:hover{border-color:var(--bad);color:var(--bad)}
@@ -81,14 +98,14 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
 <body>
 <header>
   <h1>Wahoondrer <small>custom Wahoo maps with Wandrer &amp; Squadrats</small></h1>
-  <div class="seg" id="modeSeg" title="Pro shows more options and the numbers inside each export">
+  <div class="seg" id="modeSeg" title="Pro shows more options. Each section can also be set to Simple or Pro on its own.">
     <button data-mode="simple">Simple</button><button data-mode="pro">Pro</button>
   </div>
 </header>
 <main>
 
-<section class="card">
-  <h2><span class="n">1</span>Folders</h2>
+<section class="card" data-sec="folders">
+  <h2><span class="n">1</span>Folders<select class="secmode" data-secmode="folders" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
   <p class="hint">Easiest: press <b>Set up my folders</b> and choose where they should live. The page creates the folders there, plus one for the OpenStreetMap map data; then drop your Wandrer and Squadrats files into them (here below, or in your file manager with "Open"). Choices are remembered.</p>
   <div class="actions" style="margin-bottom:8px"><button id="btnSetup" class="primary">Set up my folders…</button><span class="note" id="dataNote"></span></div>
   <label class="row">Wandrer exports<input type="text" data-path="folders.wandrer"><button data-browse="folders.wandrer">Choose…</button><button data-open="folders.wandrer">Open</button></label>
@@ -99,8 +116,8 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   <div id="osmRow" class="note" style="margin-top:8px"></div>
 </section>
 
-<section class="card">
-  <h2><span class="n">2</span>Wandrer exports <span class="sp"></span><button class="icon" id="btnReload" title="Look for new or changed files">🔄</button></h2>
+<section class="card" data-sec="exports">
+  <h2><span class="n">2</span>Wandrer exports <span class="sp"></span><button class="icon" id="btnReload" title="Look for new or changed files">🔄</button><select class="secmode" data-secmode="exports" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
   <p class="hint">Ticked exports are merged; where they overlap, the most recent one wins. "Near" is the town where you ride most in that export.</p>
   <div id="scanBox" style="display:none"><div class="note" id="scanText"></div><div class="bar" id="scanBar"><i></i></div></div>
   <div class="actions" id="actBox" style="margin:4px 0 8px"><span class="note">Which exports to use:</span>
@@ -111,8 +128,8 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   <label class="chk" style="margin-top:10px"><input type="checkbox" data-path="geocode"><span>Look up the town name online <small>sends the approximate centre of each export to OpenStreetMap (Nominatim); nothing else</small></span></label>
 </section>
 
-<section class="card">
-  <h2><span class="n">3</span>Tiles</h2>
+<section class="card" data-sec="tiles">
+  <h2><span class="n">3</span>Tiles<select class="secmode" data-secmode="tiles" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
   <p class="hint">Wahoo maps are made of zoom-8 tiles (about 100 × 70 km). Click the map to add or remove a tile. <span style="color:var(--accent)">Orange</span> = to build, coloured rectangles = area covered by an export, one colour per type (hover a row above to find it).</p>
   <div class="tilebar">
     <input type="text" id="tilesText" placeholder="e.g. 135/88, 136/88">
@@ -125,8 +142,8 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   <div class="note" id="mapLegend"></div>
 </section>
 
-<section class="card">
-  <h2><span class="n">4</span>Wandrer layer</h2>
+<section class="card" data-sec="wandrer">
+  <h2><span class="n">4</span>Wandrer layer<select class="secmode" data-secmode="wandrer" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
   <label class="chk"><input type="checkbox" data-path="wandrer.enabled"><span>Add the Wandrer layer <small>unvisited roads in orange (dashed when unpaved)</small></span></label>
   <div class="opts">
     <div>
@@ -150,8 +167,8 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   </div>
 </section>
 
-<section class="card">
-  <h2><span class="n">5</span>Squadrats layer <span class="sp"></span><button class="icon" id="btnReload2" title="Look for a newer file">🔄</button></h2>
+<section class="card" data-sec="squadrats">
+  <h2><span class="n">5</span>Squadrats layer <span class="sp"></span><button class="icon" id="btnReload2" title="Look for a newer file">🔄</button><select class="secmode" data-secmode="squadrats" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
   <label class="chk"><input type="checkbox" data-path="squadrats.enabled"><span>Outline the squares I have not explored yet <small id="sqFile"></small></span></label>
   <label class="row pro-only" style="grid-template-columns:150px 1fr">File to use<select id="sqSel" data-path="squadrats.file"></select></label>
   <div class="opts">
@@ -174,8 +191,28 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   <p class="note">Squadrats are added to the tiles covered by your Wandrer exports.</p>
 </section>
 
-<section class="card">
-  <h2><span class="n">6</span>Map data from OpenStreetMap <span class="sp"></span><button class="icon" id="btnRegReload" title="Refresh this list">🔄</button></h2>
+<section class="card" data-sec="pois">
+  <h2><span class="n">6</span>Points of interest<select class="secmode" data-secmode="pois" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+  <p class="hint">Choose which places are drawn on the map and from which zoom level. The default style is kept: unticking or changing a line never touches it, and “Back to the defaults” restores it.</p>
+  <table class="pois" id="poiTable"></table>
+  <div class="pro-only" id="poiCustom">
+    <p class="note" style="margin:10px 0 0">Add your own type of place, by its OpenStreetMap tag (find tags on <a href="https://taginfo.openstreetmap.org" target="_blank" rel="noopener">taginfo</a>, check the data on <a href="https://overpass-turbo.eu" target="_blank" rel="noopener">overpass-turbo</a>).</p>
+    <div class="customform">
+      <input type="text" id="cuLabel" placeholder="Name (e.g. Bench)">
+      <input type="text" id="cuKey" placeholder="key (amenity)">
+      <input type="text" id="cuValue" placeholder="value (bench)">
+      <select id="cuZoom"></select>
+      <select id="cuIcon"></select>
+      <button id="cuAdd">Add</button>
+    </div>
+    <div class="warn" id="cuMsg"></div>
+  </div>
+  <div class="actions" style="margin-top:8px"><button class="small" id="poiReset">Back to the defaults</button><span class="note" id="poiNote"></span></div>
+  <p class="note">After a change, the tiles must be rebuilt and the theme copied again to the Bolt (step 8 does both). More places and lower zoom levels make the tiles heavier and the map busier: add them with care.</p>
+</section>
+
+<section class="card" data-sec="osm">
+  <h2><span class="n">7</span>Map data from OpenStreetMap <span class="sp"></span><button class="icon" id="btnRegReload" title="Refresh this list">🔄</button><select class="secmode" data-secmode="osm" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
   <p class="hint">The base maps are built from OpenStreetMap extracts (Geofabrik regions) kept on your computer. WMC downloads missing regions by itself and renews those older than <span id="maxDays">14</span> days; here you can see them and update or add some yourself. Some are big (Austria ≈ 0.8 GB).</p>
   <div id="regions"></div>
   <div id="regDl" style="display:none"><div class="note" id="regDlText"></div><div class="bar" id="regDlBar"><i></i></div><button class="small" id="regCancel">Cancel download</button></div>
@@ -186,8 +223,8 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   <div><button class="small" id="regRetry" style="display:none">Retry the failed regions</button></div>
 </section>
 
-<section class="card">
-  <h2><span class="n">7</span>Make the maps</h2>
+<section class="card" data-sec="make">
+  <h2><span class="n">8</span>Make the maps<select class="secmode" data-secmode="make" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
   <div class="actions">
     <button id="btnPlan">Check the plan</button>
     <button id="btnRun" class="primary">Generate maps</button>
@@ -202,6 +239,7 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   <div id="runMsg" class="warn"></div>
   <pre id="log"></pre>
   <p class="note" id="doneNote"></p>
+  <div id="results"></div>
 </section>
 </main>
 
@@ -220,7 +258,7 @@ const api = async (url, body) => {
   const r = await fetch(url, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json", "X-Wahoondrer": "1"}, body: JSON.stringify(body)});
   const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
 };
-const mb = n => n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : Math.max(1, Math.round(n / 1e6)) + " MB";
+const mb = n => n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : n >= 1e6 ? (n / 1e6).toFixed(n < 1e7 ? 1 : 0) + " MB" : n >= 1e3 ? Math.round(n / 1e3) + " KB" : n + " B";
 const num = n => (n ?? 0).toLocaleString("en");
 
 // ---------- tiles (zoom 8)
@@ -237,6 +275,13 @@ function scheduleSave(reload) {
   }, 350);
 }
 
+// ---------- Simple / Pro (global button, and one choice per section)
+const modeOf = sec => { const m = ((S.ui || {}).sections || {})[sec]; return m === "simple" || m === "pro" ? m : S.mode; };
+function applyModes() {
+  $$("section[data-sec]").forEach(s => s.classList.toggle("pro", modeOf(s.dataset.sec) === "pro"));
+  $$("select[data-secmode]").forEach(sel => sel.value = ((S.ui || {}).sections || {})[sel.dataset.secmode] || "");
+}
+
 // ---------- rendering
 function renderInputs() {
   $$("[data-path]").forEach(el => {
@@ -245,7 +290,7 @@ function renderInputs() {
     if (el.type === "checkbox") el.checked = !!v; else el.value = v;
   });
   $$("[data-level]").forEach(el => el.checked = S.squadrats.levels.includes(el.dataset.level));
-  document.body.classList.toggle("pro", S.mode === "pro");
+  applyModes();
   $$("#modeSeg button").forEach(b => b.classList.toggle("on", b.dataset.mode === S.mode));
   $("#tilesText").value = S.tiles.join(", ");
   const r = String(S.wandrer.radius_m), preset = ["250", "500", "1000", "0"].includes(r);
@@ -259,7 +304,7 @@ function renderExports() {
   if (!S.folders.wandrer) { box.innerHTML = '<p class="note">Set up your folders (step 1), then drop your Wandrer files here.</p>'; return; }
   if (!ex.length) { box.innerHTML = '<p class="note">No KMZ/KML file in this folder yet.</p>'; return; }
   const acts = new Set(ex.filter(e => e.active).map(e => e.activity).filter(Boolean));
-  const flag = (on, label, n, cls) => `<span class="tag ${on ? cls : "no"}" title="${on ? num(n) + " " + label : "no " + label}">${label}${on && S.mode === "pro" ? " " + num(n) : ""}</span>`;
+  const flag = (on, label, n, cls) => `<span class="tag ${on ? cls : "no"}" title="${on ? num(n) + " " + label : "no " + label}">${label}${on && modeOf("exports") === "pro" ? " " + num(n) : ""}</span>`;
   let h = `<table><tr><th></th><th>File</th><th>Exported</th><th>Type</th><th>Near</th><th>This export contains:</th><th>Tiles</th></tr>`;
   for (const e of ex) {
     if (e.pending) { h += `<tr class="off"><td></td><td>${esc(e.name)}</td><td colspan="5">waiting to be read…</td></tr>`; continue; }
@@ -287,7 +332,7 @@ function renderExports() {
 function renderActivity() {
   const sel = $("#actSel"), count = t => ST.exports.filter(e => e.activity === t).length;
   const opts = ["bike", "foot", "combined"].map(t => [t, `${t} (${count(t)} file${count(t) === 1 ? "" : "s"})`]);
-  if (S.mode === "pro") opts.push(["any", "all types (mix)"], ["latest", "latest (type of the newest export)"]);
+  if (modeOf("exports") === "pro") opts.push(["any", "all types (mix)"], ["latest", "latest (type of the newest export)"]);
   sel.innerHTML = opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
   sel.value = opts.some(o => o[0] === S.activity) ? S.activity : "bike";
   $("#actNote").textContent = ST.activity_used ? `→ using: ${ST.activity_used}` : "";
@@ -608,7 +653,12 @@ $("#radiusSel").onchange = e => {
 $$("[data-level]").forEach(el => el.addEventListener("change", () => {
   S.squadrats.levels = $$("[data-level]").filter(c => c.checked).map(c => c.dataset.level); scheduleSave(false);
 }));
-$$("#modeSeg button").forEach(b => b.onclick = () => { S.mode = b.dataset.mode; renderInputs(); renderActivity(); renderExports(); if (S.mode === "pro") renderContour(); scheduleSave(false); });
+$$("#modeSeg button").forEach(b => b.onclick = () => { S.mode = b.dataset.mode; renderInputs(); renderActivity(); renderExports(); renderPois(); if (modeOf("make") === "pro") renderContour(); scheduleSave(false); });
+$$("select[data-secmode]").forEach(sel => sel.onchange = () => {
+  S.ui = S.ui || {sections: {}}; S.ui.sections = S.ui.sections || {};
+  if (sel.value) S.ui.sections[sel.dataset.secmode] = sel.value; else delete S.ui.sections[sel.dataset.secmode];
+  applyModes(); renderActivity(); renderExports(); renderPois(); if (modeOf("make") === "pro") renderContour(); scheduleSave(false);
+});
 $("#tilesText").addEventListener("change", e => { S.tiles = parseTiles(e.target.value); scheduleSave(false); renderDerived(); });
 $("#tilesFromExports").onclick = () => { S.tiles = parseTiles(activeExports().flatMap(e => e.tiles.map(t => t.join("/"))).join(",")); scheduleSave(false); renderDerived(); drawMapLayers(true); };
 $("#tilesClear").onclick = () => { S.tiles = []; scheduleSave(false); renderDerived(); };
@@ -649,9 +699,9 @@ async function tick() {
   $("#elapsed").textContent = j.seconds ? j.seconds + " s" : "";
   const running = j.status === "running";
   $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = running;
-  $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, step 7)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log in step 7." : ""); $("#btnCancel").disabled = !running;
+  $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, step 8)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log in step 8." : ""); $("#btnCancel").disabled = !running;
   if (!running) { clearInterval(poll); poll = null; renderRegions();
-    if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to the Bolt (one by one, after a backup).`; }
+    if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to the Bolt (one by one, after a backup), or use the list below.`; renderResults(); }
 }
 $("#btnRun").onclick = () => start("run"); $("#btnPlan").onclick = () => start("plan");
 $("#btnCancel").onclick = () => api("/api/cancel", {});
@@ -664,15 +714,158 @@ async function renderContour() {
   } catch (e) { /* not important */ }
 }
 
+// ---------- points of interest
+let POIC = null;
+const POI_RE = /^[A-Za-z0-9_:.\-]+$/;
+const icoUrl = icon => "/poi_icons/" + encodeURIComponent(icon.startsWith("shape:") ? "shape-" + icon.split(":")[1] + "-" + icon.split(":")[2] + ".svg" : icon);
+function iconOptions(sel, withDefault) {
+  const lib = POIC.icons.map(i => `<option value="${esc(i)}"${i === sel ? " selected" : ""}>${esc(i.replace(".svg", "").replace(/_/g, " "))}</option>`).join("");
+  const shapes = POIC.shapes.map(sh => `<optgroup label="${esc(sh)}">` + POIC.colors.map(c => { const v = `shape:${sh}:${c}`; return `<option value="${v}"${v === sel ? " selected" : ""}>${esc(sh + " " + c)}</option>`; }).join("") + "</optgroup>").join("");
+  return (withDefault ? `<option value="">default</option>` : "") + `<optgroup label="Icons">${lib}</optgroup>` + shapes;
+}
+const zoomOptions = z => { let o = ""; for (let i = POIC.zoom_min; i <= POIC.zoom_max; i++) o += `<option value="${i}"${i === z ? " selected" : ""}>${i}</option>`; return o; };
+function poiOv(id) { S.pois = S.pois || {}; S.pois.overrides = S.pois.overrides || {}; return S.pois.overrides[id] || (S.pois.overrides[id] = {}); }
+function poiSetOv(id, field, value, dflt) {
+  const o = poiOv(id);
+  if (value === dflt || value === "" || value === null) delete o[field]; else o[field] = value;
+  if (!Object.keys(o).length) delete S.pois.overrides[id];
+}
+const POI_OPEN = new Set();
+function variantsHtml(p, o) {
+  if (!p.variants.length && !Object.keys(p.hide_if || {}).length) return "";
+  const img = i => `<img class="poi-ico" src="${icoUrl(i)}" alt="">`;
+  let h = "";
+  if (o.icon) h += "<div>Your icon replaces the variants.</div>";
+  else {
+    h += p.variants.map(v => `<div>${img(v.icon)} ${esc(v.label)} <span class="note" style="display:inline">(${esc(v.tag)} = ${esc(v.value)})</span></div>`).join("");
+    if (p.variants.length) h += `<div>${img(o.icon || p.icon)} otherwise (default icon)</div>`;
+  }
+  const hide = Object.entries(p.hide_if || {}).map(([k, v]) => k + " = " + v.join(" / ")).join("; ");
+  if (hide) h += `<div class="note">Not shown when: ${esc(hide)}</div>`;
+  return `<details class="var" data-id="${esc(p.id)}"${POI_OPEN.has(p.id) ? " open" : ""}><summary>${p.variants.length ? "Variants (" + p.variants.length + ")" : "Rules"}</summary>${h}</details>`;
+}
+function renderPois() {
+  const tb = $("#poiTable");
+  if (!tb) return;
+  if (!POIC) { tb.innerHTML = '<tr><td class="note">Loading…</td></tr>'; return; }
+  S.pois = S.pois || {overrides: {}, custom: []};
+  const pro = modeOf("pois") === "pro", ov = S.pois.overrides || {};
+  let h = `<tr><th></th><th>Place</th><th>From zoom</th><th>Icon</th>${pro ? '<th class="pro-only">Size %</th><th class="pro-only">OSM tag</th><th class="pro-only"></th>' : ""}</tr>`;
+  POIC.pois.forEach(p => {
+    const o = ov[p.id] || {}, on = o.enabled ?? p.enabled, zoom = o.zoom ?? p.zoom, icon = o.icon ?? p.icon, size = o.size ?? p.size ?? 100;
+    h += `<tr class="${on ? "" : "off"}" data-id="${esc(p.id)}"><td><input type="checkbox" data-f="enabled"${on ? " checked" : ""}></td><td>${esc(p.label)}${variantsHtml(p, o)}</td>
+      <td><select data-f="zoom">${zoomOptions(zoom)}</select></td>
+      <td><img class="poi-ico" src="${icoUrl(icon)}" alt="">${pro ? ` <select data-f="icon">${iconOptions(o.icon || "", true)}</select>` : ""}</td>
+      ${pro ? `<td class="pro-only"><input type="number" min="20" max="400" step="10" data-f="size" value="${size}"></td><td class="pro-only k">${esc(p.id.replace("=", " = "))}</td><td class="pro-only">${Object.keys(o).length ? '<button class="small" data-reset="1" title="Back to the default of this line">↺</button>' : ""}</td>` : ""}</tr>`;
+  });
+  (S.pois.custom || []).forEach((c, i) => {
+    h += `<tr class="${c.enabled === false ? "off" : ""}" data-custom="${i}"><td><input type="checkbox" data-f="enabled"${c.enabled === false ? "" : " checked"}></td><td>${esc(c.label || c.key + "=" + c.value)} <span class="note" style="display:inline">(yours)</span></td>
+      <td><select data-f="zoom">${zoomOptions(c.zoom)}</select></td>
+      <td><img class="poi-ico" src="${icoUrl(c.icon)}" alt="">${pro ? ` <select data-f="icon">${iconOptions(c.icon, false)}</select>` : ""}</td>
+      ${pro ? `<td class="pro-only"><input type="number" min="20" max="400" step="10" data-f="size" value="${c.size ?? 100}"></td><td class="pro-only k">${esc(c.key + " = " + c.value)}</td><td class="pro-only"><button class="small" data-del="1" title="Remove this place">✕</button></td>` : ""}</tr>`;
+  });
+  tb.innerHTML = h;
+  const nOn = POIC.pois.filter(p => (ov[p.id] || {}).enabled ?? p.enabled).length + (S.pois.custom || []).filter(c => c.enabled !== false).length;
+  const changed = Object.keys(ov).length + (S.pois.custom || []).length;
+  $("#poiNote").textContent = nOn + " type" + (nOn === 1 ? "" : "s") + " of places on the map" + (changed ? " · your choices differ from the defaults" : " · default style");
+  $("#poiReset").disabled = !changed;
+}
+function poiSave() { scheduleSave(false); renderPois(); }
+$("#poiTable").addEventListener("toggle", e => {
+  const d = e.target; if (!d.dataset || !d.dataset.id) return;
+  if (d.open) POI_OPEN.add(d.dataset.id); else POI_OPEN.delete(d.dataset.id);
+}, true);
+$("#poiTable").addEventListener("change", e => {
+  const el = e.target, f = el.dataset.f, tr = el.closest("tr");
+  if (!f || !tr) return;
+  if (tr.dataset.custom !== undefined) {
+    const c = S.pois.custom[Number(tr.dataset.custom)];
+    if (f === "enabled") c.enabled = el.checked; else if (f === "zoom") c.zoom = Number(el.value);
+    else if (f === "icon") c.icon = el.value; else if (f === "size") c.size = Number(el.value) || 100;
+    return poiSave();
+  }
+  const p = POIC.pois.find(x => x.id === tr.dataset.id);
+  if (f === "enabled") poiSetOv(p.id, "enabled", el.checked, p.enabled);
+  else if (f === "zoom") poiSetOv(p.id, "zoom", Number(el.value), p.zoom);
+  else if (f === "icon") poiSetOv(p.id, "icon", el.value, p.icon);
+  else if (f === "size") poiSetOv(p.id, "size", Number(el.value) || 100, p.size ?? 100);
+  poiSave();
+});
+$("#poiTable").addEventListener("click", e => {
+  const b = e.target.closest("button"), tr = e.target.closest("tr");
+  if (!b || !tr) return;
+  if (b.dataset.reset) { delete S.pois.overrides[tr.dataset.id]; poiSave(); }
+  if (b.dataset.del) { S.pois.custom.splice(Number(tr.dataset.custom), 1); poiSave(); }
+});
+$("#poiReset").onclick = () => { S.pois = {overrides: {}, custom: []}; poiSave(); };
+$("#cuAdd").onclick = () => {
+  const label = $("#cuLabel").value.trim(), key = $("#cuKey").value.trim(), value = $("#cuValue").value.trim(), msg = $("#cuMsg");
+  msg.textContent = "";
+  if (!key || !value) { msg.textContent = "Give the OSM key and value (for example amenity and bench)."; return; }
+  if (!POI_RE.test(key) || !POI_RE.test(value)) { msg.textContent = "Key and value: letters, digits and _ : . - only."; return; }
+  const id = key + "=" + value;
+  if (POIC.pois.some(p => p.id === id) || (S.pois.custom || []).some(c => c.key + "=" + c.value === id)) { msg.textContent = id + " is already in the list."; return; }
+  S.pois.custom = S.pois.custom || [];
+  S.pois.custom.push({key, value, label: label || id, zoom: Number($("#cuZoom").value), icon: $("#cuIcon").value, size: 120, enabled: true});
+  $("#cuLabel").value = $("#cuKey").value = $("#cuValue").value = "";
+  poiSave();
+};
+async function loadPois() {
+  try {
+    POIC = await api("/api/poi_catalog");
+    $("#cuZoom").innerHTML = zoomOptions(14);
+    $("#cuIcon").innerHTML = iconOptions("shape:circle:red", false);
+    renderPois();
+  } catch (e) { $("#poiTable").innerHTML = '<tr><td class="warn">' + esc(e.message) + "</td></tr>"; }
+}
+
+// ---------- result files (what to copy to the Bolt)
+const fileUrl = rel => "/api/file?rel=" + encodeURIComponent(rel);
+const fileRow = (f, extra) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a>${extra ? `<span class="sz">${esc(extra)}</span>` : ""}<span class="sz">${mb(f.size)}</span></div>`;
+async function renderResults() {
+  const box = $("#results");
+  if (!S.folders.out) { box.innerHTML = ""; return; }
+  let r;
+  try { r = await api("/api/results"); } catch (e) { box.innerHTML = ""; return; }
+  if (!r.theme && !r.tiles.length) { box.innerHTML = ""; return; }
+  let h = '<h3>Files for the Bolt</h3><p class="note">Copy them <b>one by one</b>, after a backup. Easiest: “Open folder”, then copy in your file manager (or Android File Transfer). In Chrome or Edge you can also drag a file from here to the Bolt window; a folder cannot be dragged from a web page. Click a name to download it.</p>';
+  if (r.theme) {
+    h += `<div class="rdir">1. Theme <span class="note">→ Bolt: maps/vtm-elemnt/</span><span style="flex:1"></span><button class="small" data-opendir="${esc(r.theme.dir)}">Open folder</button></div><div class="rin">`;
+    h += r.theme.files.map(f => fileRow(f)).join("");
+    if (r.theme.icons.length) h += `<details class="var"><summary>icons/ (${r.theme.icons.length}) — only if the Bolt has none yet; do not overwrite icons that already work</summary>${r.theme.icons.map(f => fileRow(f)).join("")}</details>`;
+    h += "</div>";
+  }
+  if (r.tiles.length) {
+    h += `<div class="rdir">2. Tiles <span class="note">→ Bolt: maps/tiles/8/</span></div>`;
+    r.tiles.forEach(t => {
+      h += `<div class="rdir" style="font-weight:500">📁 ${t.x}/ <span style="flex:1"></span><button class="small" data-opendir="${esc(t.dir)}">Open folder</button></div><div class="rin">`;
+      h += t.files.map(f => { const y = f.name.split(".")[0]; return fileRow(f, t.labels[y] || ""); }).join("");
+      h += "</div>";
+    });
+  }
+  box.innerHTML = h;
+}
+$("#results").addEventListener("dragstart", e => {
+  const el = e.target.closest && e.target.closest(".rfile"); if (!el) return;
+  e.dataTransfer.setData("DownloadURL", "application/octet-stream:" + el.dataset.name + ":" + location.origin + fileUrl(el.dataset.rel));
+  e.dataTransfer.effectAllowed = "copy";
+});
+$("#results").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-opendir]"); if (!b) return;
+  try { await api("/api/open_folder", {path: b.dataset.opendir}); } catch (err) { $("#runMsg").textContent = "Cannot open this folder: " + err.message; }
+});
+
 // ---------- start
 async function refresh(keepMap) {
   ST = await api("/api/state"); S = ST.settings;
   renderInputs(); renderActivity(); renderExports(); renderDerived();
-  if (!keepMap) { renderOsm().catch(() => {}); if (S.mode === "pro") renderContour(); }
+  if (!keepMap) { renderOsm().catch(() => {}); if (modeOf("make") === "pro") renderContour(); }
+  renderPois();
 }
 (async () => {
   await refresh();
   if (ST.job.status !== "idle") { $("#log").textContent = ST.job.lines.join("\n"); since = ST.job.next; startPolling(); }
+  loadPois(); renderResults();
   await initMap();
   renderDerived(); drawMapLayers(true);
   renderRegions();

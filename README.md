@@ -50,12 +50,19 @@ python3 scripts/gui.py             # opens http://127.0.0.1:8765/ in your browse
    (a progress bar is shown); results are cached.
 3. **Tiles**: click the map (zoom-8 tiles), or use the tiles of your exports. Buttons: zoom to your data, my location.
 4. **Wandrer layer** / 5. **Squadrats layer**: options. The **Simple / Pro** switch (top right) shows more
-   options and the numbers inside each export.
-6. **Map data from OpenStreetMap**: the regions WMC has downloaded (date, size, age); update or delete one,
+   options and the numbers inside each export. Each section also has its own small selector (Follow the button /
+   Simple / Pro), e.g. everything in Pro except the points of interest.
+6. **Points of interest**: tick the kinds of places to draw (fuel, café, water, toilets, bakery, bike shop,
+   railway, bike repair station, camp site) and choose from which zoom level. Pro adds the icon (library icons or a
+   square / circle / triangle / diamond in red, blue, green, yellow, purple, orange, black or white), the size, and
+   "add your own" by OSM tag (check the data first on taginfo / overpass-turbo). The default style of
+   `config/poi-rules.json` is never modified: your choices live in `~/.wahoondrer/settings.json`, and "Back to the
+   defaults" restores everything. A change needs the tiles rebuilt and the theme copied to the Bolt again.
+7. **Map data from OpenStreetMap**: the regions WMC has downloaded (date, size, age); update or delete one,
    download the ones your tiles need, or add another region. A region Geofabrik no longer offers (old French
    regions such as Picardie) is reported and skipped; download its parent region instead. WMC renews regions
    older than 14 days by itself.
-7. **Make the maps**: "Check the plan" lists the tiles and OSM regions needed; "Generate maps" runs
+8. **Make the maps**: "Check the plan" lists the tiles and OSM regions needed; "Generate maps" runs
    `kmz_to_osm.py` then `build_tiles.py` and shows the log.
 
 Settings are remembered in `~/.wahoondrer/settings.json` and a reading cache in `~/.wahoondrer/cache.json`
@@ -64,7 +71,7 @@ an internet connection; without it, type the tiles in the box. Copying to the Bo
 `README.txt` in the output folder.
 
 ## Contour lines (optional, experimental)
-Tick **Add contour lines** in step 7 (Pro mode), or use `--contour` with `scripts/build_tiles.py`. The lines come
+Tick **Add contour lines** in step 8 (Pro mode), or use `--contour` with `scripts/build_tiles.py`. The lines come
 from the free Viewfinder Panoramas elevation data (3 arc-seconds: standard lines, not the finest SRTM 1 ones) and
 need **no account**. Wahoondrer's theme draws them in thin grey/brown lines (100 m lines from zoom 12, 50 m from 13,
 10 m from 14). Not tested on a Bolt yet.
@@ -80,6 +87,13 @@ Wahoondrer runs `pyhgtmap` (its maintained fork) itself with the same settings a
 The first run downloads the elevation data and computes the lines of every tile (slow); both are kept for the next
 runs (an unfinished or empty contour file is detected and redone). Tiles become heavier: check `size_report.txt`.
 With contour lines, the theme must be copied to the Bolt too (see `README.txt` in the output folder).
+
+## Points of interest (details)
+`config/poi-rules.json` is the catalogue and the default style (label, zoom, icon, size, `enabled`). The web page
+offers every entry; `scripts/generate_poi_config.py` writes it into the tag-mapping XMLs, `tags-to-keep.json` and the
+theme (`--check` tells whether they are up to date). With choices made in the page, `build_tiles.py --poi-rules FILE`
+generates a private copy of the config and theme in `~/.wahoondrer/generated/` and builds with it, so repository
+files stay untouched.
 
 ## Installation
 Wahoondrer itself needs only Python 3 (standard library). `scripts/build_tiles.py` also needs

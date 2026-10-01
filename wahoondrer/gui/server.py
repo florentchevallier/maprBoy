@@ -8,7 +8,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from .. import contour
+from .. import contour, poi_config
 from . import jobs, native, regions, scan, settings
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -71,6 +71,73 @@ def state(s):
             "scan": SCANNER.status(), "job": JOB.snapshot(0)}
 
 
+def poi_catalog():
+    """The POIs the page offers (config/poi-rules.json) and the icons that can be chosen."""
+    paths = poi_config.Paths()
+    pois = []
+    for p in poi_config.read_rules():
+        pois.append({"id": poi_config.poi_id(p), "key": p["key"], "value": p["value"],
+                     "label": p.get("label") or poi_config.poi_id(p), "zoom": p["zoom"],
+                     "size": p.get("size"), "icon": p["icon"], "enabled": p.get("enabled", True),
+                     "variants": [{"tag": v["tag"], "value": v["value"], "icon": v["icon"],
+                                   "label": v.get("label") or f'{v["tag"]} = {v["value"]}'} for v in p.get("variants", [])],
+                     "hide_if": p.get("hide_if", {})})
+    return {"pois": pois, "icons": poi_config.library_icons(paths.icon_dir),
+            "shapes": list(poi_config.SHAPES), "colors": list(poi_config.COLORS),
+            "zoom_min": poi_config.ZOOM_MIN, "zoom_max": poi_config.ZOOM_MAX}
+
+
+def is_junk(name):
+    """Files the operating system adds on its own (.DS_Store, ._x, Thumbs.db, desktop.ini...): never offered."""
+    return name.startswith(".") or name.lower() in ("thumbs.db", "ehthumbs.db", "desktop.ini")
+
+
+def results(out):
+    """What a build left in the output folder: the files to copy to the Bolt (theme, then tiles)."""
+    out = os.path.abspath(os.path.expanduser(out or ""))
+    maps = os.path.join(out, "wahoondrer_maps", "maps")
+
+    def entry(path):
+        return {"name": os.path.basename(path), "size": os.path.getsize(path),
+                "rel": os.path.relpath(path, out).replace(os.sep, "/")}
+
+    res = {"out": out, "theme": None, "tiles": []}
+    theme = os.path.join(maps, "vtm-elemnt")
+    if os.path.isdir(theme):
+        icons = os.path.join(theme, "icons")
+        res["theme"] = {"dir": theme, "icons_dir": icons,
+                        "files": [entry(os.path.join(theme, f)) for f in sorted(os.listdir(theme))
+                                  if not is_junk(f) and os.path.isfile(os.path.join(theme, f))],
+                        "icons": [entry(os.path.join(icons, f)) for f in sorted(os.listdir(icons))
+                                  if f.endswith(".svg") and not is_junk(f)] if os.path.isdir(icons) else []}
+    tiles = os.path.join(maps, "tiles", "8")
+    if os.path.isdir(tiles):
+        for x in sorted((d for d in os.listdir(tiles) if d.isdigit()), key=int):
+            xdir = os.path.join(tiles, x)
+            labels = {}
+            files = []
+            for f in sorted(os.listdir(xdir)):
+                m = re.match(r"^(\d+)(?: - |_)(.*)\.txt$", f)
+                if is_junk(f):
+                    continue
+                if m:
+                    labels[m.group(1)] = m.group(2)
+                elif f.endswith((".map.lzma", ".map.lzma.17")):
+                    files.append(entry(os.path.join(xdir, f)))
+            res["tiles"].append({"x": int(x), "dir": xdir, "labels": labels, "files": files})
+    return res
+
+
+def result_file(out, rel):
+    """Absolute path of a built file, only inside wahoondrer_maps / wmc_classic of the output folder."""
+    out = os.path.realpath(os.path.expanduser(out or ""))
+    full = os.path.realpath(os.path.join(out, rel))
+    allowed = [os.path.join(out, d) + os.sep for d in ("wahoondrer_maps", "wmc_classic")]
+    if not out or not any(full.startswith(a) for a in allowed) or not os.path.isfile(full):
+        return None
+    return full
+
+
 def contour_status():
     """Contour lines need pyhgtmap (installed once with build_tiles.py --setup-contour)."""
     return {"pyhgtmap": contour.pyhgtmap_path() is not None}
@@ -126,6 +193,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, regions_state())
             if url.path == "/api/contour_status":
                 return self._send(200, contour_status())
+            if url.path == "/api/results":
+                return self._send(200, results(settings.load()["folders"]["out"]))
+            if url.path == "/api/file":
+                return self._file(q.get("rel", [""])[0])
+            if url.path == "/api/poi_catalog":
+                return self._send(200, poi_catalog())
+            if url.path.startswith("/poi_icons/"):
+                return self._poi_icon(url.path.rsplit("/", 1)[-1])
             if url.path == "/api/osm_data":
                 return self._send(200, regions.data_dir_info(settings.load()["folders"]["data"]))
             if url.path == "/api/regions_available":
@@ -133,6 +208,35 @@ class Handler(BaseHTTPRequestHandler):
             return self._static(url.path)
         except Exception as exc:
             return self._send(500, {"error": str(exc)})
+
+    def _file(self, rel):
+        full = result_file(settings.load()["folders"]["out"], rel)
+        if not full:
+            return self._send(404, {"error": "not found"})
+        self.send_response(200)
+        self.send_header("Content-Type", "application/octet-stream")
+        self.send_header("Content-Length", str(os.path.getsize(full)))
+        self.send_header("Content-Disposition", 'attachment; filename="%s"' % os.path.basename(full).replace('"', ""))
+        self.end_headers()
+        with open(full, "rb") as f:
+            while True:
+                chunk = f.read(1 << 20)
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+
+    def _poi_icon(self, name):
+        m = re.match(r"^shape-([a-z]+)-([a-z]+)\.svg$", name)
+        try:
+            if m:
+                data = poi_config.shape_svg(*poi_config.shape_parts(f"shape:{m.group(1)}:{m.group(2)}")).encode("utf-8")
+            elif name in poi_config.library_icons(poi_config.Paths().icon_dir):
+                data = (poi_config.Paths().icon_dir / name).read_bytes()
+            else:
+                return self._send(404, {"error": "not found"})
+        except (ValueError, OSError):
+            return self._send(404, {"error": "not found"})
+        self._send(200, data, "image/svg+xml")
 
     def _static(self, path):
         name = "index.html" if path in ("/", "") else path.lstrip("/")

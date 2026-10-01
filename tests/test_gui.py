@@ -373,5 +373,125 @@ class ContourTests(unittest.TestCase):
             contour.VENV = old
 
 
+class PoiTests(unittest.TestCase):
+    def setUp(self):
+        from wahoondrer import poi_config
+        self.pc = poi_config
+        self.base = poi_config.read_rules()
+        self.tmp = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_defaults_without_choices(self):
+        eff = self.pc.effective_pois(self.base, {})
+        self.assertEqual(len(eff), len(self.base))
+        self.assertFalse(self.pc.has_user_choices({"overrides": {}, "custom": []}))
+
+    def test_overrides_and_custom(self):
+        user = {"overrides": {"amenity=fuel": {"enabled": False}, "amenity=cafe": {"zoom": 12, "icon": "shape:square:red"}},
+                "custom": [{"key": "amenity", "value": "bench", "zoom": 14, "icon": "shape:circle:blue"}]}
+        eff = {self.pc.poi_id(p): p for p in self.pc.effective_pois(self.base, user)}
+        self.assertFalse(eff["amenity=fuel"]["enabled"])
+        self.assertEqual(eff["amenity=cafe"]["zoom"], 12)
+        self.assertTrue(eff["amenity=bench"]["custom"])
+        t = {self.pc.poi_id(p): p for p in self.pc.effective_pois(self.base, {"overrides": {"amenity=toilets": {"icon": "shape:circle:red"}}})}
+        self.assertNotIn("variants", t["amenity=toilets"])
+
+    def test_validate_rejects_bad_values(self):
+        icons = self.pc.Paths().icon_dir
+        ok = {"key": "amenity", "value": "bench", "zoom": 14, "icon": "shape:circle:red"}
+        self.pc.validate([ok], icons)
+        for bad in ({"key": 'a"b'}, {"value": "x y"}, {"zoom": 3}, {"zoom": "14"}, {"size": 5},
+                    {"icon": "nothing.svg"}, {"icon": "shape:star:red"}, {"icon": "../x.svg"}):
+            with self.assertRaises(ValueError, msg=str(bad)):
+                self.pc.validate([dict(ok, **bad)], icons)
+
+    def test_prepare_tree_leaves_repo_untouched_and_writes_icons(self):
+        import hashlib
+        theme = self.pc.Paths().theme
+        before = hashlib.md5(open(theme, "rb").read()).hexdigest()
+        user = {"overrides": {"amenity=fuel": {"enabled": False}, "tourism=camp_site": {"enabled": True}},
+                "custom": [{"key": "amenity", "value": "bench", "zoom": 14, "icon": "shape:triangle:purple", "size": 120}]}
+        pois = [p for p in self.pc.effective_pois(self.base, user) if p.get("enabled", True)]
+        paths = self.pc.prepare_tree(os.path.join(self.tmp.name, "gen"), pois)
+        self.assertEqual(hashlib.md5(open(theme, "rb").read()).hexdigest(), before)
+        text = open(paths.theme, encoding="utf-8").read()
+        self.assertIn('v="bench"', text)
+        self.assertNotIn('v="fuel"', text)
+        self.assertTrue((paths.icon_dir / "shape-triangle-purple.svg").is_file())
+        self.assertIn("bench", open(paths.tags_to_keep, encoding="utf-8").read())
+
+    def test_poi_args(self):
+        old = settings.SETTINGS_PATH
+        settings.SETTINGS_PATH = os.path.join(self.tmp.name, "settings.json")
+        try:
+            self.assertEqual(jobs.poi_args({"pois": {"overrides": {}, "custom": []}}), [])
+            args = jobs.poi_args({"pois": {"overrides": {"amenity=fuel": {"enabled": False}}, "custom": []}})
+            self.assertEqual(args[0], "--poi-rules")
+            data = json.load(open(args[1]))
+            self.assertNotIn("amenity=fuel", [self.pc.poi_id(p) for p in data["pois"]])
+            with self.assertRaises(jobs.SettingsError):
+                jobs.poi_args({"pois": {"overrides": {}, "custom": [{"key": "a b", "value": "x", "zoom": 14, "icon": "shape:circle:red"}]}})
+        finally:
+            settings.SETTINGS_PATH = old
+
+    def test_catalog_and_icons(self):
+        cat = server.poi_catalog()
+        ids = [p["id"] for p in cat["pois"]]
+        self.assertIn("amenity=bicycle_repair_station", ids)
+        self.assertIn("tourism=camp_site", ids)
+        self.assertIn("circle", cat["shapes"])
+        toilets = [p for p in cat["pois"] if p["id"] == "amenity=toilets"][0]
+        self.assertEqual([v["label"] for v in toilets["variants"]], ["paid", "free"])
+        self.assertTrue(cat["icons"])
+
+    def test_settings_keep_free_form_poi_choices(self):
+        p = os.path.join(self.tmp.name, "s.json")
+        s = settings.load(p)
+        s["pois"] = {"overrides": {"amenity=fuel": {"zoom": 12}}, "custom": []}
+        s["ui"] = {"sections": {"pois": "simple"}}
+        settings.save(s, p)
+        s2 = settings.load(p)
+        self.assertEqual(s2["pois"]["overrides"]["amenity=fuel"]["zoom"], 12)
+        self.assertEqual(s2["ui"]["sections"]["pois"], "simple")
+
+
+class LabelNameTests(unittest.TestCase):
+    def test_label_file_name(self):
+        from wahoondrer.tiles import label_file_name
+        self.assertEqual(label_file_name(88, "Munich, Ingolstadt"), "88_Munich-Ingolstadt.txt")
+        self.assertEqual(label_file_name(88, "Saint-Étienne, Zürich"), "88_Saint-Etienne-Zurich.txt")
+        self.assertIsNone(label_file_name(88, " , "))
+
+
+class ResultsTests(unittest.TestCase):
+    def test_results_tree_and_safe_file_access(self):
+        with tempfile.TemporaryDirectory() as out:
+            maps = os.path.join(out, "wahoondrer_maps", "maps")
+            os.makedirs(os.path.join(maps, "tiles", "8", "136"))
+            os.makedirs(os.path.join(maps, "vtm-elemnt", "icons"))
+            _write(os.path.join(maps, "tiles", "8", "136", "88.map.lzma"), "abc")
+            _write(os.path.join(maps, "tiles", "8", "136", "88.map.lzma.17"), "abc")
+            _write(os.path.join(maps, "tiles", "8", "136", "88_Munich.txt"), "info")
+            _write(os.path.join(maps, "vtm-elemnt", "vtm-elemnt.xml"), "<x/>")
+            _write(os.path.join(maps, "vtm-elemnt", "icons", "a.svg"), "<svg/>")
+            _write(os.path.join(out, "secret.txt"), "no")
+            for junk in (os.path.join(maps, "vtm-elemnt", ".DS_Store"), os.path.join(maps, "vtm-elemnt", "icons", "Thumbs.db"),
+                         os.path.join(maps, "tiles", "8", "136", "._88.map.lzma")):
+                _write(junk, "x")
+            r = server.results(out)
+            self.assertEqual([f["name"] for f in r["theme"]["files"]], ["vtm-elemnt.xml"])
+            self.assertEqual(r["theme"]["files"][0]["name"], "vtm-elemnt.xml")
+            self.assertEqual(len(r["theme"]["icons"]), 1)
+            tile = r["tiles"][0]
+            self.assertEqual(tile["labels"], {"88": "Munich"})
+            self.assertEqual([f["name"] for f in tile["files"]], ["88.map.lzma", "88.map.lzma.17"])
+            self.assertTrue(server.result_file(out, "wahoondrer_maps/maps/tiles/8/136/88.map.lzma"))
+            self.assertIsNone(server.result_file(out, "secret.txt"))
+            self.assertIsNone(server.result_file(out, "../" + os.path.basename(out) + "/secret.txt"))
+            self.assertEqual(server.results(os.path.join(out, "none"))["tiles"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

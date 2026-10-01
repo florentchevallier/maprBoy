@@ -28,3 +28,17 @@ def tiles_for_bbox(west, south, east, north, zoom=ZOOM):
     x0, y1 = tile_of(west, south, zoom)
     x1, y0 = tile_of(east, north, zoom)
     return [(x, y) for x in range(x0, x1 + 1) for y in range(y0, y1 + 1)]
+
+
+def label_file_name(y, label):
+    """Name of the small info file in a tile folder: '88_Munich-Ingolstadt.txt'.
+    Only letters, digits and '-' (no spaces, commas or accents) so that any file manager copes. None if empty."""
+    import re
+    import unicodedata
+    parts = []
+    for part in str(label).split(","):
+        ascii_part = unicodedata.normalize("NFKD", part).encode("ascii", "ignore").decode()
+        slug = re.sub(r"[^A-Za-z0-9]+", "-", ascii_part).strip("-")
+        if slug:
+            parts.append(slug)
+    return f"{y}_{'-'.join(parts)}"[:60] + ".txt" if parts else None

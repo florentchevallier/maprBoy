@@ -329,5 +329,49 @@ class SettingsTests(unittest.TestCase):
             self.assertEqual(settings.load(p)["squadrats"]["buffer"], 7)
 
 
+class ContourTests(unittest.TestCase):
+    def test_command_matches_wmc_settings_and_needs_no_account(self):
+        from wahoondrer import contour
+        tile = {"left": 11.25, "bottom": 47.98, "right": 12.65, "top": 48.92}
+        c = contour.build_command("/x/pyhgtmap", tile, "/t/elevation", "/h", 3)
+        self.assertEqual(c[0], "/x/pyhgtmap")
+        self.assertEqual(c[c.index("-a") + 1], "11.25:47.98:12.65:48.92")
+        self.assertEqual(c[c.index("-o") + 1], "/t/elevation")
+        for opt in ("--sources=view1,view3", "--jobs=3", "--max-nodes-per-tile=0",
+                    "--no-zero-contour", "--hgtdir=/h", "--start-node-id=20000000000"):
+            self.assertIn(opt, c)
+        self.assertEqual(c[c.index("-c") + 1], "100,50")
+        self.assertFalse([a for a in c if "earthexplorer" in a or "srtm" in a])
+
+    def test_file_ok_rejects_empty_or_unfinished_files(self):
+        import tempfile
+        from wahoondrer import contour
+        d = tempfile.mkdtemp()
+        def mk(name, data):
+            p = os.path.join(d, name)
+            open(p, "wb").write(data)
+            return p
+        head = b'<?xml version="1.0"?>\n<osm version="0.6">\n' + b"<node id='1'/>\n" * 100
+        self.assertTrue(contour.file_ok(mk("ok.osm", head + b"</osm>\n")))
+        self.assertFalse(contour.file_ok(mk("cut.osm", head)))                    # killed run
+        self.assertFalse(contour.file_ok(mk("empty.osm", b"<osm>\n</osm>\n")))  # header only
+        self.assertFalse(contour.file_ok(os.path.join(d, "missing.osm")))
+
+    def test_pyhgtmap_path_prefers_own_environment(self):
+        import tempfile
+        from wahoondrer import contour
+        d = tempfile.mkdtemp()
+        old = contour.VENV
+        try:
+            contour.VENV = d
+            b = os.path.join(d, "Scripts" if os.name == "nt" else "bin")
+            os.makedirs(b)
+            exe = os.path.join(b, "pyhgtmap.exe" if os.name == "nt" else "pyhgtmap")
+            open(exe, "w").close()
+            self.assertEqual(contour.pyhgtmap_path(), exe)
+        finally:
+            contour.VENV = old
+
+
 if __name__ == "__main__":
     unittest.main()

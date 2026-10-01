@@ -3,6 +3,5 @@
 # requests and osgeo (GDAL); those come from environment.yml.
 wahoomc==4.4.0
 #
-# Optional, only for contour lines (--contour): a program named "phyghtmap" on PATH.
-# Install it in the same environment and pin the exact version here once confirmed:
-#   pip list | grep -i hgt
+# Contour lines (--contour) need nothing here: pyhgtmap gets its own environment,
+# created by: python3 scripts/build_tiles.py --setup-contour

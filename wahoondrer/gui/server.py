@@ -3,12 +3,12 @@ import json
 import mimetypes
 import os
 import re
-import shutil
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from .. import contour
 from . import jobs, native, regions, scan, settings
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -72,16 +72,8 @@ def state(s):
 
 
 def contour_status():
-    """What WMC's contour-line option needs: the phyghtmap program and a stored USGS login."""
-    found = shutil.which("phyghtmap") is not None
-    login = None
-    try:
-        from wahoomc.setup_functions import read_earthexplorer_credentials
-        user, password = read_earthexplorer_credentials()
-        login = bool(user and password)
-    except Exception:          # WMC not importable here (server not started inside the environment)
-        pass
-    return {"phyghtmap": found, "login": login}
+    """Contour lines need pyhgtmap (installed once with build_tiles.py --setup-contour)."""
+    return {"pyhgtmap": contour.pyhgtmap_path() is not None}
 
 
 def regions_state():

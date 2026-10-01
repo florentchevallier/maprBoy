@@ -95,7 +95,7 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   <label class="row">Squadrats exports<input type="text" data-path="folders.squadrats"><button data-browse="folders.squadrats">Choose…</button><button data-open="folders.squadrats">Open</button></label>
   <label class="row">Output<input type="text" data-path="folders.out"><button data-browse="folders.out">Choose…</button><button data-open="folders.out">Open</button></label>
   <label class="row">Work files<input type="text" data-path="folders.work"><button data-browse="folders.work">Choose…</button><button data-open="folders.work">Open</button></label>
-  <p class="note">Output: the maps are written to <b>wmc_classique</b> and <b>wmc_wandrer</b> inside it (rebuilt at each run: use a dedicated folder).<span> Work files: temporary files made while building; you can ignore this folder.</span><span class="pro-only inline"> It holds the merged Wandrer data (<b>wandrer.osm</b>) handed to WMC.</span></p>
+  <p class="note">Output: the maps are written to <b>wmc_classic</b> and <b>wahoondrer_maps</b> inside it (rebuilt at each run: use a dedicated folder).<span> Work files: temporary files made while building; you can ignore this folder.</span><span class="pro-only inline"> It holds the merged Wandrer data (<b>wandrer.osm</b>) handed to WMC.</span></p>
   <div id="osmRow" class="note" style="margin-top:8px"></div>
 </section>
 
@@ -196,7 +196,7 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
     <span id="status" class="pill">idle</span><span id="elapsed" class="note"></span>
   </div>
   <div class="pro-only" id="contourBox" style="margin-top:8px">
-    <label class="chk"><input type="checkbox" data-path="build.contour"><span>Add contour lines (relief) <small>needs the <b>phyghtmap</b> program; the first run is much longer and the tiles heavier</small></span></label>
+    <label class="chk"><input type="checkbox" data-path="build.contour"><span>Add contour lines (relief) <small>needs <b>pyhgtmap</b> (one-time install); the first run is much longer and the tiles heavier</small></span></label>
     <p class="note" id="contourStatus"></p>
   </div>
   <div id="runMsg" class="warn"></div>
@@ -658,11 +658,9 @@ $("#btnCancel").onclick = () => api("/api/cancel", {});
 
 async function renderContour() {
   try {
-    const c = await api("/api/contour_status"), parts = [];
-    parts.push(c.phyghtmap ? "✓ phyghtmap found" : "✗ phyghtmap not found (see the README, section Contour lines)");
-    parts.push(c.login === null ? "WMC login entry: unknown (start the page inside the wahoondrer environment)"
-      : c.login ? "✓ login entry stored" : "✗ login entry missing: run once in a terminal  python3 scripts/build_tiles.py --xy 136/88 --setup-contour (Enter to skip the account)");
-    $("#contourStatus").textContent = parts.join("  ·  ");
+    const c = await api("/api/contour_status");
+    $("#contourStatus").textContent = c.pyhgtmap ? "✓ pyhgtmap found (no account needed)"
+      : "✗ pyhgtmap not installed: run once in a terminal  python3 scripts/build_tiles.py --setup-contour";
   } catch (e) { /* not important */ }
 }
 

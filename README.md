@@ -64,24 +64,22 @@ an internet connection; without it, type the tiles in the box. Copying to the Bo
 `README.txt` in the output folder.
 
 ## Contour lines (optional, experimental)
-WMC can add contour lines (relief) to the tiles: tick **Add contour lines** in step 7 (Pro mode), or use
-`--contour` with `scripts/build_tiles.py` (WMC's default elevation data; the finer SRTM 1 data is not used). Wahoondrer's theme draws them in thin grey/brown lines
-(100 m lines from zoom 12, 50 m from 13, 10 m from 14). Not tested on a Bolt yet.
+Tick **Add contour lines** in step 7 (Pro mode), or use `--contour` with `scripts/build_tiles.py`. The lines come
+from the free Viewfinder Panoramas elevation data (3 arc-seconds: standard lines, not the finest SRTM 1 ones) and
+need **no account**. Wahoondrer's theme draws them in thin grey/brown lines (100 m lines from zoom 12, 50 m from 13,
+10 m from 14). Not tested on a Bolt yet.
 
-Requirements (not part of the standard installation):
-- the **phyghtmap** program, which WMC calls by that name. I could not find a package named `phyghtmap` on PyPI;
-  WMC's guide installs version 2.23 from source: download
-  <http://katze.tfiu.de/projects/phyghtmap/phyghtmap_2.23.orig.tar.gz>, unpack it and run `python setup.py install`
-  inside the same environment. The newer fork `pyhgtmap` (pip) provides a differently named command
-  (`pyhgtmap`), so it does not replace it as is. Check with `which phyghtmap` inside the environment.
-- a login entry for WMC: run once in a terminal `python3 scripts/build_tiles.py --xy 136/88 --setup-contour`.
-  WMC reads it at every contour run, but only the SRTM sources use it; with the default sources (Viewfinder) pressing
-  Enter (skip) is enough. A free account at <https://ers.cr.usgs.gov/> is only needed for SRTM. WMC saves the
-  login in clear text in its own configuration file.
+One-time setup, in a terminal (it installs `pyhgtmap` in its own small environment in `~/.wahoondrer/`, so it
+cannot disturb GDAL or shapely):
 
-The first run computes the contour lines of every tile (slow) and keeps them for the next runs. Tiles become
-heavier: check `size_report.txt`. With contour lines, the theme must be copied to the Bolt too (see `README.txt` in the
-output folder).
+    python3 scripts/build_tiles.py --setup-contour
+
+Why not WMC's own contour step? It calls `phyghtmap` 2.23, an old program that fails with current Python libraries.
+Wahoondrer runs `pyhgtmap` (its maintained fork) itself with the same settings and hands the result to WMC.
+
+The first run downloads the elevation data and computes the lines of every tile (slow); both are kept for the next
+runs (an unfinished or empty contour file is detected and redone). Tiles become heavier: check `size_report.txt`.
+With contour lines, the theme must be copied to the Bolt too (see `README.txt` in the output folder).
 
 ## Installation
 Wahoondrer itself needs only Python 3 (standard library). `scripts/build_tiles.py` also needs

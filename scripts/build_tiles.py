@@ -9,8 +9,8 @@ Phase 2 (Wandrer): only for the tiles touched by the exports (the
   redone with the Wandrer pbf added.
 
 Output (--out):
-  wmc_classique/maps/...   all tiles (POIs, no Wandrer)
-  wmc_wandrer/maps/...     ONLY the modified tiles + theme
+  wmc_classic/maps/...        all tiles (POIs, no Wandrer)
+  wahoondrer_maps/maps/...    ONLY the modified tiles + theme
   README.txt               files to copy to the Bolt, one by one
   size_report.txt          size of each tile with / without Wandrer
 
@@ -18,12 +18,13 @@ Usage (WMC installed and importable; Java + osmium required):
   python3 scripts/build_tiles.py --xy 135/88,135/89,136/88,136/89 \\
           --wandrer wandrer.osm [--plan] [--skip-classic]
 --plan: print the tiles and the OSM regions needed, produce nothing.
---contour: also add contour lines (WMC option; needs the phyghtmap program and a free
-  USGS EarthExplorer account, see README). Uses WMC's default (coarser, lighter) elevation data.
---setup-contour: store the USGS login WMC wants for contour lines (Enter = skip; run it in a terminal).
+--contour: also add contour lines (needs pyhgtmap, see README; no account needed). Uses the free
+  Viewfinder 3 arc-second elevation data (coarser and lighter than SRTM 1).
+--setup-contour: install pyhgtmap once, in its own small environment, and exit.
 """
 
 import argparse
+import glob
 import json
 import os
 import shutil
@@ -31,16 +32,18 @@ import subprocess
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, REPO)
 
-from wahoomc.constants import USER_CONFIG_DIR, USER_OUTPUT_DIR, USER_WAHOO_MC  # noqa: E402
+from wahoondrer import contour as contour_lines  # noqa: E402
+
+from wahoomc.constants import USER_CONFIG_DIR, USER_DL_DIR, USER_OUTPUT_DIR, USER_WAHOO_MC  # noqa: E402
 from wahoomc.downloader import download_tooling  # noqa: E402
 from wahoomc.input import InputData  # noqa: E402
 from wahoomc.osm_data import XYOsmData  # noqa: E402
 from wahoomc.osm_maps_functions import OsmMaps  # noqa: E402
 from wahoomc.setup_functions import (  # noqa: E402
     adjustments_due_to_breaking_changes, check_installation_of_required_programs,
-    copy_jsons_from_repo_to_user, initialize_work_directories, read_earthexplorer_credentials,
-    write_config_file)
+    copy_jsons_from_repo_to_user, initialize_work_directories)
 
 
 class FakeOsmData:
@@ -79,46 +82,36 @@ def to_pbf(osm_path):
     return os.path.abspath(pbf), base + ".tiles.json"
 
 
-def ask_login():
-    """Store the USGS EarthExplorer login for WMC (it reads it for every contour run).
-    The login is only used by the SRTM sources; the default Viewfinder sources need none,
-    so pressing Enter stores a placeholder."""
-    import getpass
-    print("USGS EarthExplorer login (free account at https://ers.cr.usgs.gov/).")
-    print("Only the SRTM data sources use it; the default sources (Viewfinder) do not.")
-    user = input("Username (Enter = skip): ").strip()
-    if not user:
-        write_config_file({"earthexplorer-user": "unused", "earthexplorer-password": "unused"})
-        print("Skipped: a placeholder is stored (WMC insists on having a value).")
-        return
-    write_config_file({"earthexplorer-user": user,
-                       "earthexplorer-password": getpass.getpass("Password (hidden): ")})
-    print("Login stored in WMC's configuration file.")
-
-
-def phyghtmap_hint():
-    if shutil.which("phyghtmap"):
-        return ""
-    if shutil.which("pyhgtmap"):
-        return ("Found 'pyhgtmap' (the newer fork) but WMC calls a program named 'phyghtmap', "
-                "which is different. See the README, section 'Contour lines'.")
-    return "phyghtmap not found on the PATH of this Python environment (see the README, section 'Contour lines')."
-
-
 def check_contour_prerequisites():
-    """phyghtmap installed + USGS login stored. Never asks a question when there is no terminal
-    (the web interface runs this script without one: a question would hang it)."""
-    hint = phyghtmap_hint()
-    if hint:
-        sys.exit("Contour lines need the phyghtmap program. " + hint)
-    user, password = read_earthexplorer_credentials()
-    if user and password:
-        return
-    if sys.stdin is not None and sys.stdin.isatty():
-        ask_login()
-        return
-    sys.exit("WMC needs a stored USGS login for contour lines (a placeholder is enough with the default "
-             "data sources). Run once in a terminal:  python3 scripts/build_tiles.py --xy 136/88 --setup-contour")
+    if not contour_lines.pyhgtmap_path():
+        sys.exit("Contour lines need pyhgtmap. Install it once with:  python3 scripts/build_tiles.py --setup-contour")
+
+
+def generate_contours(tiles):
+    """Contour lines of every tile (one .osm file per tile, reused when already complete)."""
+    exe = contour_lines.pyhgtmap_path()
+    hgt_dir = os.path.join(USER_DL_DIR, "hgt")
+    os.makedirs(hgt_dir, exist_ok=True)
+    jobs = max(1, min(4, os.cpu_count() or 1))
+    for t in tiles:
+        tdir = os.path.join(USER_OUTPUT_DIR, str(t["x"]), str(t["y"]))
+        os.makedirs(tdir, exist_ok=True)
+        found = sorted(glob.glob(os.path.join(tdir, "elevation*.osm")))
+        if len(found) == 1 and contour_lines.file_ok(found[0]):
+            print(f"  tile {t['x']}/{t['y']}: contour lines already computed, reused")
+            continue
+        for f in found:                      # empty or unfinished leftovers
+            os.remove(f)
+        print(f"  tile {t['x']}/{t['y']}: computing contour lines (the elevation data is downloaded the first time)")
+        cmd = contour_lines.build_command(exe, t, os.path.join(tdir, "elevation"), hgt_dir, jobs)
+        result = subprocess.run(cmd, check=False)
+        made = sorted(glob.glob(os.path.join(tdir, "elevation*.osm")))
+        if result.returncode != 0 or not made:
+            for f in made:
+                os.remove(f)
+            sys.exit(f"! pyhgtmap failed for tile {t['x']}/{t['y']} (exit code {result.returncode}).")
+        if not all(contour_lines.file_ok(f) for f in made):
+            print(f"  ! tile {t['x']}/{t['y']}: almost no elevation data found (open sea?).")
 
 
 def copy_theme(dst_root):
@@ -141,9 +134,62 @@ def prepare(xy, args):
     return data
 
 
-def copy_tile(src_dir, x, y, dst_root):
+def parse_places(opl_text):
+    """Names of the cities/towns in OPL text, biggest first (city before town, then population)."""
+    import re
+    def dec(v):
+        return re.sub(r"%([0-9a-fA-F]+)%", lambda m: chr(int(m.group(1), 16)), v)
+    found = []
+    for line in opl_text.splitlines():
+        if not line.startswith("n"):
+            continue
+        tags = {}
+        for tok in line.split(" "):
+            if tok.startswith("T") and len(tok) > 1:
+                for kv in tok[1:].split(","):
+                    k, _, v = kv.partition("=")
+                    tags[dec(k)] = dec(v)
+        rank = {"city": 0, "town": 1}.get(tags.get("place"))
+        name = tags.get("name:en") or tags.get("name")
+        if rank is None or not name:
+            continue
+        try:
+            pop = int(tags.get("population", "0"))
+        except ValueError:
+            pop = 0
+        found.append((rank, -pop, name))
+    found.sort()
+    out = []
+    for rank, _, name in found:
+        if name not in out:
+            out.append(name)
+    cities = [n for r, _, n in found if r == 0]
+    return (list(dict.fromkeys(cities))[:3]) or out[:2]
+
+
+def tile_label(src_dir, x, y):
+    """Landmark text of a tile (e.g. 'Munich, Freising') from the place names WMC kept; '' if unknown."""
+    import glob
+    text = ""
+    for f in sorted(glob.glob(os.path.join(src_dir, str(x), str(y), "split-*-names.osm.pbf"))):
+        try:
+            r = subprocess.run(["osmium", "cat", f, "-f", "opl", "-o", "-"],
+                               capture_output=True, text=True, timeout=120)
+            text += r.stdout
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return ", ".join(parse_places(text))
+
+
+def copy_tile(src_dir, x, y, dst_root, label=""):
     tdir = os.path.join(dst_root, "maps", "tiles", "8", str(x))
     os.makedirs(tdir, exist_ok=True)
+    if label:
+        import re
+        safe = re.sub(r'[\\/:*?"<>|]', "", label)[:60].strip()
+        if safe:
+            with open(os.path.join(tdir, f"{y} - {safe}.txt"), "w", encoding="utf-8") as f:
+                f.write(f"Tile 8/{x}/{y}: {label}\nInfo file only: do NOT copy it to the Bolt.\n")
     base = os.path.join(src_dir, str(x), str(y))
     for ext in (".map.lzma", ".map.lzma.17"):
         shutil.copy2(base + ext, os.path.join(tdir, f"{y}{ext}"))
@@ -160,7 +206,7 @@ def size(path):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--xy", required=True, help="z8 tiles, e.g. 135/88,136/88")
+    ap.add_argument("--xy", help="z8 tiles, e.g. 135/88,136/88")
     ap.add_argument("--wandrer", help="the .osm (or .osm.pbf) file written by kmz_to_osm.py")
     ap.add_argument("--out", default=os.path.join(USER_WAHOO_MC, "_output"))
     ap.add_argument("--tags-classic", default="tag-wahoo-poi.xml")
@@ -169,16 +215,15 @@ def main():
     ap.add_argument("--skip-classic", action="store_true",
                     help="reuse the classic tiles already built in _tiles")
     ap.add_argument("--force-download", action="store_true")
-    ap.add_argument("--contour", action="store_true", help="add contour lines (needs phyghtmap, USGS login)")
+    ap.add_argument("--contour", action="store_true", help="add contour lines (needs pyhgtmap, see --setup-contour)")
     ap.add_argument("--setup-contour", action="store_true",
-                    help="ask for the USGS EarthExplorer login once (in a terminal) and exit")
+                    help="install pyhgtmap (once, in its own environment) and exit")
     args = ap.parse_args()
     if args.setup_contour:
-        hint = phyghtmap_hint()
-        if hint:
-            print("Note: " + hint)
-        ask_login()
+        contour_lines.setup()
         return
+    if not args.xy:
+        ap.error("--xy is required")
 
     initialize_work_directories()
     adjustments_due_to_breaking_changes()
@@ -206,13 +251,13 @@ def main():
             "regions": sorted(data.border_countries)}))
         return
 
-    out_c = os.path.join(args.out, "wmc_classique")
-    out_w = os.path.join(args.out, "wmc_wandrer")
+    out_c = os.path.join(args.out, "wmc_classic")
+    out_w = os.path.join(args.out, "wahoondrer_maps")
 
     # --- contour lines (one file per tile, reused when already computed) ---
     if args.contour:
         print("\n=== Contour lines (this can take a long time the first time) ===")
-        OsmMaps(data).generate_elevation(False)
+        generate_contours(data.tiles)
 
     # --- Phase 1: classic WMC ---
     if not args.skip_classic:
@@ -228,8 +273,9 @@ def main():
     if os.path.isdir(args.out):
         for d in (out_c, out_w):
             shutil.rmtree(d, ignore_errors=True)
+    labels = {(t["x"], t["y"]): tile_label(USER_OUTPUT_DIR, t["x"], t["y"]) for t in data.tiles}
     for t in data.tiles:
-        copy_tile(USER_OUTPUT_DIR, t["x"], t["y"], out_c)
+        copy_tile(USER_OUTPUT_DIR, t["x"], t["y"], out_c, labels[(t["x"], t["y"])])
 
     # --- Phase 2: Wandrer ---
     report = []
@@ -252,7 +298,7 @@ def main():
             maps.merge_splitted_tiles_with_land_and_sea(True, args.contour, False)
             maps.create_map_files(True, args.tags_wandrer, False, False)
             for t in sel:
-                copy_tile(USER_OUTPUT_DIR, t["x"], t["y"], out_w)
+                copy_tile(USER_OUTPUT_DIR, t["x"], t["y"], out_w, labels[(t["x"], t["y"])])
                 changed.append((t["x"], t["y"]))
                 c = size(os.path.join(out_c, "maps", "tiles", "8", str(t["x"]), f"{t['y']}.map.lzma"))
                 w = size(os.path.join(out_w, "maps", "tiles", "8", str(t["x"]), f"{t['y']}.map.lzma"))
@@ -286,19 +332,20 @@ def write_docs(out, tiles, changed, report, contour=False):
     L.append("1. BACKUP: first copy the Bolt's maps/tiles/8 folder to your computer.")
     L.append("2. Copy FILES one by one (or one tile folder x at a time). Do not replace a")
     L.append("   whole folder: the Bolt may then delete neighbouring tiles that are not here.")
+    L.append("   Files named like '88 - Munich.txt' only tell you which city a tile covers: do NOT copy them.")
     L.append("")
-    L.append("A. Tiles with Wandrer  (wmc_wandrer/maps/tiles/8/...)  -> Bolt: maps/tiles/8/...")
+    L.append("A. Tiles with Wandrer  (wahoondrer_maps/maps/tiles/8/...)  -> Bolt: maps/tiles/8/...")
     for x, y in changed:
         L.append(f"   {x}/{y}.map.lzma  and  {x}/{y}.map.lzma.17")
     L.append("")
-    L.append("B. Theme  (wmc_wandrer/maps/vtm-elemnt/)  -> Bolt: maps/vtm-elemnt/")
+    L.append("B. Theme  (wahoondrer_maps/maps/vtm-elemnt/)  -> Bolt: maps/vtm-elemnt/")
     L.append("   vtm-elemnt.xml (directly in that folder, NOT in a subfolder).")
     L.append("   icons/: only needed if the Bolt has none yet; do not overwrite icons that already work.")
     L.append("")
-    L.append("C. Other classic WMC tiles (wmc_classique/maps/tiles/8/...): optional,")
+    L.append("C. Other classic WMC tiles (wmc_classic/maps/tiles/8/...): optional,")
     L.append("   only for tiles that are missing on the Bolt.")
     if contour:
-        L.append("   These tiles contain contour lines: copy the theme from wmc_classique/maps/vtm-elemnt/")
+        L.append("   These tiles contain contour lines: copy the theme from wmc_classic/maps/vtm-elemnt/")
         L.append("   as in B if you use them (the theme draws the contour lines).")
     L.append("")
     L.append("Cruiser (desktop preview): uncompressed .map files are in cruiser/.")

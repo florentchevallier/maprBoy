@@ -95,6 +95,8 @@ def build_commands(s, exports, squadrats_file, plan=False):
         b += ["--wandrer", osm]
     if s["build"]["skip_classic"]:
         b.append("--skip-classic")
+    if s["build"].get("contour"):
+        b.append("--contour")
     if plan:
         b.append("--plan")
     cmds.append(("Plan: tiles and OSM regions" if plan else "Build the map tiles", b))

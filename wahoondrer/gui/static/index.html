@@ -195,6 +195,10 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
     <label class="chk pro-only" style="margin:0"><input type="checkbox" data-path="build.skip_classic"><span>Reuse the classic tiles already built</span></label>
     <span id="status" class="pill">idle</span><span id="elapsed" class="note"></span>
   </div>
+  <div class="pro-only" id="contourBox" style="margin-top:8px">
+    <label class="chk"><input type="checkbox" data-path="build.contour"><span>Add contour lines (relief) <small>needs the <b>phyghtmap</b> program and a free USGS account; the first run is much longer and the tiles heavier</small></span></label>
+    <p class="note" id="contourStatus"></p>
+  </div>
   <div id="runMsg" class="warn"></div>
   <pre id="log"></pre>
   <p class="note" id="doneNote"></p>
@@ -604,7 +608,7 @@ $("#radiusSel").onchange = e => {
 $$("[data-level]").forEach(el => el.addEventListener("change", () => {
   S.squadrats.levels = $$("[data-level]").filter(c => c.checked).map(c => c.dataset.level); scheduleSave(false);
 }));
-$$("#modeSeg button").forEach(b => b.onclick = () => { S.mode = b.dataset.mode; renderInputs(); renderActivity(); renderExports(); scheduleSave(false); });
+$$("#modeSeg button").forEach(b => b.onclick = () => { S.mode = b.dataset.mode; renderInputs(); renderActivity(); renderExports(); if (S.mode === "pro") renderContour(); scheduleSave(false); });
 $("#tilesText").addEventListener("change", e => { S.tiles = parseTiles(e.target.value); scheduleSave(false); renderDerived(); });
 $("#tilesFromExports").onclick = () => { S.tiles = parseTiles(activeExports().flatMap(e => e.tiles.map(t => t.join("/"))).join(",")); scheduleSave(false); renderDerived(); drawMapLayers(true); };
 $("#tilesClear").onclick = () => { S.tiles = []; scheduleSave(false); renderDerived(); };
@@ -652,11 +656,21 @@ async function tick() {
 $("#btnRun").onclick = () => start("run"); $("#btnPlan").onclick = () => start("plan");
 $("#btnCancel").onclick = () => api("/api/cancel", {});
 
+async function renderContour() {
+  try {
+    const c = await api("/api/contour_status"), parts = [];
+    parts.push(c.phyghtmap ? "✓ phyghtmap found" : "✗ phyghtmap not found (see the README, section Contour lines)");
+    parts.push(c.login === null ? "USGS login: unknown (start the page inside the wahoondrer environment)"
+      : c.login ? "✓ USGS login stored" : "✗ USGS login missing: run once in a terminal  python3 scripts/build_tiles.py --xy 136/88 --setup-contour");
+    $("#contourStatus").textContent = parts.join("  ·  ");
+  } catch (e) { /* not important */ }
+}
+
 // ---------- start
 async function refresh(keepMap) {
   ST = await api("/api/state"); S = ST.settings;
   renderInputs(); renderActivity(); renderExports(); renderDerived();
-  if (!keepMap) renderOsm().catch(() => {});
+  if (!keepMap) { renderOsm().catch(() => {}); if (S.mode === "pro") renderContour(); }
 }
 (async () => {
   await refresh();

@@ -3,6 +3,7 @@ import json
 import mimetypes
 import os
 import re
+import shutil
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -70,6 +71,19 @@ def state(s):
             "scan": SCANNER.status(), "job": JOB.snapshot(0)}
 
 
+def contour_status():
+    """What WMC's contour-line option needs: the phyghtmap program and a stored USGS login."""
+    found = shutil.which("phyghtmap") is not None
+    login = None
+    try:
+        from wahoomc.setup_functions import read_earthexplorer_credentials
+        user, password = read_earthexplorer_credentials()
+        login = bool(user and password)
+    except Exception:          # WMC not importable here (server not started inside the environment)
+        pass
+    return {"phyghtmap": found, "login": login}
+
+
 def regions_state():
     plan = JOB.plan or {}
     needed = set(plan.get("regions", []))
@@ -118,6 +132,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, JOB.snapshot(int(q.get("since", ["0"])[0])))
             if url.path == "/api/regions":
                 return self._send(200, regions_state())
+            if url.path == "/api/contour_status":
+                return self._send(200, contour_status())
             if url.path == "/api/osm_data":
                 return self._send(200, regions.data_dir_info(settings.load()["folders"]["data"]))
             if url.path == "/api/regions_available":

@@ -63,6 +63,23 @@ Settings are remembered in `~/.wahoondrer/settings.json` and a reading cache in 
 an internet connection; without it, type the tiles in the box. Copying to the Bolt is still manual: see
 `README.txt` in the output folder.
 
+## Contour lines (optional, experimental)
+WMC can add contour lines (relief) to the tiles: tick **Add contour lines** in step 7 (Pro mode), or use
+`--contour` with `scripts/build_tiles.py` (WMC's default elevation data; the finer SRTM 1 data is not used). Wahoondrer's theme draws them in thin grey/brown lines
+(100 m lines from zoom 12, 50 m from 13, 10 m from 14). Not tested on a Bolt yet.
+
+Requirements (not part of the standard installation):
+- the **phyghtmap** program on the PATH. WMC's guide installs version 2.23 from source:
+  download <http://katze.tfiu.de/projects/phyghtmap/phyghtmap_2.23.orig.tar.gz>, unpack it and run
+  `python setup.py install` inside the same environment. The newer fork `pyhgtmap` (pip) provides a differently
+  named command, so it does not replace it as is.
+- a free account at <https://ers.cr.usgs.gov/> (USGS EarthExplorer). Store it once, in a terminal:
+  `python3 scripts/build_tiles.py --xy 136/88 --setup-contour` (WMC saves it in its own configuration file).
+
+The first run computes the contour lines of every tile (slow) and keeps them for the next runs. Tiles become
+heavier: check `size_report.txt`. With contour lines, the theme must be copied to the Bolt too (see `README.txt` in the
+output folder).
+
 ## Installation
 Wahoondrer itself needs only Python 3 (standard library). `scripts/build_tiles.py` also needs
 WMC and its tools: Java, osmium-tool, Osmosis and GDAL (`ogr2ogr` **and** the Python `osgeo`

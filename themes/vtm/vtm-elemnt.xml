@@ -136,6 +136,19 @@
    <style-line id="squadrat-small-bolt2" cat="bolt2" stroke="#E03030" width="1.4" dasharray="6,6" />
    <style-line id="squadrat-big-bolt2-dark" cat="bolt2-dark" stroke="#FF6060" width="1.6" />
    <style-line id="squadrat-small-bolt2-dark" cat="bolt2-dark" stroke="#FF6060" width="1.4" dasharray="6,6" />
+   <!-- Contour lines (WMC contour option; ways carry contour_ext=elevation_minor|medium|major) -->
+   <style-line id="contour-minor-roam" cat="roam" stroke="#8A8A8A" width="0.5" />
+   <style-line id="contour-medium-roam" cat="roam" stroke="#6A6A6A" width="0.7" />
+   <style-line id="contour-major-roam" cat="roam" stroke="#4A4A4A" width="1.0" />
+   <style-line id="contour-minor-bolt" cat="bolt" stroke="#8A8A8A" width="0.5" />
+   <style-line id="contour-medium-bolt" cat="bolt" stroke="#6A6A6A" width="0.7" />
+   <style-line id="contour-major-bolt" cat="bolt" stroke="#4A4A4A" width="1.0" />
+   <style-line id="contour-minor-bolt2" cat="bolt2" stroke="#C9A27E" width="0.5" />
+   <style-line id="contour-medium-bolt2" cat="bolt2" stroke="#B07F52" width="0.7" />
+   <style-line id="contour-major-bolt2" cat="bolt2" stroke="#8C5A2B" width="1.0" />
+   <style-line id="contour-minor-bolt2-dark" cat="bolt2-dark" stroke="#7A5C3E" width="0.5" />
+   <style-line id="contour-medium-bolt2-dark" cat="bolt2-dark" stroke="#A07850" width="0.7" />
+   <style-line id="contour-major-bolt2-dark" cat="bolt2-dark" stroke="#C99A66" width="1.0" />
    <!-- end region -->
 
    <!-- region land/sea/waterways -->
@@ -207,6 +220,29 @@
    </m>
 
    <!-- endregion land/sea/waterways -->
+
+   <!-- Contour lines, drawn above land and water but under tunnels and roads (root-level rule) -->
+   <m e="way" k="contour_ext">
+      <m v="elevation_minor" zoom-min="14">
+         <line use="contour-minor-roam" />
+         <line use="contour-minor-bolt" />
+         <line use="contour-minor-bolt2" />
+         <line use="contour-minor-bolt2-dark" />
+      </m>
+      <m v="elevation_medium" zoom-min="13">
+         <line use="contour-medium-roam" />
+         <line use="contour-medium-bolt" />
+         <line use="contour-medium-bolt2" />
+         <line use="contour-medium-bolt2-dark" />
+      </m>
+      <m v="elevation_major" zoom-min="12">
+         <line use="contour-major-roam" />
+         <line use="contour-major-bolt" />
+         <line use="contour-major-bolt2" />
+         <line use="contour-major-bolt2-dark" />
+      </m>
+   </m>
+
 
 
    <!-- region tunnels: todo: bring in foreground, before <m e="way" k="natural|landcover|landuse" v="wood|trees|scrub|forest"> -->

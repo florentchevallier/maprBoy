@@ -18,6 +18,9 @@ Usage (WMC installed and importable; Java + osmium required):
   python3 scripts/build_tiles.py --xy 135/88,135/89,136/88,136/89 \\
           --wandrer wandrer.osm [--plan] [--skip-classic]
 --plan: print the tiles and the OSM regions needed, produce nothing.
+--contour: also add contour lines (WMC option; needs the phyghtmap program and a free
+  USGS EarthExplorer account, see README). --srtm1: use SRTM 1 arc-second data for them.
+--setup-contour: ask once for the USGS login and store it for WMC (run it in a terminal).
 """
 
 import argparse
@@ -35,8 +38,9 @@ from wahoomc.input import InputData  # noqa: E402
 from wahoomc.osm_data import XYOsmData  # noqa: E402
 from wahoomc.osm_maps_functions import OsmMaps  # noqa: E402
 from wahoomc.setup_functions import (  # noqa: E402
-    adjustments_due_to_breaking_changes, check_installation_of_required_programs,
-    copy_jsons_from_repo_to_user, initialize_work_directories)
+    adjustments_due_to_breaking_changes, ask_for_and_write_earthexplorer_credentials,
+    check_installation_of_required_programs, copy_jsons_from_repo_to_user,
+    initialize_work_directories, read_earthexplorer_credentials)
 
 
 class FakeOsmData:
@@ -73,6 +77,30 @@ def to_pbf(osm_path):
         print(f"Converting {osm_path} -> {pbf} (osmium)")
         subprocess.run(["osmium", "cat", osm_path, "-o", pbf, "--overwrite"], check=True)
     return os.path.abspath(pbf), base + ".tiles.json"
+
+
+def check_contour_prerequisites():
+    """phyghtmap installed + USGS login stored. Never asks a question when there is no terminal
+    (the web interface runs this script without one: a question would hang it)."""
+    if shutil.which("phyghtmap") is None:
+        sys.exit("Contour lines need the phyghtmap program, which is not installed (see the README, "
+                 "section 'Contour lines'). Untick the contour option or install it.")
+    user, password = read_earthexplorer_credentials()
+    if user and password:
+        return
+    if sys.stdin is not None and sys.stdin.isatty():
+        ask_for_and_write_earthexplorer_credentials()
+        return
+    sys.exit("Contour lines need your free USGS EarthExplorer login, which is not stored yet. "
+             "Run once in a terminal:  python3 scripts/build_tiles.py --xy 136/88 --setup-contour")
+
+
+def copy_theme(dst_root):
+    vtm_dst = os.path.join(dst_root, "maps", "vtm-elemnt")
+    os.makedirs(vtm_dst, exist_ok=True)
+    shutil.copy2(os.path.join(REPO, "themes", "vtm", "vtm-elemnt.xml"), vtm_dst)
+    shutil.copytree(os.path.join(REPO, "themes", "vtm", "icons"),
+                    os.path.join(vtm_dst, "icons"), dirs_exist_ok=True)
 
 
 def prepare(xy, args):
@@ -115,7 +143,17 @@ def main():
     ap.add_argument("--skip-classic", action="store_true",
                     help="reuse the classic tiles already built in _tiles")
     ap.add_argument("--force-download", action="store_true")
+    ap.add_argument("--contour", action="store_true", help="add contour lines (needs phyghtmap, USGS login)")
+    ap.add_argument("--srtm1", action="store_true", help="with --contour: use SRTM 1 arc-second data")
+    ap.add_argument("--setup-contour", action="store_true",
+                    help="ask for the USGS EarthExplorer login once (in a terminal) and exit")
     args = ap.parse_args()
+    if args.setup_contour:
+        if shutil.which("phyghtmap") is None:
+            print("Note: phyghtmap is not installed yet (see the README).")
+        ask_for_and_write_earthexplorer_credentials()
+        print("Login stored for WMC.")
+        return
 
     initialize_work_directories()
     adjustments_due_to_breaking_changes()
@@ -130,6 +168,8 @@ def main():
         copy_jsons_from_repo_to_user(".", "tags-to-keep.json")
     sync_config()
 
+    if args.contour and not args.plan:
+        check_contour_prerequisites()
     data = prepare(args.xy, args)
     print("\nTiles and OSM regions:")
     for t in data.tiles:
@@ -144,6 +184,11 @@ def main():
     out_c = os.path.join(args.out, "wmc_classique")
     out_w = os.path.join(args.out, "wmc_wandrer")
 
+    # --- contour lines (one file per tile, reused when already computed) ---
+    if args.contour:
+        print("\n=== Contour lines (this can take a long time the first time) ===")
+        OsmMaps(data).generate_elevation(args.srtm1)
+
     # --- Phase 1: classic WMC ---
     if not args.skip_classic:
         print("\n=== PHASE 1: classic WMC ===")
@@ -153,7 +198,7 @@ def main():
         maps.generate_land()
         maps.generate_sea()
         maps.split_filtered_country_files_to_tiles()
-        maps.merge_splitted_tiles_with_land_and_sea(True, False, False)
+        maps.merge_splitted_tiles_with_land_and_sea(True, args.contour, False)
         maps.create_map_files(True, args.tags_classic, False, False)
     if os.path.isdir(args.out):
         for d in (out_c, out_w):
@@ -179,7 +224,7 @@ def main():
             maps = OsmMaps(FakeOsmData(sel, {"wandrer": {"map_file": pbf}}))
             maps.filter_tags_from_country_osm_pbf_files()
             maps.split_filtered_country_files_to_tiles()
-            maps.merge_splitted_tiles_with_land_and_sea(True, False, False)
+            maps.merge_splitted_tiles_with_land_and_sea(True, args.contour, False)
             maps.create_map_files(True, args.tags_wandrer, False, False)
             for t in sel:
                 copy_tile(USER_OUTPUT_DIR, t["x"], t["y"], out_w)
@@ -188,13 +233,11 @@ def main():
                 w = size(os.path.join(out_w, "maps", "tiles", "8", str(t["x"]), f"{t['y']}.map.lzma"))
                 report.append((t["x"], t["y"], c, w))
         # Bolt theme: always goes with the Wandrer tiles
-        vtm_dst = os.path.join(out_w, "maps", "vtm-elemnt")
-        os.makedirs(vtm_dst, exist_ok=True)
-        shutil.copy2(os.path.join(REPO, "themes", "vtm", "vtm-elemnt.xml"), vtm_dst)
-        shutil.copytree(os.path.join(REPO, "themes", "vtm", "icons"),
-                        os.path.join(vtm_dst, "icons"), dirs_exist_ok=True)
+        copy_theme(out_w)
+    if args.contour:                  # contour lines are in the classic tiles too: they need the theme
+        copy_theme(out_c)
 
-    write_docs(args.out, data.tiles, changed, report)
+    write_docs(args.out, data.tiles, changed, report, args.contour)
     print(f"\nDone. Output folder: {args.out}")
 
 
@@ -202,7 +245,7 @@ def mo(n):
     return f"{n / 1e6:.1f} Mo"
 
 
-def write_docs(out, tiles, changed, report):
+def write_docs(out, tiles, changed, report, contour=False):
     lines = ["Tile sizes (.map.lzma)", ""]
     lines.append(f"{'tile':10}{'classic':>12}{'wandrer':>12}{'change':>10}")
     for x, y, c, w in report:
@@ -229,6 +272,9 @@ def write_docs(out, tiles, changed, report):
     L.append("")
     L.append("C. Other classic WMC tiles (wmc_classique/maps/tiles/8/...): optional,")
     L.append("   only for tiles that are missing on the Bolt.")
+    if contour:
+        L.append("   These tiles contain contour lines: copy the theme from wmc_classique/maps/vtm-elemnt/")
+        L.append("   as in B if you use them (the theme draws the contour lines).")
     L.append("")
     L.append("Cruiser (desktop preview): uncompressed .map files are in cruiser/.")
     L.append("Then restart the Bolt.")

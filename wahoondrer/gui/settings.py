@@ -35,7 +35,7 @@ DEFAULTS = {
         "buffer": 3,
         "small_scope": "explored-big",
     },
-    "build": {"skip_classic": False},
+    "build": {"skip_classic": False, "contour": False},
 }
 
 

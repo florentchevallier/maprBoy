@@ -281,6 +281,13 @@ class CommandTests(unittest.TestCase):
         self.assertIn("--no-boundaries", a); self.assertIn("--with-traveled", a)
         self.assertEqual(a[a.index("--radius-m") + 1], "0")
 
+    def test_contour_flags(self):
+        s = self.s(); s["build"] = {"skip_classic": False, "contour": True}
+        b = jobs.build_commands(s, [], None)[-1][1]
+        self.assertIn("--contour", b); self.assertNotIn("--srtm1", b)
+        s["build"]["contour"] = False
+        self.assertNotIn("--contour", jobs.build_commands(s, [], None)[-1][1])
+
     def test_plan_only_builds_tiles_plan(self):
         cmds = jobs.build_commands(self.s(), ["/x/a.kmz"], None, plan=True)
         self.assertEqual(len(cmds), 1); self.assertIn("--plan", cmds[0][1])

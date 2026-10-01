@@ -62,8 +62,16 @@ python3 scripts/gui.py             # opens http://127.0.0.1:8765/ in your browse
    download the ones your tiles need, or add another region. A region Geofabrik no longer offers (old French
    regions such as Picardie) is reported and skipped; download its parent region instead. WMC renews regions
    older than 14 days by itself.
+   The list is grouped by country (then by sub-region, e.g. Germany > Bayern > Oberfranken) with the size of each group.
 8. **Make the maps**: "Check the plan" lists the tiles and OSM regions needed; "Generate maps" runs
-   `kmz_to_osm.py` then `build_tiles.py` and shows the log.
+   `kmz_to_osm.py` then `build_tiles.py` and shows the log. The run goes on if you close the page (it belongs to
+   the terminal running `gui.py`): reopen the page to see the log again. The red **STOP** button under the log
+   cancels it (after a confirmation); the log ends with the total time. A "To know" box repeats the warnings
+   (lines starting with `!`), e.g. tiles without Wandrer data.
+   The output folder keeps one tile per coordinates: a run replaces only the tiles it rebuilds. Tiles with no
+   Wandrer data are copied from the classic build into `wahoondrer_maps` too (marked "no Wandrer"), so that
+   folder is the complete set for the Bolt. Below the log, "Files for the Bolt" lists the theme, the tiles of
+   the last run, then the other tiles (see "Output folder" below).
 
 Settings are remembered in `~/.wahoondrer/settings.json` and a reading cache in `~/.wahoondrer/cache.json`
 (outside the repository). The page only listens on your own computer (127.0.0.1). The map background needs
@@ -87,6 +95,11 @@ list shows the theme, then the tiles of the last run (🌟 marks the ones just r
 its date, nearest town and size (in Pro mode also the contour level it was built with: None / Fine / Medium / Coarse).
 `last_run.json` and `tiles_info.json` in the output folder record the last run and what each tile contains.
 In Pro mode the small map under the contour option also lets you click a tile to take it out or put it back.
+
+"Only redo the Wandrer part" (Pro, or `--skip-classic`): skips the long classic phase and reuses the classic tiles of
+the last full run. Before doing so the script checks that the tiles, their contour lines, the POI settings and the
+downloaded OSM data are the same as in that run; if not, it says why and rebuilds everything (the message also
+appears in the "To know" box). Use it when only the Wandrer data changed.
 
 Per-tile spacing (Pro mode): tick "Choose the contour lines tile by tile" and a menu appears in the top-right corner
 of each selected tile on the map: None / Fine / Medium / Coarse. Handy for light lines in high mountains and fine

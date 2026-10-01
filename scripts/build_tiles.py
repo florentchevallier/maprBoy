@@ -40,6 +40,7 @@ sys.path.insert(0, REPO)
 
 from wahoondrer import contour as contour_lines  # noqa: E402
 from wahoondrer import poi_config  # noqa: E402
+from wahoondrer import reuse  # noqa: E402
 from wahoondrer.tiles import label_file_name  # noqa: E402
 
 # Where config/ and themes/ are read from: the repository, or a private copy written for the user's POIs.
@@ -261,7 +262,8 @@ def main():
     ap.add_argument("--tags-wandrer", default="tag-wahoo-poi-wandrer.xml")
     ap.add_argument("--plan", action="store_true")
     ap.add_argument("--skip-classic", action="store_true",
-                    help="reuse the classic tiles already built in _tiles")
+                    help="reuse the classic tiles of the last run (only the Wandrer part is redone); ignored with a message "
+                         "if tiles, POIs, contour lines or OSM data changed since")
     ap.add_argument("--force-download", action="store_true")
     ap.add_argument("--contour", action="store_true", help="add contour lines (needs pyhgtmap, see --setup-contour)")
     ap.add_argument("--poi-rules", help="JSON file with the POIs to enable (written by the web page); "
@@ -315,6 +317,28 @@ def main():
         print("\n=== Contour lines (this can take a long time the first time) ===")
         generate_contours(data.tiles, args.contour_spacing, contour_choices(args.contour_tile))
 
+    # --- can the classic tiles of the last run be reused? ---
+    state_path = os.path.join(USER_OUTPUT_DIR, "wahoondrer_phase1.json")
+    config_files = [os.path.join(USER_CONFIG_DIR, "tag_wahoo_adjusted", args.tags_classic),
+                    os.path.join(USER_CONFIG_DIR, "tags-to-keep.json")]
+    sig = reuse.signature(data.tiles, args.contour, args.contour_spacing, contour_choices(args.contour_tile),
+                          config_files, USER_DL_DIR)
+    if args.skip_classic:
+        try:
+            with open(state_path, encoding="utf-8") as f:
+                old_sig = json.load(f)
+        except (OSError, ValueError):
+            old_sig = None
+        why = reuse.stale_reason(sig, old_sig)
+        if not why:
+            missing = [f"{t['x']}/{t['y']}" for t in data.tiles
+                       if not size(os.path.join(USER_OUTPUT_DIR, str(t["x"]), f"{t['y']}.map.lzma"))]
+            if missing:
+                why = "the classic files are missing for " + ", ".join(missing)
+        if why:
+            print(f"\n! The classic tiles cannot be reused ({why}): they are rebuilt (slower, but up to date).")
+            args.skip_classic = False
+
     # --- Phase 1: classic WMC ---
     if not args.skip_classic:
         print("\n=== PHASE 1: classic WMC ===")
@@ -326,6 +350,8 @@ def main():
         maps.split_filtered_country_files_to_tiles()
         maps.merge_splitted_tiles_with_land_and_sea(True, args.contour, False)
         maps.create_map_files(True, args.tags_classic, False, False)
+        with open(state_path, "w", encoding="utf-8") as f:       # what these classic tiles were built from
+            json.dump(sig, f)
     labels = {(t["x"], t["y"]): tile_label(USER_OUTPUT_DIR, t["x"], t["y"]) for t in data.tiles}
     for t in data.tiles:
         copy_tile(USER_OUTPUT_DIR, t["x"], t["y"], out_c, labels[(t["x"], t["y"])])
@@ -358,14 +384,22 @@ def main():
                 report.append((t["x"], t["y"], c, w))
         if not sel:
             print("! None of your tiles is covered by the Wandrer file: no Wandrer tile was made.")
-        # Bolt theme: always goes with the Wandrer tiles
-        copy_theme(out_w)
     else:
         print("\n! No --wandrer file given: PHASE 2 (Wandrer) skipped, only the classic tiles were made.")
+    # Tiles without Wandrer data (or without any Wandrer file): the classic tile has the same POIs and
+    # contour lines, so it goes into wahoondrer_maps too: that folder is then the complete set for the Bolt.
+    nowandrer = [(t["x"], t["y"]) for t in data.tiles if (t["x"], t["y"]) not in changed]
+    for x, y in nowandrer:
+        copy_tile(USER_OUTPUT_DIR, x, y, out_w, labels[(x, y)])
+        changed.append((x, y))
+    if nowandrer and args.wandrer:
+        print("\n! No Wandrer data in these tiles, so they are plain tiles (no Wandrer lines): "
+              + ", ".join(f"{x}/{y}" for x, y in nowandrer))
+    copy_theme(out_w)                 # the Bolt theme always goes with the tiles of wahoondrer_maps
     if args.contour:                  # contour lines are in the classic tiles too: they need the theme
         copy_theme(out_c)
 
-    write_docs(args.out, data.tiles, changed, report, args.contour)
+    write_docs(args.out, data.tiles, changed, report, args.contour, nowandrer)
     with open(os.path.join(args.out, "last_run.json"), "w", encoding="utf-8") as f:   # read by the web interface
         json.dump({"time": time.strftime("%Y-%m-%dT%H:%M:%S"),
                    "selected": [f"{t['x']}/{t['y']}" for t in data.tiles],
@@ -379,7 +413,8 @@ def main():
     choices = contour_choices(args.contour_tile)
     for x, y in changed:
         k = f"{x}/{y}"
-        info[k] = {"contour": choices.get(k, args.contour_spacing) if args.contour else "none"}
+        info[k] = {"contour": choices.get(k, args.contour_spacing) if args.contour else "none",
+                   "wandrer": (x, y) not in nowandrer}
     with open(info_path, "w", encoding="utf-8") as f:
         json.dump(info, f)
     print(f"\nDone. Output folder: {args.out}")
@@ -389,7 +424,7 @@ def mo(n):
     return f"{n / 1e6:.1f} MB"
 
 
-def write_docs(out, tiles, changed, report, contour=False):
+def write_docs(out, tiles, changed, report, contour=False, nowandrer=()):
     lines = ["Tile sizes (.map.lzma)", ""]
     lines.append(f"{'tile':10}{'classic':>12}{'wandrer':>12}{'change':>10}")
     for x, y, c, w in report:
@@ -407,9 +442,9 @@ def write_docs(out, tiles, changed, report, contour=False):
     L.append("   whole folder: the Bolt may then delete neighbouring tiles that are not here.")
     L.append("   Files named like '88_Munich.txt' only tell you which city a tile covers: do NOT copy them.")
     L.append("")
-    L.append("A. Tiles with Wandrer  (wahoondrer_maps/maps/tiles/8/...)  -> Bolt: maps/tiles/8/...")
+    L.append("A. Tiles  (wahoondrer_maps/maps/tiles/8/...)  -> Bolt: maps/tiles/8/...")
     for x, y in changed:
-        L.append(f"   {x}/{y}.map.lzma  and  {x}/{y}.map.lzma.17")
+        L.append(f"   {x}/{y}.map.lzma  and  {x}/{y}.map.lzma.17" + ("   (no Wandrer data here: plain tile)" if (x, y) in nowandrer else ""))
     L.append("")
     L.append("B. Theme  (wahoondrer_maps/maps/vtm-elemnt/)  -> Bolt: maps/vtm-elemnt/")
     L.append("   vtm-elemnt.xml (directly in that folder, NOT in a subfolder).")

@@ -15,6 +15,32 @@ def _write(path, data, mode="w"):
         f.write(data)
 
 
+class ReuseTests(unittest.TestCase):
+    def sig(self, **kw):
+        from wahoondrer import reuse
+        tiles = [{"x": 136, "y": 88, "countries": ["germany/bayern"]}]
+        with tempfile.TemporaryDirectory() as d:
+            cfg = os.path.join(d, "tags.xml")
+            _write(cfg, kw.get("cfg", "a"))
+            dl = os.path.join(d, "dl")
+            os.makedirs(dl)
+            _write(os.path.join(dl, "bayern-latest.osm.pbf"), kw.get("osm", "x"))
+            os.utime(os.path.join(dl, "bayern-latest.osm.pbf"), (1000, 1000 + len(kw.get("osm", "x"))))
+            return reuse.signature(tiles + kw.get("more", []), kw.get("contour", True), "25-75-150",
+                                   kw.get("per_tile", {}), [cfg], dl)
+
+    def test_reuse_only_when_nothing_changed(self):
+        from wahoondrer import reuse
+        old = self.sig()
+        self.assertIsNone(reuse.stale_reason(self.sig(), old))
+        self.assertIn("no earlier", reuse.stale_reason(self.sig(), None))
+        self.assertIn("136/89", reuse.stale_reason(self.sig(more=[{"x": 136, "y": 89, "countries": ["germany/bayern"]}]), old))
+        self.assertIn("contour", reuse.stale_reason(self.sig(per_tile={"136/88": "none"}), old))
+        self.assertIn("contour", reuse.stale_reason(self.sig(contour=False), old))
+        self.assertIn("POI", reuse.stale_reason(self.sig(cfg="b"), old))
+        self.assertIn("OpenStreetMap", reuse.stale_reason(self.sig(osm="xyz"), old))
+
+
 class ScanTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -550,10 +576,12 @@ class ResultsTests(unittest.TestCase):
             os.makedirs(os.path.join(maps, "tiles", "8", "137"))
             _write(os.path.join(maps, "tiles", "8", "137", "89.map.lzma"), "abcdef")
             _write(os.path.join(out, "last_run.json"), json.dumps({"selected": ["136/88"], "built": ["136/88"]}))
-            _write(os.path.join(out, "tiles_info.json"), json.dumps({"136/88": {"contour": "25-75-150"}}))
+            _write(os.path.join(out, "tiles_info.json"), json.dumps({"136/88": {"contour": "25-75-150", "wandrer": False}}))
             r = server.results(out)
             self.assertEqual(r["tiles"][0]["items"][0]["contour"], "25-75-150")
             self.assertEqual(r["tiles"][1]["items"][0]["contour"], "")
+            self.assertTrue(r["tiles"][0]["items"][0]["plain"])
+            self.assertFalse(r["tiles"][1]["items"][0]["plain"])
             self.assertEqual([(t["x"], t["last"]) for t in r["tiles"]], [(136, True), (137, False)])
             it = r["tiles"][0]["items"][0]
             self.assertEqual((it["y"], it["new"], it["label"], it["size"]), (88, True, "Munich", 3))

@@ -13,6 +13,16 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 TILE_OK = set("0123456789/")
 
 
+def format_duration(seconds):
+    """1 h 05 min 09 s / 5 min 09 s / 42 s"""
+    s = int(round(seconds))
+    h, rest = divmod(s, 3600)
+    m, sec = divmod(rest, 60)
+    if h:
+        return f"{h} h {m:02d} min {sec:02d} s"
+    return f"{m} min {sec:02d} s" if m else f"{sec} s"
+
+
 class SettingsError(ValueError):
     """A problem the user can fix (shown in the page)."""
 
@@ -202,7 +212,8 @@ class Job:
         with self.lock:
             self.finished = time.time()
             self.status = "cancelled" if self.cancelled else ("done" if ok else "failed")
-        self._log({"done": "\nFinished.", "failed": "", "cancelled": "\nCancelled."}[self.status])
+        took = format_duration(self.finished - self.started) if self.started else ""
+        self._log({"done": f"\nFinished in {took}.", "failed": f"\nTime spent: {took}.", "cancelled": f"\nCancelled after {took}."}[self.status])
 
     def cancel(self):
         self.cancelled = True

@@ -25,6 +25,7 @@ input[type=number]{max-width:110px}
 button{font:inherit;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
 button:hover{border-color:var(--accent)}
 button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.stop{background:var(--bad);border-color:var(--bad);color:#fff;font-weight:700;margin:8px 0;padding:9px 22px}button.stop[hidden]{display:none}
 button.small{padding:3px 10px;font-size:13px}
 button.icon{padding:4px 9px}
 button:disabled{opacity:.45;cursor:not-allowed}
@@ -71,7 +72,7 @@ details.var div{margin:3px 0 0 4px;color:var(--ink)}
 .rfile .sz{color:var(--mute);font-size:12.5px}
 .rdir{display:flex;gap:8px;align-items:center;margin:8px 0 2px;font-weight:600}
 .rin{margin-left:22px}
-.rtile{margin:12px 0 0}.cdate{width:150px;white-space:nowrap}.ccity{width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ccont{display:none}.pro .ccont{display:inline-block;width:118px;white-space:nowrap}.newslot{min-width:96px;text-align:right}.newtile{background:#fff3d6;color:#8a5a00;border-radius:6px;padding:0 6px;font-size:12.5px}
+.rtile{margin:12px 0 0}.cdate{width:150px;white-space:nowrap}.ccity{width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ccont{display:none}.pro .ccont{display:inline-block;width:118px;white-space:nowrap}.newslot{min-width:190px;text-align:right}.plaintile{background:var(--line);color:var(--mute);border-radius:6px;padding:0 6px;font-size:12.5px}.newtile{background:#fff3d6;color:#8a5a00;border-radius:6px;padding:0 6px;font-size:12.5px}
 .opts{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
 @media (max-width:760px){.opts{grid-template-columns:1fr}label.row{grid-template-columns:1fr}}
 pre#log{background:var(--code);color:var(--codeink);border-radius:10px;padding:12px;height:300px;overflow:auto;font:12.5px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:10px 0 0}
@@ -231,8 +232,7 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   <div class="actions">
     <button id="btnPlan">Check the plan</button>
     <button id="btnRun" class="primary">Generate maps</button>
-    <button id="btnCancel" disabled>Cancel</button>
-    <label class="chk pro-only" style="margin:0"><input type="checkbox" data-path="build.skip_classic"><span>Reuse the classic tiles already built</span></label>
+    <label class="chk pro-only" style="margin:0"><input type="checkbox" data-path="build.skip_classic"><span>Only redo the Wandrer part <small>faster: reuses the classic tiles of the last run. Ignored (with a message) if the tiles, POIs, contour lines or OSM data changed since</small></span></label>
     <span id="status" class="pill">idle</span><span id="elapsed" class="note"></span>
   </div>
   <div class="pro-only" id="contourBox" style="margin-top:8px">
@@ -245,6 +245,7 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   </div>
   <div id="runMsg" class="warn"></div>
   <pre id="log"></pre>
+  <button id="btnCancel" class="stop" hidden>■ STOP</button>
   <p class="note" id="doneNote"></p>
   <div id="results"></div>
 </section>
@@ -654,8 +655,19 @@ async function renderRegions(fresh) {
   if (!R.downloaded.length) h += '<p class="note">No region downloaded yet: WMC will fetch what it needs at the first run.</p>';
   else {
     h += `<table><tr><th>Region</th><th class="n">Size</th><th>Downloaded</th><th class="n">Age</th><th>Needed by my tiles</th><th></th></tr>`;
-    for (const r of R.downloaded) h += `<tr><td>${esc(r.name)}</td><td class="n">${mb(r.size)}</td><td>${r.date}</td><td class="n">${r.age_days} d${r.age_days > R.max_days ? ' <span class="warn" style="display:inline">(WMC will renew it)</span>' : ""}</td>
+    // tree: Country > (sub-regions) > region, taken from the name "Oberfranken (Bayern, Germany)"
+    const pathOf = r => { const m = /^(.*) \(([^()]*)\)$/.exec(r.name); if (!m) return [r.name]; return [...m[2].split(", ").reverse(), m[1]]; };
+    const items = R.downloaded.map(r => ({r, p: pathOf(r)})).sort((x, y) => x.p.join("\u0001").localeCompare(y.p.join("\u0001")));
+    const total = (pre) => items.filter(i => pre.every((v, k) => i.p[k] === v)).reduce((n, i) => n + i.r.size, 0);
+    let prev = [];
+    for (const {r, p} of items) {
+      for (let d = 0; d < p.length - 1; d++) {
+        if (prev[d] !== p[d] || prev.slice(0, d).some((v, k) => v !== p[k])) h += `<tr class="rgrp"><td style="padding-left:${d * 20}px">${d === 0 ? "🌍" : "📁"} <b>${esc(p[d])}</b></td><td class="n">${mb(total(p.slice(0, d + 1)))}</td><td colspan="4"></td></tr>`;
+      }
+      prev = p;
+      h += `<tr><td style="padding-left:${(p.length - 1) * 20}px">${p.length > 1 ? "⌞ " : ""}${esc(p[p.length - 1])}</td>` + `<td class="n">${mb(r.size)}</td><td>${r.date}</td><td class="n">${r.age_days} d${r.age_days > R.max_days ? ' <span class="warn" style="display:inline">(WMC will renew it)</span>' : ""}</td>
       <td>${R.plan_done ? (r.needed ? "✓" : "–") : "?"}</td><td style="white-space:nowrap"><button class="small" data-upd="${esc(r.key)}" ${R.catalog_ready ? "" : "disabled"}>Update</button> <button class="small danger" data-del="${esc(r.key)}" data-name="${esc(r.name)}" data-size="${r.size}" title="Delete this file from your disk">Delete</button></td></tr>`;
+    }
     h += "</table>";
   }
   if (!R.plan_done) h += '<p class="note">Press "Check which regions my tiles need" below to see which regions your tiles need.</p>';
@@ -752,10 +764,10 @@ $("#btnReload").onclick = $("#btnReload2").onclick = async () => { await refresh
 window.addEventListener("focus", () => { if (S && (S.folders.wandrer || S.folders.squadrats)) rescan(); });
 
 // ---------- running
-let since = 0, poll = null;
+let since = 0, poll = null, warnLines = [];
 async function start(kind) {
   $("#runMsg").textContent = ""; $("#doneNote").textContent = "";
-  try { await api("/api/settings", S); await api("/api/" + kind, S); since = 0; $("#log").textContent = ""; startPolling(); }
+  try { await api("/api/settings", S); await api("/api/" + kind, S); since = 0; warnLines = []; $("#log").textContent = ""; $("#runMsg").textContent = ""; startPolling(); }
   catch (e) { $("#runMsg").textContent = e.message; }
 }
 function startPolling() { clearInterval(poll); poll = setInterval(tick, 700); tick(); }
@@ -763,17 +775,19 @@ async function tick() {
   const j = await api("/api/job?since=" + since); since = j.next;
   const log = $("#log"), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
   if (j.lines.length) log.textContent += j.lines.join("\n") + "\n";
+  warnLines.push(...j.lines.filter(l => l.startsWith("! ")));
   if (atEnd) log.scrollTop = log.scrollHeight;
   const st = $("#status"); st.textContent = j.status === "running" ? j.title : j.status; st.className = "pill " + j.status;
-  $("#elapsed").textContent = j.seconds ? j.seconds + " s" : "";
+  $("#elapsed").textContent = j.seconds ? (j.status === "running" ? "" : "took ") + (j.seconds >= 3600 ? Math.floor(j.seconds / 3600) + " h " + String(Math.floor(j.seconds % 3600 / 60)).padStart(2, "0") + " min" : j.seconds >= 60 ? Math.floor(j.seconds / 60) + " min " + String(j.seconds % 60).padStart(2, "0") + " s" : j.seconds + " s") : "";
   const running = j.status === "running";
   $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = running;
-  $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, step 8)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log in step 8." : ""); $("#btnCancel").disabled = !running;
+  $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, step 8)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log in step 8." : ""); $("#btnCancel").hidden = !running;
   if (!running) { clearInterval(poll); poll = null; renderRegions();
+    if (warnLines.length && j.status === "done") { $("#runMsg").style.whiteSpace = "pre-line"; $("#runMsg").textContent = "To know:\n" + warnLines.map(l => "• " + l.slice(2)).join("\n"); }
     if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to the Bolt (one by one, after a backup), or use the list below.`; renderResults(); }
 }
 $("#btnRun").onclick = () => start("run"); $("#btnPlan").onclick = () => start("plan");
-$("#btnCancel").onclick = () => api("/api/cancel", {});
+$("#btnCancel").onclick = () => { if (confirm("Stop now? The files being built are unfinished and will be redone at the next run.")) api("/api/cancel", {}); };
 
 async function renderContour() {
   try {
@@ -892,7 +906,7 @@ async function loadPois() {
 
 // ---------- result files (what to copy to the Bolt)
 const fileUrl = rel => "/api/file?rel=" + encodeURIComponent(rel);
-const fileRow = (f, extra, newTile) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${newTile ? '<span class="newtile">🌟 New tile!</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
+const fileRow = (f, extra, newTile, plain) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${plain ? '<span class="plaintile" title="No Wandrer data in this tile: plain map, no Wandrer lines">no Wandrer</span> ' : ""}${newTile ? '<span class="newtile">🌟 New tile!</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
 async function renderResults() {
   const box = $("#results");
   if (!S.folders.out) { box.innerHTML = ""; return; }
@@ -911,7 +925,7 @@ async function renderResults() {
     let g = `<div class="rdir" style="font-weight:500">📁 ${t.x}/ <span style="flex:1"></span><button class="small" data-opendir="${esc(t.dir)}">Open folder</button></div><div class="rin">`;
     for (const it of t.items) {
       const extra = [dateOf(it.mtime), it.label || "", contourName(it.contour)];
-      g += `<div class="rtile">` + it.files.map(f => fileRow(f, extra, it.new)).join("") + "</div>";
+      g += `<div class="rtile">` + it.files.map(f => fileRow(f, extra, it.new, it.plain)).join("") + "</div>";
     }
     return g + "</div>";
   };
@@ -940,7 +954,7 @@ async function refresh(keepMap) {
 }
 (async () => {
   await refresh();
-  if (ST.job.status !== "idle") { $("#log").textContent = ST.job.lines.join("\n"); since = ST.job.next; startPolling(); }
+  if (ST.job.status !== "idle") { $("#log").textContent = ST.job.lines.join("\n"); warnLines = ST.job.lines.filter(l => l.startsWith("! ")); since = ST.job.next; startPolling(); }
   loadPois(); renderResults();
   await initMap();
   renderDerived(); drawMapLayers(true);

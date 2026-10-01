@@ -142,7 +142,8 @@ def results(out):
                 y = fe["name"].split(".")[0]
                 it = items.setdefault(y, {"y": int(y), "label": labels.get(y, ""), "files": [], "new": f"{x}/{y}" in built,
                                           "mtime": 0, "size": 0,
-                                          "contour": (info.get(f"{x}/{y}") or {}).get("contour", "")})
+                                          "contour": (info.get(f"{x}/{y}") or {}).get("contour", ""),
+                                          "plain": (info.get(f"{x}/{y}") or {}).get("wandrer") is False})
                 it["files"].append(fe)
                 if fe["name"].endswith(".map.lzma"):
                     it["size"] = fe["size"]

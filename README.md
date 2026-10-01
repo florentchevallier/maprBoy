@@ -69,12 +69,15 @@ WMC can add contour lines (relief) to the tiles: tick **Add contour lines** in s
 (100 m lines from zoom 12, 50 m from 13, 10 m from 14). Not tested on a Bolt yet.
 
 Requirements (not part of the standard installation):
-- the **phyghtmap** program on the PATH. WMC's guide installs version 2.23 from source:
-  download <http://katze.tfiu.de/projects/phyghtmap/phyghtmap_2.23.orig.tar.gz>, unpack it and run
-  `python setup.py install` inside the same environment. The newer fork `pyhgtmap` (pip) provides a differently
-  named command, so it does not replace it as is.
-- a free account at <https://ers.cr.usgs.gov/> (USGS EarthExplorer). Store it once, in a terminal:
-  `python3 scripts/build_tiles.py --xy 136/88 --setup-contour` (WMC saves it in its own configuration file).
+- the **phyghtmap** program, which WMC calls by that name. I could not find a package named `phyghtmap` on PyPI;
+  WMC's guide installs version 2.23 from source: download
+  <http://katze.tfiu.de/projects/phyghtmap/phyghtmap_2.23.orig.tar.gz>, unpack it and run `python setup.py install`
+  inside the same environment. The newer fork `pyhgtmap` (pip) provides a differently named command
+  (`pyhgtmap`), so it does not replace it as is. Check with `which phyghtmap` inside the environment.
+- a login entry for WMC: run once in a terminal `python3 scripts/build_tiles.py --xy 136/88 --setup-contour`.
+  WMC reads it at every contour run, but only the SRTM sources use it; with the default sources (Viewfinder) pressing
+  Enter (skip) is enough. A free account at <https://ers.cr.usgs.gov/> is only needed for SRTM. WMC saves the
+  login in clear text in its own configuration file.
 
 The first run computes the contour lines of every tile (slow) and keeps them for the next runs. Tiles become
 heavier: check `size_report.txt`. With contour lines, the theme must be copied to the Bolt too (see `README.txt` in the

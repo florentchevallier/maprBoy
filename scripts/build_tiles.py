@@ -19,8 +19,8 @@ Usage (WMC installed and importable; Java + osmium required):
           --wandrer wandrer.osm [--plan] [--skip-classic]
 --plan: print the tiles and the OSM regions needed, produce nothing.
 --contour: also add contour lines (WMC option; needs the phyghtmap program and a free
-  USGS EarthExplorer account, see README). --srtm1: use SRTM 1 arc-second data for them.
---setup-contour: ask once for the USGS login and store it for WMC (run it in a terminal).
+  USGS EarthExplorer account, see README). Uses WMC's default (coarser, lighter) elevation data.
+--setup-contour: store the USGS login WMC wants for contour lines (Enter = skip; run it in a terminal).
 """
 
 import argparse
@@ -38,9 +38,9 @@ from wahoomc.input import InputData  # noqa: E402
 from wahoomc.osm_data import XYOsmData  # noqa: E402
 from wahoomc.osm_maps_functions import OsmMaps  # noqa: E402
 from wahoomc.setup_functions import (  # noqa: E402
-    adjustments_due_to_breaking_changes, ask_for_and_write_earthexplorer_credentials,
-    check_installation_of_required_programs, copy_jsons_from_repo_to_user,
-    initialize_work_directories, read_earthexplorer_credentials)
+    adjustments_due_to_breaking_changes, check_installation_of_required_programs,
+    copy_jsons_from_repo_to_user, initialize_work_directories, read_earthexplorer_credentials,
+    write_config_file)
 
 
 class FakeOsmData:
@@ -79,20 +79,46 @@ def to_pbf(osm_path):
     return os.path.abspath(pbf), base + ".tiles.json"
 
 
+def ask_login():
+    """Store the USGS EarthExplorer login for WMC (it reads it for every contour run).
+    The login is only used by the SRTM sources; the default Viewfinder sources need none,
+    so pressing Enter stores a placeholder."""
+    import getpass
+    print("USGS EarthExplorer login (free account at https://ers.cr.usgs.gov/).")
+    print("Only the SRTM data sources use it; the default sources (Viewfinder) do not.")
+    user = input("Username (Enter = skip): ").strip()
+    if not user:
+        write_config_file({"earthexplorer-user": "unused", "earthexplorer-password": "unused"})
+        print("Skipped: a placeholder is stored (WMC insists on having a value).")
+        return
+    write_config_file({"earthexplorer-user": user,
+                       "earthexplorer-password": getpass.getpass("Password (hidden): ")})
+    print("Login stored in WMC's configuration file.")
+
+
+def phyghtmap_hint():
+    if shutil.which("phyghtmap"):
+        return ""
+    if shutil.which("pyhgtmap"):
+        return ("Found 'pyhgtmap' (the newer fork) but WMC calls a program named 'phyghtmap', "
+                "which is different. See the README, section 'Contour lines'.")
+    return "phyghtmap not found on the PATH of this Python environment (see the README, section 'Contour lines')."
+
+
 def check_contour_prerequisites():
     """phyghtmap installed + USGS login stored. Never asks a question when there is no terminal
     (the web interface runs this script without one: a question would hang it)."""
-    if shutil.which("phyghtmap") is None:
-        sys.exit("Contour lines need the phyghtmap program, which is not installed (see the README, "
-                 "section 'Contour lines'). Untick the contour option or install it.")
+    hint = phyghtmap_hint()
+    if hint:
+        sys.exit("Contour lines need the phyghtmap program. " + hint)
     user, password = read_earthexplorer_credentials()
     if user and password:
         return
     if sys.stdin is not None and sys.stdin.isatty():
-        ask_for_and_write_earthexplorer_credentials()
+        ask_login()
         return
-    sys.exit("Contour lines need your free USGS EarthExplorer login, which is not stored yet. "
-             "Run once in a terminal:  python3 scripts/build_tiles.py --xy 136/88 --setup-contour")
+    sys.exit("WMC needs a stored USGS login for contour lines (a placeholder is enough with the default "
+             "data sources). Run once in a terminal:  python3 scripts/build_tiles.py --xy 136/88 --setup-contour")
 
 
 def copy_theme(dst_root):
@@ -144,15 +170,14 @@ def main():
                     help="reuse the classic tiles already built in _tiles")
     ap.add_argument("--force-download", action="store_true")
     ap.add_argument("--contour", action="store_true", help="add contour lines (needs phyghtmap, USGS login)")
-    ap.add_argument("--srtm1", action="store_true", help="with --contour: use SRTM 1 arc-second data")
     ap.add_argument("--setup-contour", action="store_true",
                     help="ask for the USGS EarthExplorer login once (in a terminal) and exit")
     args = ap.parse_args()
     if args.setup_contour:
-        if shutil.which("phyghtmap") is None:
-            print("Note: phyghtmap is not installed yet (see the README).")
-        ask_for_and_write_earthexplorer_credentials()
-        print("Login stored for WMC.")
+        hint = phyghtmap_hint()
+        if hint:
+            print("Note: " + hint)
+        ask_login()
         return
 
     initialize_work_directories()
@@ -187,7 +212,7 @@ def main():
     # --- contour lines (one file per tile, reused when already computed) ---
     if args.contour:
         print("\n=== Contour lines (this can take a long time the first time) ===")
-        OsmMaps(data).generate_elevation(args.srtm1)
+        OsmMaps(data).generate_elevation(False)
 
     # --- Phase 1: classic WMC ---
     if not args.skip_classic:

@@ -1,6 +1,8 @@
 # Tested on macOS 13 (Intel), micromamba 2.9.0, 2026-09-30.
 #   micromamba create -f environment.yml && micromamba activate wahoondrer-env
 # Still needed outside conda: Java (JRE 17+) and Osmosis on PATH (see README).
+# Optional, only for contour lines (--contour): the "phyghtmap" command in this environment
+# (see README, section "Contour lines"); add its pinned version below once confirmed.
 name: wahoondrer-env
 channels:
   - conda-forge

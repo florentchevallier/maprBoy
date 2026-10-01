@@ -196,7 +196,7 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
     <span id="status" class="pill">idle</span><span id="elapsed" class="note"></span>
   </div>
   <div class="pro-only" id="contourBox" style="margin-top:8px">
-    <label class="chk"><input type="checkbox" data-path="build.contour"><span>Add contour lines (relief) <small>needs the <b>phyghtmap</b> program and a free USGS account; the first run is much longer and the tiles heavier</small></span></label>
+    <label class="chk"><input type="checkbox" data-path="build.contour"><span>Add contour lines (relief) <small>needs the <b>phyghtmap</b> program; the first run is much longer and the tiles heavier</small></span></label>
     <p class="note" id="contourStatus"></p>
   </div>
   <div id="runMsg" class="warn"></div>
@@ -660,8 +660,8 @@ async function renderContour() {
   try {
     const c = await api("/api/contour_status"), parts = [];
     parts.push(c.phyghtmap ? "✓ phyghtmap found" : "✗ phyghtmap not found (see the README, section Contour lines)");
-    parts.push(c.login === null ? "USGS login: unknown (start the page inside the wahoondrer environment)"
-      : c.login ? "✓ USGS login stored" : "✗ USGS login missing: run once in a terminal  python3 scripts/build_tiles.py --xy 136/88 --setup-contour");
+    parts.push(c.login === null ? "WMC login entry: unknown (start the page inside the wahoondrer environment)"
+      : c.login ? "✓ login entry stored" : "✗ login entry missing: run once in a terminal  python3 scripts/build_tiles.py --xy 136/88 --setup-contour (Enter to skip the account)");
     $("#contourStatus").textContent = parts.join("  ·  ");
   } catch (e) { /* not important */ }
 }

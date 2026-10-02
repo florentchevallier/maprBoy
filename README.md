@@ -193,6 +193,7 @@ WMC hard-codes `~/wahooMapsCreatorData`; the GUI makes it a symbolic link to `OS
 (`ln -s <data folder>/OSM_data ~/wahooMapsCreatorData` does the same by hand).
 
 ## Notes
+- The page header uses the banner `wahoondrer/gui/static/banner.jpg`, the icon `favicon.png` and the font Titan One (`static/fonts/titan-one.woff2`, SIL Open Font License 1.1, licence text in `static/fonts/OFL.txt`); all are served locally, nothing is loaded from the Internet.
 - Keep exports of one activity per run if you do not want to mix bike and foot (a warning is printed).
 - Do not commit KMZ files or generated maps (personal data, not redistributable); `.gitignore` covers them, but keep the exports outside the repository.
 - On the Bolt, copy files one by one (not whole folders) and back up `maps/tiles/8` first; `build_tiles.py` writes a README with the exact list.

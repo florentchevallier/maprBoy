@@ -3,11 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wahoondrer</title>
+<title>maprBoy</title>
+<link rel="icon" type="image/png" href="favicon.png">
 <style>
 :root{--bg:#f6f6f4;--card:#fff;--ink:#1d1d1b;--mute:#6b6b66;--line:#dcdcd6;--accent:#e8731a;--accent-ink:#fff;
   --ok:#1a8a3a;--bad:#c62828;--viol:#6a3fb0;--code:#15151a;--codeink:#e6e6e0}
 @media (prefers-color-scheme:dark){:root{--bg:#161615;--card:#1f1f1d;--ink:#ecece8;--mute:#9a9a94;--line:#34342f;--ok:#4cc16b;--bad:#ef6a6a;--viol:#a98be0;--code:#0d0d10}}
+@font-face{font-family:"Titan One";src:url(fonts/titan-one.woff2) format("woff2");font-weight:400;font-display:swap}
+.banner{position:relative;container-type:inline-size;background:#0b1030;line-height:0;max-width:1040px;margin:0 auto;border-radius:0 0 12px 12px;overflow:hidden}
+.banner img{display:block;width:100%;height:auto}
+.banner h1{position:absolute;left:1.4%;bottom:5%;margin:0;line-height:1;white-space:nowrap;color:#fff;font:400 3.5cqw "Titan One",system-ui,sans-serif;
+  writing-mode:vertical-rl;transform:rotate(180deg);-webkit-text-stroke:.14em #080c32;paint-order:stroke fill;stroke-linejoin:round;
+  text-shadow:0 .05em 0 #080c32,0 .09em .05em rgba(0,0,0,.35)}
+header .for{display:inline-block;padding:6px 16px;border-radius:99px;font-size:15px;font-weight:600;white-space:nowrap}
+header .for.wahoo{background:#19a6df;color:#06223a}
+header .tag{display:flex;align-items:center;gap:14px;line-height:1.5;text-align:left;font-size:13px;color:var(--mute);flex:1}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
 header{display:flex;align-items:center;gap:16px;padding:14px max(16px,calc((100% - 1040px)/2 + 16px));border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:1000}
@@ -101,8 +111,9 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
 </style>
 </head>
 <body>
+<div class="banner"><img src="banner.jpg" alt="" width="1600" height="457"><h1>maprBoy</h1></div>
 <header>
-  <h1>Wahoondrer <small>custom Wahoo maps with Wandrer &amp; Squadrats</small></h1>
+  <div class="tag"><span class="txt">custom OSM maps with POIs,<br>Wandrer &amp; Squadrats</span><span class="for wahoo">for Wahoo</span></div>
   <div class="seg" id="modeSeg" title="Pro shows more options. Each section can also be set to Simple or Pro on its own.">
     <button data-mode="simple">Simple</button><button data-mode="pro">Pro</button>
   </div>

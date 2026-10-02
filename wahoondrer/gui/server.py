@@ -321,8 +321,18 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/regions_delete":
                 if JOB.running() or DOWNLOADER.status()["running"]:
                     raise jobs.SettingsError("A job or a download is running: wait for it to finish.")
-                freed = regions.delete(body.get("key", ""))
-                return self._send(200, {"freed": freed})
+                keys = body.get("keys") or [body.get("key", "")]
+                if not isinstance(keys, list) or not all(isinstance(k, str) for k in keys):
+                    raise ValueError("Invalid list of regions.")
+                freed, n = 0, 0
+                for k in keys:
+                    try:
+                        freed += regions.delete(k)
+                        n += 1
+                    except ValueError:
+                        if len(keys) == 1:
+                            raise                 # a single region that is not there: tell the user
+                return self._send(200, {"freed": freed, "deleted": n})
             if path == "/api/osm_link":
                 if JOB.running() or DOWNLOADER.status()["running"]:
                     raise jobs.SettingsError("A job or a download is running: wait for it to finish.")

@@ -66,6 +66,22 @@ def poi_args(s):
     return ["--poi-rules", path]
 
 
+def _wandrer_covers(exports, tiles):
+    """True if one export may touch one of the tiles (rough bounding box; unknown = yes)."""
+    from . import scan
+    wanted = {tuple(int(v) for v in t.split("/")) for t in tiles}
+    for path in exports:
+        try:
+            info = scan.cached_info(path)
+        except OSError:
+            return True
+        if not info or info.get("error") or "tiles" not in info:
+            return True
+        if wanted & {tuple(t) for t in info["tiles"]}:
+            return True
+    return False
+
+
 def build_commands(s, exports, squadrats_file, plan=False):
     """Return [(title, argv), ...].
 
@@ -88,18 +104,29 @@ def build_commands(s, exports, squadrats_file, plan=False):
                                 "(its wmc_classic and wahoondrer_maps sub-folders are deleted at each run).")
 
     w, q = s["wandrer"], s["squadrats"]
-    use_wandrer = bool(w["enabled"] and exports)
-    if q["enabled"] and not use_wandrer:
-        raise SettingsError("Squadrats are added together with Wandrer data: "
-                            "enable Wandrer and select at least one export.")
     if q["enabled"] and not squadrats_file:
         raise SettingsError("No Squadrats KML file found in the Squadrats folder.")
-
+    use_wandrer = bool(w["enabled"] and exports)
+    use_squadrats = bool(q["enabled"])          # independent of Wandrer
     cmds = []
+    if use_wandrer and not plan and not _wandrer_covers(exports, tiles):
+        use_wandrer = False             # nothing to convert: no export touches the chosen tiles
+        if not use_squadrats:
+            cmds.append(("No Wandrer data on these tiles: conversion skipped",
+                         [sys.executable, "-c",
+                          "print('None of the selected Wandrer exports covers the chosen tiles: '"
+                          "'the exports are not unzipped and only plain (classic) tiles are built.')"]))
+        else:
+            cmds.append(("No Wandrer data on these tiles: the exports are not unzipped",
+                         [sys.executable, "-c", "print('Only the Squadrats layer is added.')"]))
+    convert = (use_wandrer or use_squadrats) and not plan
     osm = os.path.join(os.path.expanduser(s["folders"]["work"] or out), "wandrer.osm")
-    if use_wandrer and not plan:
-        a = [py, os.path.join(REPO, "scripts", "kmz_to_osm.py"), "-o", osm, *exports,
+    if convert:
+        a = [py, os.path.join(REPO, "scripts", "kmz_to_osm.py"), "-o", osm,
+             *(exports if use_wandrer else []),
              "--radius-m", str(w["radius_m"]), "--simplify-m", str(w["simplify_m"])]
+        if use_squadrats:
+            a += ["--tiles", ",".join(tiles)]       # Squadrats do not need Wandrer: draw them on every chosen tile
         if w["with_traveled"]:
             a.append("--with-traveled")
         if w["unpaved_always"]:
@@ -118,11 +145,11 @@ def build_commands(s, exports, squadrats_file, plan=False):
             a += ["--squadrats", squadrats_file, "--squadrats-levels", ",".join(levels),
                   "--squadrats-buffer", str(buffer),
                   "--squadrats-small-scope", q["small_scope"]]
-        cmds.append(("Convert the Wandrer / Squadrats exports", a))
+        cmds.append(("Convert the " + " / ".join(n for n, on in (("Wandrer", use_wandrer), ("Squadrats", use_squadrats)) if on) + " exports", a))
 
     b = [py, os.path.join(REPO, "scripts", "build_tiles.py"), "--xy", ",".join(tiles),
          "--out", out]
-    if use_wandrer and not plan:
+    if convert:
         b += ["--wandrer", osm]
     if s["build"]["skip_classic"]:
         b.append("--skip-classic")
@@ -187,7 +214,7 @@ class Job:
             self.lines.append(text)
 
     def _run(self, commands):
-        env = dict(os.environ, PYTHONUNBUFFERED="1")
+        env = dict(os.environ, PYTHONUNBUFFERED="1", WAHOONDRER_GUI="1")
         ok = True
         for i, (title, argv) in enumerate(commands, 1):
             with self.lock:

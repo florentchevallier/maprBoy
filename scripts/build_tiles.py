@@ -40,6 +40,7 @@ sys.path.insert(0, REPO)
 
 from wahoondrer import contour as contour_lines  # noqa: E402
 from wahoondrer import poi_config  # noqa: E402
+from wahoondrer import progress  # noqa: E402
 from wahoondrer import reuse  # noqa: E402
 from wahoondrer.tiles import label_file_name  # noqa: E402
 
@@ -48,6 +49,9 @@ ASSETS = REPO
 
 from wahoomc.constants import USER_CONFIG_DIR, USER_DL_DIR, USER_OUTPUT_DIR, USER_WAHOO_MC  # noqa: E402
 from wahoomc.downloader import download_tooling  # noqa: E402
+import wahoomc.downloader as wmc_downloader  # noqa: E402
+
+wmc_downloader.download_url_to_file = progress.download      # WMC's downloads now show a progress bar
 from wahoomc.input import InputData  # noqa: E402
 from wahoomc.osm_data import XYOsmData  # noqa: E402
 from wahoomc.osm_maps_functions import OsmMaps  # noqa: E402
@@ -339,17 +343,20 @@ def main():
             print(f"\n! The classic tiles cannot be reused ({why}): they are rebuilt (slower, but up to date).")
             args.skip_classic = False
 
+    steps = progress.Steps((0 if args.skip_classic else 7) + (4 if args.wandrer else 0))
     # --- Phase 1: classic WMC ---
     if not args.skip_classic:
         print("\n=== PHASE 1: classic WMC ===")
-        data.get_downloader().download_files_if_needed()
+        print("  Missing OSM regions are downloaded automatically (a few minutes, up to several hundred MB;"
+              " the lines below show it). Regions already on disk and younger than 14 days are kept.")
+        steps.run("Download missing OSM data", data.get_downloader().download_files_if_needed)
         maps = OsmMaps(data)
-        maps.filter_tags_from_country_osm_pbf_files()
-        maps.generate_land()
-        maps.generate_sea()
-        maps.split_filtered_country_files_to_tiles()
-        maps.merge_splitted_tiles_with_land_and_sea(True, args.contour, False)
-        maps.create_map_files(True, args.tags_classic, False, False)
+        steps.run("Filter the OSM data", maps.filter_tags_from_country_osm_pbf_files)
+        steps.run("Land", maps.generate_land)
+        steps.run("Sea", maps.generate_sea)
+        steps.run("Split into tiles", maps.split_filtered_country_files_to_tiles)
+        steps.run("Merge with land and sea", maps.merge_splitted_tiles_with_land_and_sea, True, args.contour, False)
+        steps.run("Create the map files", maps.create_map_files, True, args.tags_classic, False, False)
         with open(state_path, "w", encoding="utf-8") as f:       # what these classic tiles were built from
             json.dump(sig, f)
     labels = {(t["x"], t["y"]): tile_label(USER_OUTPUT_DIR, t["x"], t["y"]) for t in data.tiles}
@@ -369,13 +376,13 @@ def main():
                 t2 = dict(t)
                 t2["countries"] = list(t["countries"]) + ["wandrer"]
                 sel.append(t2)
-        print(f"\n=== PHASE 2: Wandrer on {len(sel)} tile(s) ===")
+        print(f"\n=== PHASE 2: Wandrer / Squadrats layer on {len(sel)} tile(s) ===")
         if sel:
             maps = OsmMaps(FakeOsmData(sel, {"wandrer": {"map_file": pbf}}))
-            maps.filter_tags_from_country_osm_pbf_files()
-            maps.split_filtered_country_files_to_tiles()
-            maps.merge_splitted_tiles_with_land_and_sea(True, args.contour, False)
-            maps.create_map_files(True, args.tags_wandrer, False, False)
+            steps.run("Layer: filter", maps.filter_tags_from_country_osm_pbf_files)
+            steps.run("Layer: split into tiles", maps.split_filtered_country_files_to_tiles)
+            steps.run("Layer: merge", maps.merge_splitted_tiles_with_land_and_sea, True, args.contour, False)
+            steps.run("Layer: create the map files", maps.create_map_files, True, args.tags_wandrer, False, False)
             for t in sel:
                 copy_tile(USER_OUTPUT_DIR, t["x"], t["y"], out_w, labels[(t["x"], t["y"])])
                 changed.append((t["x"], t["y"]))
@@ -383,9 +390,10 @@ def main():
                 w = size(os.path.join(out_w, "maps", "tiles", "8", str(t["x"]), f"{t['y']}.map.lzma"))
                 report.append((t["x"], t["y"], c, w))
         if not sel:
-            print("! None of your tiles is covered by the Wandrer file: no Wandrer tile was made.")
+            steps.total -= 4
+            print("! None of your tiles is covered by Wandrer or Squadrats data: no tile with that layer was made.")
     else:
-        print("\n! No --wandrer file given: PHASE 2 (Wandrer) skipped, only the classic tiles were made.")
+        print("\n! No --wandrer file given: PHASE 2 (Wandrer / Squadrats layer) skipped, only the classic tiles were made.")
     # Tiles without Wandrer data (or without any Wandrer file): the classic tile has the same POIs and
     # contour lines, so it goes into wahoondrer_maps too: that folder is then the complete set for the Bolt.
     nowandrer = [(t["x"], t["y"]) for t in data.tiles if (t["x"], t["y"]) not in changed]
@@ -393,8 +401,9 @@ def main():
         copy_tile(USER_OUTPUT_DIR, x, y, out_w, labels[(x, y)])
         changed.append((x, y))
     if nowandrer and args.wandrer:
-        print("\n! No Wandrer data in these tiles, so they are plain tiles (no Wandrer lines): "
+        print("\n! No Wandrer or Squadrats data in these tiles, so they are plain tiles (no extra lines): "
               + ", ".join(f"{x}/{y}" for x, y in nowandrer))
+    steps.done()
     copy_theme(out_w)                 # the Bolt theme always goes with the tiles of wahoondrer_maps
     if args.contour:                  # contour lines are in the classic tiles too: they need the theme
         copy_theme(out_c)
@@ -426,7 +435,7 @@ def mo(n):
 
 def write_docs(out, tiles, changed, report, contour=False, nowandrer=()):
     lines = ["Tile sizes (.map.lzma)", ""]
-    lines.append(f"{'tile':10}{'classic':>12}{'wandrer':>12}{'change':>10}")
+    lines.append(f"{'tile':10}{'classic':>12}{'with layer':>12}{'change':>10}")
     for x, y, c, w in report:
         pct = f"{100 * (w - c) / c:+.0f} %" if c else "-"
         lines.append(f"{x}/{y:<7}{mo(c):>12}{mo(w):>12}{pct:>10}")
@@ -444,7 +453,7 @@ def write_docs(out, tiles, changed, report, contour=False, nowandrer=()):
     L.append("")
     L.append("A. Tiles  (wahoondrer_maps/maps/tiles/8/...)  -> Bolt: maps/tiles/8/...")
     for x, y in changed:
-        L.append(f"   {x}/{y}.map.lzma  and  {x}/{y}.map.lzma.17" + ("   (no Wandrer data here: plain tile)" if (x, y) in nowandrer else ""))
+        L.append(f"   {x}/{y}.map.lzma  and  {x}/{y}.map.lzma.17" + ("   (no Wandrer / Squadrats data here: plain tile)" if (x, y) in nowandrer else ""))
     L.append("")
     L.append("B. Theme  (wahoondrer_maps/maps/vtm-elemnt/)  -> Bolt: maps/vtm-elemnt/")
     L.append("   vtm-elemnt.xml (directly in that folder, NOT in a subfolder).")

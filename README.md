@@ -13,6 +13,7 @@ and bakes your **Wandrer** data (unexplored roads, achievement boundaries) into 
 - `wahoondrer/kmz.py`: reads and merges several exports with de-duplication (newest export wins, ordered by the timestamp inside the KML).
 - `wahoondrer/process.py`: keeps unvisited roads only within a radius of traveled roads (default 250 m; options to keep every unpaved or every paved road), merges chained segments (always), simplifies geometry.
 - `scripts/build_tiles.py`: classic WMC tiles + Wandrer tiles, output folder with a copy guide for the Bolt.
+- `wahoondrer/progress.py`: download progress bar (replaces WMC's silent download function) and "step n of N" counter; in the GUI they are sent as log lines starting with the character `\x01` (`P|text` bar, `S|n|total|label` step).
 - `wahoondrer/squadrats.py`: rebuilds the explored squares from the Squadrats KML and outlines the unexplored ones in a band around them.
 - Planned: GUI (options: keep traveled roads, boundaries on/off, radius, unpaved handling), simple installation.
 
@@ -25,6 +26,9 @@ python3 scripts/kmz_to_osm.py -o ~/wandrer.osm path/to/exports/*.kmz
 python3 scripts/kmz_to_osm.py -o ~/wandrer.osm path/to/exports/*.kmz \
     --squadrats path/to/squadrats.kml [--squadrats-levels big,small] [--squadrats-buffer 3] \
     [--squadrats-small-scope explored-big|band|both]
+
+# 1c. Squadrats alone, without any Wandrer export: say on which z8 tiles to draw them
+python3 scripts/kmz_to_osm.py -o ~/wandrer.osm --squadrats path/to/squadrats.kml --tiles 137/83,137/84
 
 # 2. build the tiles (WMC importable, Java and osmium installed)
 python3 scripts/build_tiles.py \
@@ -44,7 +48,7 @@ python3 scripts/gui.py             # opens http://127.0.0.1:8765/ in your browse
    becomes a symbolic link to `OSM_data` (created automatically if WMC has no data yet; otherwise the page
    offers to move the existing data, never without asking).
 2. **Exports**: each export is listed with its date, type (bike, foot, combined), the town where you ride
-   most in it (looked up online, can be switched off), what it contains (coloured tags) and its tiles.
+   most in it (looked up online, can be switched off), what it contains (coloured tags) and its tiles. "Untick all" / "Tick all" switch every export at once.
    "Which exports to use" picks one type: bike (default), foot or combined. Pro mode adds "all types" (mix)
    and "latest" (type of the newest export). Reading big files takes a while the first time
    (a progress bar is shown); results are cached.
@@ -63,13 +67,18 @@ python3 scripts/gui.py             # opens http://127.0.0.1:8765/ in your browse
    regions such as Picardie) is reported and skipped; download its parent region instead. WMC renews regions
    older than 14 days by itself.
    The list is grouped by country (then by sub-region, e.g. Germany > Bayern > Oberfranken) with the size of each group.
+   Tick several regions (or a whole country or group with the box in front of its name) and press "Delete the ticked regions" (or "Delete all") to free the disk in one go; WMC downloads again what a map needs.
 8. **Make the maps**: "Check the plan" lists the tiles and OSM regions needed; "Generate maps" runs
    `kmz_to_osm.py` then `build_tiles.py` and shows the log. The run goes on if you close the page (it belongs to
    the terminal running `gui.py`): reopen the page to see the log again. The red **STOP** button under the log
    cancels it (after a confirmation); the log ends with the total time. A "To know" box repeats the warnings
    (lines starting with `!`), e.g. tiles without Wandrer data.
+   While it runs, a progress bar shows each OSM download (size, percentage, speed), and a "step n of N" bar
+   follows the stages of the build (the stages themselves are run by WMC and have no finer percentage).
+   Wandrer and Squadrats are independent: Squadrats alone need no Wandrer export, and the Wandrer exports are
+   not even unzipped when none of them touches the chosen tiles.
    The output folder keeps one tile per coordinates: a run replaces only the tiles it rebuilds. Tiles with no
-   Wandrer data are copied from the classic build into `wahoondrer_maps` too (marked "no Wandrer"), so that
+   Wandrer data are copied from the classic build into `wahoondrer_maps` too (marked "plain tile"), so that
    folder is the complete set for the Bolt. Below the log, "Files for the Bolt" lists the theme, the tiles of
    the last run, then the other tiles (see "Output folder" below).
 

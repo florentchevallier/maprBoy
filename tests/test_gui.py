@@ -2,6 +2,7 @@ import glob
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 from tests import synthetic
 import json
@@ -340,9 +341,25 @@ class CommandTests(unittest.TestCase):
         cmds = jobs.build_commands(self.s(wandrer={"enabled": False}), ["/x/a.kmz"], None)
         self.assertEqual(len(cmds), 1); self.assertNotIn("--wandrer", cmds[0][1])
 
+    def test_conversion_skipped_when_no_export_covers_the_tiles(self):
+        from unittest import mock
+        s = self.s(); tile = s["tiles"][0]; self.assertEqual(tile, "136/88")
+        far = {"tiles": [[0, 0]]}
+        near = {"tiles": [[int(v) for v in tile.split("/")]]}
+        with mock.patch("wahoondrer.gui.scan.cached_info", return_value=far):
+            cmds = jobs.build_commands(s, ["/x/a.kmz"], None)
+        self.assertEqual(len(cmds), 2)
+        self.assertTrue(all("kmz_to_osm" not in " ".join(c[1]) for c in cmds))
+        self.assertNotIn("--wandrer", cmds[1][1])
+        with mock.patch("wahoondrer.gui.scan.cached_info", return_value=near):
+            cmds = jobs.build_commands(s, ["/x/a.kmz"], None)
+        self.assertIn("--wandrer", cmds[-1][1])
+
     def test_errors(self):
-        with self.assertRaises(jobs.SettingsError):      # squadrats without wandrer export
-            jobs.build_commands(self.s(squadrats={"enabled": True}), [], "/x/sq.kml")
+        cmds = jobs.build_commands(self.s(squadrats={"enabled": True}), [], "/x/sq.kml")   # squadrats alone
+        self.assertEqual(len(cmds), 2)
+        self.assertIn("--squadrats", cmds[0][1]); self.assertIn("--tiles", cmds[0][1])
+        self.assertIn("--wandrer", cmds[1][1])
         with self.assertRaises(jobs.SettingsError):      # squadrats without file
             jobs.build_commands(self.s(squadrats={"enabled": True}), ["/x/a.kmz"], None)
         s = self.s(); s["folders"]["out"] = os.path.join(jobs.REPO, "out")
@@ -597,6 +614,54 @@ class ResultsTests(unittest.TestCase):
             self.assertIsNone(server.result_file(out, "secret.txt"))
             self.assertIsNone(server.result_file(out, "../" + os.path.basename(out) + "/secret.txt"))
             self.assertEqual(server.results(os.path.join(out, "none"))["tiles"], [])
+
+
+class ProgressTests(unittest.TestCase):
+    def test_download_and_steps(self):
+        import contextlib, http.server, io, threading
+        from wahoondrer import progress
+        data = os.urandom(3_000_000)
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200); self.send_header("Content-Length", str(len(data))); self.end_headers()
+                self.wfile.write(data)
+            def log_message(self, *a): pass
+        srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        with tempfile.TemporaryDirectory() as d:
+            target = os.path.join(d, "x.osm.pbf")
+            buf = io.StringIO()
+            with mock.patch.dict(os.environ, {"WAHOONDRER_GUI": "1"}), contextlib.redirect_stdout(buf):
+                progress.download(f"http://127.0.0.1:{srv.server_port}/x", target)
+                st = progress.Steps(2); st.run("One", lambda: None); st.total = 1; st.done()
+            self.assertEqual(os.path.getsize(target), len(data))
+            self.assertFalse(os.path.exists(target + ".part"))        # renamed once complete
+        srv.shutdown()
+        out = buf.getvalue().splitlines()
+        self.assertTrue(any(l.startswith("\x01P|x.osm.pbf") for l in out))
+        self.assertIn("\x01P|", out)                                  # bar cleared at the end
+        self.assertIn("\x01S|1|2|One", out)
+        self.assertIn("\x01S|1|1|", out)
+        self.assertIn("\x01P|x.osm.pbf  connecting...", out)
+        self.assertEqual(progress.bar(0.5, 4), "██░░")
+
+    def test_incomplete_download_leaves_no_final_file(self):
+        import contextlib, http.server, io, threading
+        from wahoondrer import progress
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200); self.send_header("Content-Length", "1000000"); self.end_headers()
+                self.wfile.write(b"x" * 1000)            # connection closes after 1000 bytes
+            def log_message(self, *a): pass
+        srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        with tempfile.TemporaryDirectory() as d:
+            target = os.path.join(d, "y.osm.pbf")
+            with contextlib.redirect_stdout(io.StringIO()):
+                with self.assertRaises((SystemExit, Exception)):
+                    progress.download(f"http://127.0.0.1:{srv.server_port}/y", target)
+            self.assertFalse(os.path.exists(target))
+        srv.shutdown()
 
 
 if __name__ == "__main__":

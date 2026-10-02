@@ -17,7 +17,7 @@ main{max-width:1040px;margin:0 auto;padding:16px 16px 60px;display:grid;gap:16px
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
 .card h2{font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
 .card h2 .n{display:inline-block;background:var(--accent);color:var(--accent-ink);border-radius:50%;width:22px;height:22px;text-align:center;line-height:22px;font-size:12px}
-.card h2 .sp{flex:1}
+.card h2 .sp,.actions .sp{flex:1}
 .hint{color:var(--mute);font-size:13px;margin:0 0 12px}
 label.row{display:grid;grid-template-columns:150px 1fr auto auto;gap:8px;align-items:center;margin:6px 0}
 input[type=text],input[type=number],select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);font:inherit}
@@ -75,6 +75,7 @@ details.var div{margin:3px 0 0 4px;color:var(--ink)}
 .rtile{margin:12px 0 0}.cdate{width:150px;white-space:nowrap}.ccity{width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ccont{display:none}.pro .ccont{display:inline-block;width:118px;white-space:nowrap}.newslot{min-width:190px;text-align:right}.plaintile{background:var(--line);color:var(--mute);border-radius:6px;padding:0 6px;font-size:12.5px}.newtile{background:#fff3d6;color:#8a5a00;border-radius:6px;padding:0 6px;font-size:12.5px}
 .opts{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
 @media (max-width:760px){.opts{grid-template-columns:1fr}label.row{grid-template-columns:1fr}}
+#stepWrap{display:flex;gap:10px;align-items:center;margin:10px 0 0;font-size:13px}#stepWrap progress{flex:0 0 220px;height:14px;accent-color:var(--accent,#2f6fdb)}#dlBar{background:var(--code);color:var(--codeink);font:12.5px/1.4 ui-monospace,Menlo,monospace;margin:0;padding:0 12px 12px;border-radius:0 0 10px 10px;white-space:pre;overflow:auto}#dlBar[hidden]{display:none}pre#log:has(+ #dlBar:not([hidden])){border-radius:10px 10px 0 0;padding-bottom:6px}
 pre#log{background:var(--code);color:var(--codeink);border-radius:10px;padding:12px;height:300px;overflow:auto;font:12.5px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:10px 0 0}
 .pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12.5px;background:var(--line)}
 .pill.running{background:var(--accent);color:#fff}.pill.done{background:var(--ok);color:#fff}.pill.failed{background:var(--bad);color:#fff}
@@ -125,7 +126,8 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
   <p class="hint">Ticked exports are merged; where they overlap, the most recent one wins. "Near" is the town where you ride most in that export.</p>
   <div id="scanBox" style="display:none"><div class="note" id="scanText"></div><div class="bar" id="scanBar"><i></i></div></div>
   <div class="actions" id="actBox" style="margin:4px 0 8px"><span class="note">Which exports to use:</span>
-    <select id="actSel" data-path="activity" style="width:auto"></select><span class="note" id="actNote"></span></div>
+    <select id="actSel" data-path="activity" style="width:auto"></select><span class="note" id="actNote"></span>
+    <span class="sp"></span><button class="small" id="exNone" title="Untick every export">Untick all</button><button class="small" id="exAll" title="Tick every export">Tick all</button></div>
   <p class="note" style="margin:0 0 8px">Wandrer gives three kinds of export: <b>bike</b>, <b>foot</b> and <b>combined</b>. The map is made from one kind.<span class="pro-only inline"> Pro: “all types” mixes them; “latest” follows the type of your newest export.</span></p>
   <div id="exports"></div>
   <div class="drop" id="dropWandrer">Drop your Wandrer <b>.kmz</b> files here (or click to choose them)</div>
@@ -192,7 +194,7 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
     </div>
   </div>
   <div class="drop" id="dropSquadrats">Drop a new Squadrats <b>.kml</b> file here (the most recent one is used)</div>
-  <p class="note">Squadrats are added to the tiles covered by your Wandrer exports.</p>
+  <p class="note">Squadrats work with or without Wandrer: the outlines are drawn on every tile you chose.</p>
 </section>
 
 <section class="card" data-sec="pois">
@@ -244,7 +246,9 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
     <p class="note" id="contourStatus"></p>
   </div>
   <div id="runMsg" class="warn"></div>
+  <div id="stepWrap" hidden><progress id="stepBar" max="1" value="0"></progress> <span id="stepTxt"></span></div>
   <pre id="log"></pre>
+  <div id="dlBar" hidden></div>
   <button id="btnCancel" class="stop" hidden>■ STOP</button>
   <p class="note" id="doneNote"></p>
   <div id="results"></div>
@@ -337,6 +341,9 @@ function renderExports() {
     tr.onmouseenter = () => hover(tr.dataset.row, true); tr.onmouseleave = () => hover(tr.dataset.row, false);
   });
 }
+
+$("#exNone").onclick = async () => { S.excluded_exports = ST.exports.map(e => e.name); await api("/api/settings", S); await refresh(); };
+$("#exAll").onclick = async () => { S.excluded_exports = []; await api("/api/settings", S); await refresh(); };
 
 function renderActivity() {
   const sel = $("#actSel"), count = t => ST.exports.filter(e => e.activity === t).length;
@@ -654,18 +661,23 @@ async function renderRegions(fresh) {
   let h = "";
   if (!R.downloaded.length) h += '<p class="note">No region downloaded yet: WMC will fetch what it needs at the first run.</p>';
   else {
-    h += `<table><tr><th>Region</th><th class="n">Size</th><th>Downloaded</th><th class="n">Age</th><th>Needed by my tiles</th><th></th></tr>`;
+    h += `<div class="actions" style="margin:0 0 6px"><button class="small danger" id="regDelSel" disabled>Delete the ticked regions</button><button class="small danger" id="regDelAll" title="Delete every downloaded region">Delete all (${mb(R.downloaded.reduce((n, r) => n + r.size, 0))})</button><span class="note" id="regSelNote"></span></div>
+    <table><tr><th><input type="checkbox" id="regSelAll" title="Tick / untick all"></th><th>Region</th><th class="n">Size</th><th>Downloaded</th><th class="n">Age</th><th>Needed by my tiles</th><th></th></tr>`;
     // tree: Country > (sub-regions) > region, taken from the name "Oberfranken (Bayern, Germany)"
     const pathOf = r => { const m = /^(.*) \(([^()]*)\)$/.exec(r.name); if (!m) return [r.name]; return [...m[2].split(", ").reverse(), m[1]]; };
     const items = R.downloaded.map(r => ({r, p: pathOf(r)})).sort((x, y) => x.p.join("\u0001").localeCompare(y.p.join("\u0001")));
     const total = (pre) => items.filter(i => pre.every((v, k) => i.p[k] === v)).reduce((n, i) => n + i.r.size, 0);
     let prev = [];
-    for (const {r, p} of items) {
+    const grpRow = (p, d) => `<tr class="rgrp"><td><input type="checkbox" data-grp="${esc(p.slice(0, d + 1).join("\u0001"))}" title="Tick / untick this whole group"></td><td style="padding-left:${d * 20}px">${d === 0 ? "🌍" : "📁"} <b>${esc(p[d])}</b></td><td class="n">${mb(total(p.slice(0, d + 1)))}</td><td colspan="4"></td></tr>`;
+    for (let k = 0; k < items.length; k++) {
+      const {r, p} = items[k], nx = items[k + 1];
+      const parent = !!nx && nx.p.length > p.length && p.every((v, i) => nx.p[i] === v);   // this file also has sub-regions (e.g. Germany and Bayern)
       for (let d = 0; d < p.length - 1; d++) {
-        if (prev[d] !== p[d] || prev.slice(0, d).some((v, k) => v !== p[k])) h += `<tr class="rgrp"><td style="padding-left:${d * 20}px">${d === 0 ? "🌍" : "📁"} <b>${esc(p[d])}</b></td><td class="n">${mb(total(p.slice(0, d + 1)))}</td><td colspan="4"></td></tr>`;
+        if (prev[d] !== p[d] || prev.slice(0, d).some((v, q) => v !== p[q])) h += grpRow(p, d);
       }
+      if (parent) h += grpRow(p, p.length - 1);
       prev = p;
-      h += `<tr><td style="padding-left:${(p.length - 1) * 20}px">${p.length > 1 ? "⌞ " : ""}${esc(p[p.length - 1])}</td>` + `<td class="n">${mb(r.size)}</td><td>${r.date}</td><td class="n">${r.age_days} d${r.age_days > R.max_days ? ' <span class="warn" style="display:inline">(WMC will renew it)</span>' : ""}</td>
+      h += `<tr><td><input type="checkbox" data-sel="${esc(r.key)}" data-size="${r.size}" data-p="${esc(p.join("\u0001"))}"></td><td style="padding-left:${(p.length - 1 + (parent ? 1 : 0)) * 20}px">${p.length > 1 || parent ? "⌞ " : ""}${esc(p[p.length - 1])}${parent ? " <small>(the whole region)</small>" : ""}</td>` + `<td class="n">${mb(r.size)}</td><td>${r.date}</td><td class="n">${r.age_days} d${r.age_days > R.max_days ? ' <span class="warn" style="display:inline">(WMC will renew it)</span>' : ""}</td>
       <td>${R.plan_done ? (r.needed ? "✓" : "–") : "?"}</td><td style="white-space:nowrap"><button class="small" data-upd="${esc(r.key)}" ${R.catalog_ready ? "" : "disabled"}>Update</button> <button class="small danger" data-del="${esc(r.key)}" data-name="${esc(r.name)}" data-size="${r.size}" title="Delete this file from your disk">Delete</button></td></tr>`;
     }
     h += "</table>";
@@ -679,6 +691,25 @@ async function renderRegions(fresh) {
     try { const r = await api("/api/regions_delete", {key: b.dataset.del}); $("#regMsg").textContent = ""; $("#regInfo").textContent = `Deleted: ${mb(r.freed)} freed.`; await renderRegions(); await renderOsm(); }
     catch (e) { $("#regMsg").textContent = e.message; }
   });
+  const sels = () => $$("[data-sel]", box).filter(c => c.checked);
+  const updSel = () => { const n = sels().length, all = $$("[data-sel]", box);
+    if ($("#regDelSel")) { $("#regDelSel").disabled = !n; $("#regSelNote").textContent = n ? `${n} ticked (${mb(sels().reduce((t, c) => t + Number(c.dataset.size), 0))})` : "";
+      $("#regSelAll").checked = n > 0 && n === all.length; $("#regSelAll").indeterminate = n > 0 && n < all.length; }
+    updGrp(); };
+  const delMany = async (keys, text) => {
+    if (!keys.length || !confirm(text + "\nWMC will download them again if a map needs them.")) return;
+    try { const r = await api("/api/regions_delete", {keys}); $("#regMsg").textContent = ""; $("#regInfo").textContent = `Deleted ${r.deleted} region(s): ${mb(r.freed)} freed.`; await renderRegions(); await renderOsm(); }
+    catch (e) { $("#regMsg").textContent = e.message; }
+  };
+  const under = g => $$("[data-sel]", box).filter(c => (c.dataset.p + "\u0001").startsWith(g.dataset.grp + "\u0001"));
+  const updGrp = () => $$("[data-grp]", box).forEach(g => { const k = under(g), n = k.filter(c => c.checked).length; g.checked = n > 0 && n === k.length; g.indeterminate = n > 0 && n < k.length; });
+  $$("[data-grp]", box).forEach(g => g.onchange = () => { under(g).forEach(c => c.checked = g.checked); updSel(); });
+  $$("[data-sel]", box).forEach(c => c.onchange = updSel);
+  if ($("#regSelAll")) {
+    $("#regSelAll").onchange = e => { $$("[data-sel]", box).forEach(c => c.checked = e.target.checked); updSel(); };
+    $("#regDelSel").onclick = () => delMany(sels().map(c => c.dataset.sel), `Delete the ${sels().length} ticked region(s) (${mb(sels().reduce((t, c) => t + Number(c.dataset.size), 0))}) from your disk?`);
+    $("#regDelAll").onclick = () => delMany(R.downloaded.map(r => r.key), `Delete ALL ${R.downloaded.length} downloaded regions (${mb(R.downloaded.reduce((n, r) => n + r.size, 0))}) from your disk?`);
+  }
   const gm = $("#regGetMissing"); if (gm) gm.onclick = () => startRegionDownload(R.missing.map(m => m.key), false);
   if (R.catalog_ready && (!REG.loaded || fresh === true)) {
     const a = await api("/api/regions_available");
@@ -767,22 +798,38 @@ window.addEventListener("focus", () => { if (S && (S.folders.wandrer || S.folder
 let since = 0, poll = null, warnLines = [];
 async function start(kind) {
   $("#runMsg").textContent = ""; $("#doneNote").textContent = "";
-  try { await api("/api/settings", S); await api("/api/" + kind, S); since = 0; warnLines = []; $("#log").textContent = ""; $("#runMsg").textContent = ""; startPolling(); }
+  try { await api("/api/settings", S); await api("/api/" + kind, S); since = 0; warnLines = []; $("#log").textContent = ""; $("#dlBar").hidden = true; $("#stepWrap").hidden = true; $("#runMsg").textContent = ""; startPolling(); }
   catch (e) { $("#runMsg").textContent = e.message; }
 }
 function startPolling() { clearInterval(poll); poll = setInterval(tick, 700); tick(); }
+// Lines from the build script that start with \x01 are not text: P| = download bar (empty = clear), S|n|total|label = step counter.
+function feedLog(lines) {
+  const text = [];
+  for (const l of lines) {
+    if (l.charCodeAt(0) !== 1) { text.push(l); continue; }
+    const p = l.slice(1).split("|");
+    if (p[0] === "P") { const t = p.slice(1).join("|"); $("#dlBar").textContent = t; $("#dlBar").hidden = !t; }
+    else if (p[0] === "S") {
+      const n = +p[1], tot = +p[2], label = p.slice(3).join("|");
+      $("#stepWrap").hidden = false; $("#stepBar").value = tot ? n / tot : 0;
+      $("#stepTxt").textContent = label ? `step ${n} of ${tot}: ${label}` : "all steps done";
+    }
+  }
+  return text;
+}
 async function tick() {
   const j = await api("/api/job?since=" + since); since = j.next;
   const log = $("#log"), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
-  if (j.lines.length) log.textContent += j.lines.join("\n") + "\n";
-  warnLines.push(...j.lines.filter(l => l.startsWith("! ")));
+  const shown = feedLog(j.lines);
+  if (shown.length) log.textContent += shown.join("\n") + "\n";
+  warnLines.push(...shown.filter(l => l.startsWith("! ")));
   if (atEnd) log.scrollTop = log.scrollHeight;
   const st = $("#status"); st.textContent = j.status === "running" ? j.title : j.status; st.className = "pill " + j.status;
   $("#elapsed").textContent = j.seconds ? (j.status === "running" ? "" : "took ") + (j.seconds >= 3600 ? Math.floor(j.seconds / 3600) + " h " + String(Math.floor(j.seconds % 3600 / 60)).padStart(2, "0") + " min" : j.seconds >= 60 ? Math.floor(j.seconds / 60) + " min " + String(j.seconds % 60).padStart(2, "0") + " s" : j.seconds + " s") : "";
   const running = j.status === "running";
   $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = running;
   $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, step 8)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log in step 8." : ""); $("#btnCancel").hidden = !running;
-  if (!running) { clearInterval(poll); poll = null; renderRegions();
+  if (!running) { clearInterval(poll); poll = null; $("#dlBar").hidden = true; renderRegions();
     if (warnLines.length && j.status === "done") { $("#runMsg").style.whiteSpace = "pre-line"; $("#runMsg").textContent = "To know:\n" + warnLines.map(l => "• " + l.slice(2)).join("\n"); }
     if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to the Bolt (one by one, after a backup), or use the list below.`; renderResults(); }
 }
@@ -906,7 +953,7 @@ async function loadPois() {
 
 // ---------- result files (what to copy to the Bolt)
 const fileUrl = rel => "/api/file?rel=" + encodeURIComponent(rel);
-const fileRow = (f, extra, newTile, plain) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${plain ? '<span class="plaintile" title="No Wandrer data in this tile: plain map, no Wandrer lines">no Wandrer</span> ' : ""}${newTile ? '<span class="newtile">🌟 New tile!</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
+const fileRow = (f, extra, newTile, plain) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${plain ? '<span class="plaintile" title="No Wandrer data in this tile: plain map, no Wandrer or Squadrats lines">plain tile</span> ' : ""}${newTile ? '<span class="newtile">🌟 New tile!</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
 async function renderResults() {
   const box = $("#results");
   if (!S.folders.out) { box.innerHTML = ""; return; }
@@ -954,7 +1001,7 @@ async function refresh(keepMap) {
 }
 (async () => {
   await refresh();
-  if (ST.job.status !== "idle") { $("#log").textContent = ST.job.lines.join("\n"); warnLines = ST.job.lines.filter(l => l.startsWith("! ")); since = ST.job.next; startPolling(); }
+  if (ST.job.status !== "idle") { const shown = feedLog(ST.job.lines); $("#log").textContent = shown.join("\n"); warnLines = shown.filter(l => l.startsWith("! ")); since = ST.job.next; startPolling(); }
   loadPois(); renderResults();
   await initMap();
   renderDerived(); drawMapLayers(true);

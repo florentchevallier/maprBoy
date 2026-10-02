@@ -5,6 +5,7 @@ Usage:
     python3 scripts/kmz_to_osm.py -o wandrer.osm export1.kmz export2.kmz ...
             [--with-traveled] [--radius-m 250] [--unpaved-always] [--paved-always]
             [--simplify-m 1.5] [--no-merge] [--no-boundaries]
+            [--tiles 137/83,137/84]
             [--squadrats squadrats.kml] [--squadrats-levels big,small]
             [--squadrats-buffer 3]
             [--squadrats-small-scope explored-big|band|both]
@@ -19,7 +20,8 @@ Unvisited roads are kept only within --radius-m (250 m) of traveled roads;
 
 --squadrats adds the outlines of the UNEXPLORED Squadrats squares (big = z14,
 small = z17), only in a band of --squadrats-buffer squares around the explored
-ones and only in the z8 tiles touched by the Wandrer exports. Small squares: by
+ones and only in the z8 tiles touched by the Wandrer exports (plus --tiles). Squadrats work
+alone: with no export, give --tiles. Small squares: by
 default every unexplored small square inside an explored big square is outlined
 (--squadrats-small-scope explored-big); "band" uses the buffer instead.
 
@@ -45,7 +47,10 @@ from wahoondrer.squadrats import SMALL_SCOPES, read_squadrats, unexplored_outlin
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("kmz", nargs="+", help="KMZ/KML exports (any order)")
+    ap.add_argument("kmz", nargs="*", help="KMZ/KML exports (any order); none = Squadrats only")
+    ap.add_argument("--tiles", default="",
+                    help="z8 tiles x/y,x/y: where the Squadrats outlines are drawn, in addition to "
+                         "the tiles touched by the exports (needed for a Squadrats-only run)")
     ap.add_argument("-o", "--output", required=True)
     ap.add_argument("--with-traveled", action="store_true")
     ap.add_argument("--radius-m", type=float, default=250.0,
@@ -73,6 +78,8 @@ def main():
                          "explored big square (default), a band around explored "
                          "small squares, or both")
     args = ap.parse_args()
+    if not args.kmz and not args.squadrats:
+        ap.error("give at least one Wandrer export or --squadrats")
 
     exports = []
     for p in args.kmz:
@@ -103,7 +110,11 @@ def main():
           f"{ps.get('dropped_far', 0)} dropped (outside radius), "
           f"{ps['before_merge']} -> {ps['after_merge']} after merging; "
           f"{ps['nodes_before_simplify']} -> {ps['nodes_after_simplify']} points after simplification")
-    tiles = sorted({t for e in exports for t in tiles_for_bbox(*e.bbox)})
+    tiles = {t for e in exports for t in tiles_for_bbox(*e.bbox)}
+    for t in [t for t in args.tiles.split(",") if t.strip()]:
+        x, y = t.strip().split("/")
+        tiles.add((int(x), int(y)))
+    tiles = sorted(tiles)
 
     squadrats = None
     if args.squadrats:

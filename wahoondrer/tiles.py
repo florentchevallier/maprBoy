@@ -42,3 +42,18 @@ def label_file_name(y, label):
         if slug:
             parts.append(slug)
     return f"{y}_{'-'.join(parts)}"[:60] + ".txt" if parts else None
+
+
+def split_covered(wanted, tiles_of, no_region_error):
+    """Tiles of every wanted tile that some OSM region covers, and the ones left out.
+
+    wanted: the requested tiles; tiles_of(w): list of tile infos of one wanted tile, raising
+    no_region_error when no OSM region covers it (a tile in the open sea).
+    Returns (tiles, skipped) with skipped = [(w, error), ...]; any other error goes through."""
+    tiles, skipped = [], []
+    for w in wanted:
+        try:
+            tiles.extend(tiles_of(w))
+        except no_region_error as exc:
+            skipped.append((w, exc))
+    return tiles, skipped

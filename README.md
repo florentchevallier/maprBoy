@@ -77,6 +77,7 @@ buttons that start a build stay disabled; the same warning is printed in the ter
    the terminal running `gui.py`): reopen the page to see the log again. The red **STOP** button under the log
    cancels it (after a confirmation); the log ends with the total time. A "To know" box repeats the warnings
    (lines starting with `!`), e.g. tiles without Wandrer data.
+   A tile that no OSM region covers (open sea) is left out and reported there; the other tiles are still built.
    When a run ends, a system notification says that the maps are ready (and how long it took) or which step failed,
    so you can do something else meanwhile; untick "Notify me when a run ends" to turn it off. On macOS the banner is
    shown under the name "Script Editor" (allow it in System Settings > Notifications); on Linux it needs

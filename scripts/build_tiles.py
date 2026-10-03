@@ -42,7 +42,7 @@ from wahoondrer import contour as contour_lines  # noqa: E402
 from wahoondrer import poi_config  # noqa: E402
 from wahoondrer import progress  # noqa: E402
 from wahoondrer import reuse  # noqa: E402
-from wahoondrer.tiles import label_file_name  # noqa: E402
+from wahoondrer.tiles import label_file_name, split_covered  # noqa: E402
 
 # Where config/ and themes/ are read from: the repository, or a private copy written for the user's POIs.
 ASSETS = REPO
@@ -53,6 +53,7 @@ import wahoomc.downloader as wmc_downloader  # noqa: E402
 
 wmc_downloader.download_url_to_file = progress.download      # WMC's downloads now show a progress bar
 from wahoomc.input import InputData  # noqa: E402
+from wahoomc.geofabrik import XYCombinationHasNoCountries, XYGeofabrik  # noqa: E402
 from wahoomc.osm_data import XYOsmData  # noqa: E402
 from wahoomc.osm_maps_functions import OsmMaps  # noqa: E402
 from wahoomc.setup_functions import (  # noqa: E402
@@ -180,6 +181,20 @@ def copy_theme(dst_root):
                     ignore=shutil.ignore_patterns(".*", "Thumbs.db", "ehthumbs.db", "desktop.ini"))
 
 
+class TolerantXYOsmData(XYOsmData):
+    """XYOsmData, except that a tile no OSM region covers (open sea) is left out and reported instead of
+    stopping the whole run (WMC refuses the entire list as soon as one tile has no country)."""
+
+    skipped = []
+
+    def calc_tiles(self):
+        geofabrik = XYGeofabrik(self.input_xy_coordinates)
+        self.tiles, self.skipped = split_covered(geofabrik.wanted_maps, geofabrik.get_tiles_of_wanted_map_single,
+                                                 XYCombinationHasNoCountries)
+        if not self.tiles and self.skipped:        # nothing left to build: stop, with WMC's own message
+            sys.exit(self.skipped[0][1])
+
+
 def prepare(xy, args):
     inp = InputData()
     inp.xy_coordinates = xy
@@ -187,7 +202,7 @@ def prepare(xy, args):
     inp.save_cruiser = True
     inp.process_border_countries = True
     inp.force_download = args.force_download
-    data = XYOsmData(inp)
+    data = TolerantXYOsmData(inp)
     data.process_input_of_the_tool()
     return data
 
@@ -308,6 +323,8 @@ def main():
     if args.contour and not args.plan:
         check_contour_prerequisites()
     data = prepare(args.xy, args)
+    for w, _ in data.skipped:
+        print(f"! Tile {w['x']}/{w['y']} left out: no OpenStreetMap region covers it (open sea?).")
     print("\nTiles and OSM regions:")
     for t in data.tiles:
         print(f"  {t['x']}/{t['y']} : {', '.join(t['countries'])}")

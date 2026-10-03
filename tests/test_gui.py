@@ -835,6 +835,40 @@ class LabelNameTests(unittest.TestCase):
         self.assertIsNone(label_file_name(88, " , "))
 
 
+class SplitCoveredTests(unittest.TestCase):
+    """A tile no OSM region covers (open sea) is left out; the others are still built."""
+
+    class NoRegion(Exception):
+        pass
+
+    def tiles_of(self, w):
+        if w["x"] < 128 and w["y"] > 90:
+            raise self.NoRegion(f"{w['x']}/{w['y']}")
+        return [{"x": w["x"], "y": w["y"], "countries": ["bayern"]}]
+
+    def test_valid_and_invalid_tiles_mixed(self):
+        from wahoondrer.tiles import split_covered
+        wanted = [{"x": 136, "y": 88}, {"x": 100, "y": 95}, {"x": 137, "y": 88}]
+        tiles, skipped = split_covered(wanted, self.tiles_of, self.NoRegion)
+        self.assertEqual([(t["x"], t["y"]) for t in tiles], [(136, 88), (137, 88)])
+        self.assertEqual([w for w, _ in skipped], [{"x": 100, "y": 95}])
+        self.assertEqual(str(skipped[0][1]), "100/95")
+
+    def test_all_valid_and_all_invalid(self):
+        from wahoondrer.tiles import split_covered
+        self.assertEqual(split_covered([{"x": 136, "y": 88}], self.tiles_of, self.NoRegion)[1], [])
+        tiles, skipped = split_covered([{"x": 1, "y": 99}, {"x": 2, "y": 99}], self.tiles_of, self.NoRegion)
+        self.assertEqual((tiles, len(skipped)), ([], 2))
+        self.assertEqual(split_covered([], self.tiles_of, self.NoRegion), ([], []))
+
+    def test_other_errors_are_not_hidden(self):
+        from wahoondrer.tiles import split_covered
+        def broken(w):
+            raise ValueError("bad data")
+        with self.assertRaises(ValueError):
+            split_covered([{"x": 136, "y": 88}], broken, self.NoRegion)
+
+
 class ResultsTests(unittest.TestCase):
     def test_results_tree_and_safe_file_access(self):
         with tempfile.TemporaryDirectory() as out:

@@ -75,6 +75,10 @@ HINTS = (
      "Hint: the Python module '{0}' is not installed in " + sys.executable + ". The page was probably started outside the "
      + ENV_NAME + " environment: stop it (Ctrl+C), activate that environment (see \"Installation\" in the README), "
      "start the page again."),
+    (re.compile(r"XY coordinate '(\d+/\d+)' consists of no countries"),
+     "Tile {0} has no land: no OpenStreetMap region covers it.",
+     "Hint: tile {0} is in the open sea, no OpenStreetMap region covers it, so there is nothing to build. "
+     "Take it out of the tiles (step 3) or choose a tile that touches land."),
     (re.compile(r"No space left on device|not enough space on the disk", re.I),
      "The disk is full.",
      "Hint: the disk is full. Delete OSM regions in step 7 or old tiles, then run again: the finished steps are not redone."),

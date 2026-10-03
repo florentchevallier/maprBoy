@@ -160,7 +160,12 @@ def generate_contours(tiles, spacing=contour_lines.DEFAULT_PRESET, per_tile=None
         if result.returncode != 0 or not made:
             for f in made:
                 os.remove(f)
-            sys.exit(f"! pyhgtmap failed for tile {t['x']}/{t['y']} (exit code {result.returncode}).")
+            if result.returncode == 0:      # it ran, but there is no elevation data for this tile
+                sys.exit(f"! pyhgtmap found no elevation data for tile {t['x']}/{t['y']} (open sea?). "
+                         "Choose \"no contour lines\" for this tile (Pro: contour lines tile by tile) "
+                         "or untick \"Add contour lines\".")
+            sys.exit(f"! pyhgtmap failed for tile {t['x']}/{t['y']} (exit code {result.returncode}): "
+                     "its own message is just above.")
         if not all(contour_lines.file_ok(f) for f in made):
             print(f"  ! tile {t['x']}/{t['y']}: almost no elevation data found (open sea?).")
         contour_lines.write_marker(tdir, spacing_t)

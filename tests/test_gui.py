@@ -580,6 +580,14 @@ class HintTests(unittest.TestCase):
         for line in ("OSError: [Errno 28] No space left on device", "OSError: [Errno 112] There is not enough space on the disk"):
             self.assertIn("disk is full", jobs.hint_for(["x", line])[0])
 
+    def test_tile_in_the_open_sea(self):
+        wmc = "Given XY coordinate '120/90' consists of no countries. Please check if your input is valid."
+        short, long = jobs.hint_for([wmc])
+        self.assertIn("120/90", short)
+        self.assertIn("no land", short)
+        self.assertTrue(long.startswith("Hint:"))
+        self.assertIn("open sea", long)
+
     def test_unknown_failure_has_no_hint(self):
         self.assertIsNone(jobs.hint_for(["Traceback", "ValueError: nope"]))
         self.assertIsNone(jobs.hint_for([]))
@@ -634,7 +642,7 @@ class ContourTests(unittest.TestCase):
         tile = {"left": 11.25, "bottom": 47.98, "right": 12.65, "top": 48.92}
         c = contour.build_command("/x/pyhgtmap", tile, "/t/elevation", "/h", 3, "10-50-100")
         self.assertEqual(c[0], "/x/pyhgtmap")
-        self.assertEqual(c[c.index("-a") + 1], "11.25:47.98:12.65:48.92")
+        self.assertIn("--area=11.25:47.98:12.65:48.92", c)
         self.assertEqual(c[c.index("-o") + 1], "/t/elevation")
         for opt in ("--sources=view1,view3", "--jobs=3", "--max-nodes-per-tile=0",
                     "--no-zero-contour", "--hgtdir=/h", "--start-node-id=20000000000"):
@@ -642,6 +650,19 @@ class ContourTests(unittest.TestCase):
         self.assertEqual(c[c.index("-c") + 1], "100,50")
         self.assertEqual(c[c.index("-s") + 1], "10")
         self.assertFalse([a for a in c if "earthexplorer" in a or "srtm" in a])
+
+    def test_area_west_of_greenwich_is_not_read_as_an_option(self):
+        """Brittany, Spain, the UK... start with a minus sign: "-a -5.6:47.5:..." made pyhgtmap stop
+        with "expected one argument", so the area is a single "--area=..." argument."""
+        from wahoondrer import contour
+        tile = {"left": -5.625, "bottom": 47.5, "right": -2.8125, "top": 48.9}
+        c = contour.build_command("/x/pyhgtmap", tile, "/t/elevation", "/h", 1, "25-75-150")
+        self.assertIn("--area=-5.625:47.5:-2.8125:48.9", c)
+        self.assertNotIn("-a", c)
+        for flag in ("-o", "-s", "-c"):             # a value that starts with "-" would be taken for an option
+            self.assertFalse(c[c.index(flag) + 1].startswith("-"))
+        south = {"left": 11.25, "bottom": -33.9, "right": 12.65, "top": -32.5}
+        self.assertIn("--area=11.25:-33.9:12.65:-32.5", contour.build_command("/x/pyhgtmap", south, "/t/e", "/h"))
 
     def test_spacing_presets(self):
         from wahoondrer import contour

@@ -99,8 +99,10 @@ def setup(say=print):
 def build_command(exe, tile, out_prefix, hgt_dir, jobs=1, spacing=DEFAULT_PRESET):
     """WMC-like settings (no 0 m line), the line spacing of a preset, without any account."""
     step, major, medium = preset(spacing)
+    # "--area=..." as ONE argument: west of Greenwich the area starts with a minus sign, and
+    # "-a -5.6:47.5:..." would be read as another option ("expected one argument").
     return [exe,
-            "-a", f"{tile['left']}:{tile['bottom']}:{tile['right']}:{tile['top']}",
+            f"--area={tile['left']}:{tile['bottom']}:{tile['right']}:{tile['top']}",
             "-o", out_prefix, "-s", str(step), "-c", f"{major},{medium}",
             f"--sources={SOURCES}", f"--jobs={jobs}",
             "--start-node-id=20000000000", "--start-way-id=2000000000",

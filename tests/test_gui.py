@@ -388,6 +388,25 @@ class SettingsTests(unittest.TestCase):
             self.assertNotIn("bogus", saved)
             self.assertEqual(settings.load(p)["squadrats"]["buffer"], 7)
 
+    def test_fold_choices_survive_a_save(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            s = settings.load(p)
+            self.assertEqual(s["ui"]["folded"], {})
+            s["ui"]["folded"] = {"sec:osm": False, "reg:Germany > Bayern": True, "tile:136": True}
+            settings.save(s, p)
+            s2 = settings.load(p)
+            self.assertEqual(s2["ui"]["folded"], {"sec:osm": False, "reg:Germany > Bayern": True, "tile:136": True})
+            self.assertEqual(s2["ui"]["sections"], {})
+
+    def test_settings_written_before_folding_existed_still_load(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            _write(p, json.dumps({"ui": {"sections": {"pois": "pro"}}}))
+            s = settings.load(p)
+            self.assertEqual(s["ui"]["sections"], {"pois": "pro"})
+            self.assertEqual(s["ui"]["folded"], {})
+
 
 class ContourTests(unittest.TestCase):
     def test_command_matches_wmc_settings_and_needs_no_account(self):

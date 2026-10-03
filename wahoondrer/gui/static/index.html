@@ -109,6 +109,25 @@ td.tags{white-space:nowrap;padding-left:0}
 .tag.no{background:transparent;color:var(--mute);text-decoration:line-through;opacity:.45;border:1px dashed var(--line)}
 button.danger:hover{border-color:var(--bad);color:var(--bad)}
 .help{color:var(--mute);font-size:12.5px;margin:2px 0 8px 24px}
+/* fold / unfold: a triangle that turns (right = folded, down = open). Sections, region groups, tile folders. */
+button.fold{display:inline-flex;align-items:center;justify-content:center;flex:none;width:24px;height:24px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--mute);vertical-align:middle}
+button.fold:hover{color:var(--ink);background:color-mix(in srgb,var(--mute) 16%,transparent)}
+button.fold:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.fold svg{width:12px;height:12px;fill:currentColor;transition:transform .15s}
+button.fold[aria-expanded=true] svg{transform:rotate(90deg)}
+button.fold.sm{width:20px;height:20px;margin:0 5px 0 -5px}button.fold.sm svg{width:10px;height:10px}
+@media (prefers-reduced-motion:reduce){button.fold svg{transition:none}}
+.card h2.foldable{cursor:pointer;user-select:none}
+.card h2 > button.fold{margin:0 -4px 0 -6px}
+.card.folded > .fold-body{display:none}
+.card.folded h2{margin-bottom:0}
+.fsum{display:none;font-weight:400;font-size:12.5px;color:var(--mute)}
+.card.folded .fsum{display:inline}
+tr.rgrp{cursor:pointer}
+tr.rgrp .gsum{display:none;color:var(--mute);font-size:12.5px;white-space:nowrap}
+tr.rgrp.folded .gsum{display:inline}
+.rdir[data-fold]{cursor:pointer}
+.rdir[data-fold] + .rin,.rdir[data-fold] + .rlist{margin-left:28px}   /* under the text of the line above, not under its triangle */
 </style>
 </head>
 <body>
@@ -230,7 +249,7 @@ button.danger:hover{border-color:var(--bad);color:var(--bad)}
 </section>
 
 <section class="card" data-sec="osm">
-  <h2><span class="n">7</span>Map data from OpenStreetMap <span class="sp"></span><button class="icon" id="btnRegReload" title="Refresh this list">🔄</button><select class="secmode" data-secmode="osm" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+  <h2><span class="n">7</span>Map data from OpenStreetMap <span class="fsum" id="osmSum"></span><span class="sp"></span><button class="icon" id="btnRegReload" title="Refresh this list">🔄</button><select class="secmode" data-secmode="osm" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
   <p class="hint">The base maps are built from OpenStreetMap extracts (Geofabrik regions) kept on your computer. WMC downloads missing regions by itself and renews those older than <span id="maxDays">14</span> days; here you can see them and update or add some yourself. Some are big (Austria ≈ 0.8 GB).</p>
   <div id="regions"></div>
   <div id="regDl" style="display:none"><div class="note" id="regDlText"></div><div class="bar" id="regDlBar"><i></i></div><button class="small" id="regCancel">Cancel download</button></div>
@@ -305,7 +324,52 @@ const modeOf = sec => { const m = ((S.ui || {}).sections || {})[sec]; return m =
 function applyModes() {
   $$("section[data-sec]").forEach(s => s.classList.toggle("pro", modeOf(s.dataset.sec) === "pro"));
   $$("select[data-secmode]").forEach(sel => sel.value = ((S.ui || {}).sections || {})[sel.dataset.secmode] || "");
+  applyFolds();
 }
+
+// ---------- fold / unfold (sections, region groups, tile folders). The state is kept in the settings (ui.folded);
+// only what differs from the default is stored. Keys: "sec:osm", "reg:Germany > Bayern", "tile:136", "list:last".
+const TRI = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l6-4.5z"/></svg>';
+const FOLD_DEFAULT = {"sec:osm": true};      // everything is open the first time, except step 7: WMC downloads the regions by itself
+const forceOpen = new Set();                 // a section that must show something (a download) stays open until the user closes it
+const isFolded = key => { const f = (S && S.ui && S.ui.folded) || {}; return key in f ? !!f[key] : !!FOLD_DEFAULT[key]; };
+const secFolded = key => !forceOpen.has(key) && isFolded(key);
+function setFolded(key, on) {
+  S.ui = S.ui || {sections: {}}; S.ui.folded = S.ui.folded || {};
+  if (!!on === !!FOLD_DEFAULT[key]) delete S.ui.folded[key]; else S.ui.folded[key] = !!on;
+  scheduleSave(false);
+}
+function initFolds() {
+  $$("section.card[data-sec]").forEach(sec => {
+    const h2 = $("h2", sec); if (!h2) return;
+    const body = document.createElement("div"); body.className = "fold-body"; body.id = "body-" + sec.dataset.sec;
+    while (h2.nextSibling) body.appendChild(h2.nextSibling);
+    sec.appendChild(body);
+    const b = document.createElement("button"); b.type = "button"; b.className = "fold"; b.innerHTML = TRI;
+    b.setAttribute("aria-controls", body.id);
+    b.setAttribute("aria-label", [...h2.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join("").trim());
+    h2.insertBefore(b, h2.firstChild); h2.classList.add("foldable");
+    h2.addEventListener("click", e => {
+      if (e.target.closest("select, input, label, a, button:not(.fold)")) return;
+      const k = "sec:" + sec.dataset.sec, was = secFolded(k);
+      forceOpen.delete(k); setFolded(k, !was); applyFolds(true);
+    });
+  });
+}
+function applyFolds(user) {
+  $$("section.card[data-sec]").forEach(sec => {
+    const off = secFolded("sec:" + sec.dataset.sec), b = $("h2 > button.fold", sec);
+    sec.classList.toggle("folded", off); if (b) b.setAttribute("aria-expanded", String(!off));
+  });
+  setTimeout(() => {
+    if (user) {                                // a map that was hidden has no size: wake it up when its section opens
+      if (map && $("#map").offsetWidth) { map.invalidateSize(); if (map._hiddenInit) { map._hiddenInit = false; drawMapLayers(true); } }
+      if (map2 && $("#map2").offsetWidth) map2.invalidateSize();
+    }
+    if (regColsPending && fixRegCols()) regColsPending = false;     // the regions table could not be measured while folded
+  }, 0);
+}
+initFolds();
 
 // ---------- rendering
 function renderInputs() {
@@ -418,6 +482,7 @@ function loadLeaflet() {
 async function initMap() {
   if (!await loadLeaflet()) { $("#map").outerHTML = '<p class="note">The map could not be loaded (no internet?). Type the tiles in the box above, e.g. 136/88.</p>'; $("#mapFit").disabled = $("#mapLocate").disabled = true; return; }
   map = L.map("map", {worldCopyJump: true}).setView([48.3, 11.5], 6);
+  map._hiddenInit = !$("#map").offsetWidth;      // created inside a folded section: fit it when the section opens
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 12, attribution: "© OpenStreetMap"}).addTo(map);
   layerExp = L.layerGroup().addTo(map); layerTiles = L.layerGroup().addTo(map); layerGrid = L.layerGroup().addTo(map);
   layerMenus = L.layerGroup().addTo(map);
@@ -667,20 +732,46 @@ function renderRegTree() {     // Europe > France > Centre ... one drop-down per
   const t = regPath[regPath.length - 1];
   $("#regAdd").disabled = !t; $("#regAdd").textContent = t ? "Download " + REG.by[t].name : "Download";
 }
+// The columns keep the widths they have when every group is open, so the text does not jump when a group is folded.
+let regColsPending = false;
+function fixRegCols() {
+  const t = $("#regions table"); if (!t) return true;
+  if (!t.offsetWidth) return false;                      // inside a folded section: measure when it opens
+  const hid = $$("tr[hidden]", t); hid.forEach(r => r.hidden = false);
+  t.style.tableLayout = ""; const old = $("colgroup", t); if (old) old.remove();
+  const w = t.offsetWidth, cg = document.createElement("colgroup");
+  $$("tr:first-child th", t).forEach(th => { const c = document.createElement("col"); c.style.width = (100 * th.offsetWidth / w).toFixed(2) + "%"; cg.appendChild(c); });
+  t.insertBefore(cg, t.firstChild); t.style.tableLayout = "fixed";
+  hid.forEach(r => r.hidden = true);
+  return true;
+}
+let regResizeTimer = null;
+window.addEventListener("resize", () => { clearTimeout(regResizeTimer); regResizeTimer = setTimeout(() => { regColsPending = true; if (fixRegCols()) regColsPending = false; }, 200); });
 async function renderRegions(fresh) {
   const R = await api("/api/regions"), box = $("#regions");
   $("#maxDays").textContent = R.max_days;
+  { const n = R.downloaded.length, old = R.downloaded.filter(r => r.age_days > R.max_days).length;   // shown in the heading while step 7 is folded
+    $("#osmSum").textContent = "· " + (n ? `${n} region${n > 1 ? "s" : ""}, ${mb(R.downloaded.reduce((t, r) => t + r.size, 0))}` + (old ? `, ${old} to renew` : "") : "none downloaded yet"); }
   let h = "";
   if (!R.downloaded.length) h += '<p class="note">No region downloaded yet: WMC will fetch what it needs at the first run.</p>';
   else {
-    h += `<div class="actions" style="margin:0 0 6px"><button class="small danger" id="regDelSel" disabled>Delete the ticked regions</button><button class="small danger" id="regDelAll" title="Delete every downloaded region">Delete all (${mb(R.downloaded.reduce((n, r) => n + r.size, 0))})</button><span class="note" id="regSelNote"></span></div>
+    h += `<div class="actions" style="margin:0 0 6px"><!--foldall--><span class="sp"></span><span class="note" id="regSelNote"></span><button class="small danger" id="regDelSel" disabled>Delete the ticked regions</button><button class="small danger" id="regDelAll" title="Delete every downloaded region">Delete all (${mb(R.downloaded.reduce((n, r) => n + r.size, 0))})</button></div>
     <table><tr><th><input type="checkbox" id="regSelAll" title="Tick / untick all"></th><th>Region</th><th class="n">Size</th><th>Downloaded</th><th class="n">Age</th><th>Needed by my tiles</th><th></th></tr>`;
     // tree: Country > (sub-regions) > region, taken from the name "Oberfranken (Bayern, Germany)"
     const pathOf = r => { const m = /^(.*) \(([^()]*)\)$/.exec(r.name); if (!m) return [r.name]; return [...m[2].split(", ").reverse(), m[1]]; };
     const items = R.downloaded.map(r => ({r, p: pathOf(r)})).sort((x, y) => x.p.join("\u0001").localeCompare(y.p.join("\u0001")));
     const total = (pre) => items.filter(i => pre.every((v, k) => i.p[k] === v)).reduce((n, i) => n + i.r.size, 0);
     let prev = [];
-    const grpRow = (p, d) => `<tr class="rgrp"><td><input type="checkbox" data-grp="${esc(p.slice(0, d + 1).join("\u0001"))}" title="Tick / untick this whole group"></td><td style="padding-left:${d * 20}px">${d === 0 ? "🌍" : "📁"} <b>${esc(p[d])}</b></td><td class="n">${mb(total(p.slice(0, d + 1)))}</td><td colspan="4"></td></tr>`;
+    // folding: every row lists its ancestor groups (data-anc); a group key is its path joined with \u0001
+    const rk = g => "reg:" + g.split("\u0001").join(" > ");
+    const gkey = (p, d) => p.slice(0, d + 1).join("\u0001");
+    const ancOf = (p, n) => { const a = []; for (let d = 0; d < n; d++) a.push(gkey(p, d)); return a.join("\u0002"); };
+    const hidAttr = anc => anc && anc.split("\u0002").some(a => isFolded(rk(a))) ? " hidden" : "";
+    const gkeys = [];
+    const gstat = pre => { const k = items.filter(i => pre.every((v, q) => i.p[q] === v)), old = k.filter(i => i.r.age_days > R.max_days).length;
+      return `${k.length} region${k.length > 1 ? "s" : ""}` + (R.plan_done ? `, ${k.filter(i => i.r.needed).length} needed` : "") + (old ? `, ⚠ ${old} to renew` : ""); };
+    const grpRow = (p, d) => { const key = gkey(p, d), off = isFolded(rk(key)), anc = ancOf(p, d); gkeys.push(key);
+      return `<tr class="rgrp${off ? " folded" : ""}" data-gkey="${esc(key)}" data-anc="${esc(anc)}"${hidAttr(anc)}><td><input type="checkbox" data-grp="${esc(key)}" title="Tick / untick this whole group"></td><td style="padding-left:${8 + d * 20}px"><button type="button" class="fold sm" aria-expanded="${!off}" aria-label="${esc(p[d])}">${TRI}</button>${d === 0 ? "🌍" : "📁"} <b>${esc(p[d])}</b></td><td class="n">${mb(total(p.slice(0, d + 1)))}</td><td colspan="4"><span class="gsum">${esc(gstat(p.slice(0, d + 1)))}</span></td></tr>`; };
     for (let k = 0; k < items.length; k++) {
       const {r, p} = items[k], nx = items[k + 1];
       const parent = !!nx && nx.p.length > p.length && p.every((v, i) => nx.p[i] === v);   // this file also has sub-regions (e.g. Germany and Bayern)
@@ -689,14 +780,28 @@ async function renderRegions(fresh) {
       }
       if (parent) h += grpRow(p, p.length - 1);
       prev = p;
-      h += `<tr><td><input type="checkbox" data-sel="${esc(r.key)}" data-size="${r.size}" data-p="${esc(p.join("\u0001"))}"></td><td style="padding-left:${(p.length - 1 + (parent ? 1 : 0)) * 20}px">${p.length > 1 || parent ? "⌞ " : ""}${esc(p[p.length - 1])}${parent ? " <small>(the whole region)</small>" : ""}</td>` + `<td class="n">${mb(r.size)}</td><td>${r.date}</td><td class="n">${r.age_days} d${r.age_days > R.max_days ? ' <span class="warn" style="display:inline">(WMC will renew it)</span>' : ""}</td>
+      const lanc = ancOf(p, p.length - 1 + (parent ? 1 : 0));
+      h += `<tr data-anc="${esc(lanc)}"${hidAttr(lanc)}><td><input type="checkbox" data-sel="${esc(r.key)}" data-size="${r.size}" data-p="${esc(p.join("\u0001"))}"></td><td style="padding-left:${8 + (p.length - 1 + (parent ? 1 : 0)) * 20}px">${p.length > 1 || parent ? "⌞ " : ""}${esc(p[p.length - 1])}${parent ? " <small>(the whole region)</small>" : ""}</td>` + `<td class="n">${mb(r.size)}</td><td>${r.date}</td><td class="n">${r.age_days} d${r.age_days > R.max_days ? ' <span class="warn" style="display:inline">(WMC will renew it)</span>' : ""}</td>
       <td>${R.plan_done ? (r.needed ? "✓" : "–") : "?"}</td><td style="white-space:nowrap"><button class="small" data-upd="${esc(r.key)}" ${R.catalog_ready ? "" : "disabled"}>Update</button> <button class="small danger" data-del="${esc(r.key)}" data-name="${esc(r.name)}" data-size="${r.size}" title="Delete this file from your disk">Delete</button></td></tr>`;
     }
     h += "</table>";
+    h = h.replace("<!--foldall-->", gkeys.length ? '<button class="small" id="regFoldAll" title="Fold every group">Collapse all</button><button class="small" id="regUnfoldAll" title="Open every group">Expand all</button>' : "");
   }
   if (!R.plan_done) h += '<p class="note">Press "Check which regions my tiles need" below to see which regions your tiles need.</p>';
   if (R.missing.length) h += `<p class="warn">Needed but not downloaded: ${R.missing.map(m => esc(m.name)).join(", ")}. <button class="small" id="regGetMissing">Download them</button></p>`;
   box.innerHTML = h;
+  regColsPending = true; if (fixRegCols()) regColsPending = false;     // widths measured with every row open (when the section is visible)
+  const rkOf = tr => "reg:" + tr.dataset.gkey.split("\u0001").join(" > ");
+  const applyRegFolds = () => {
+    $$("tr.rgrp", box).forEach(tr => { const off = isFolded(rkOf(tr)); tr.classList.toggle("folded", off); $("button.fold", tr).setAttribute("aria-expanded", String(!off)); });
+    $$("tr[data-anc]", box).forEach(tr => { tr.hidden = !!tr.dataset.anc && tr.dataset.anc.split("\u0002").some(a => isFolded("reg:" + a.split("\u0001").join(" > "))); });
+  };
+  $$("tr.rgrp", box).forEach(tr => tr.addEventListener("click", e => {
+    if (e.target.closest("input")) return;                     // the tick box keeps its own job
+    setFolded(rkOf(tr), !isFolded(rkOf(tr))); applyRegFolds();
+  }));
+  const foldAll = off => { $$("tr.rgrp", box).forEach(tr => setFolded(rkOf(tr), off)); applyRegFolds(); };
+  if ($("#regFoldAll")) { $("#regFoldAll").onclick = () => foldAll(true); $("#regUnfoldAll").onclick = () => foldAll(false); }
   $$("[data-upd]", box).forEach(b => b.onclick = () => startRegionDownload([b.dataset.upd], true));
   $$("[data-del]", box).forEach(b => b.onclick = async () => {
     if (!confirm(`Delete ${b.dataset.name} (${mb(Number(b.dataset.size))}) from your disk?\nWMC will download it again if a map needs it.`)) return;
@@ -732,7 +837,11 @@ async function renderRegions(fresh) {
   showDownload(R.download);
   if (R.download.running && !dlPoll) dlPoll = setInterval(async () => { const r = await api("/api/regions"); showDownload(r.download); if (!r.download.running) { clearInterval(dlPoll); dlPoll = null; renderRegions(); } }, 900);
 }
+let dlSeenRunning = false;
 function showDownload(d) {
+  const failed = Object.keys(d.failed || {}).length || (d.error && d.error !== "cancelled");
+  if (d.running || (dlSeenRunning && failed)) { forceOpen.add("sec:osm"); applyFolds(); }   // open step 7 while a download runs, or when one that we watched has failed
+  dlSeenRunning = !!d.running;
   $("#regDl").style.display = d.running ? "block" : "none";
   if (d.running) {
     $("#regDlText").textContent = `Downloading ${d.current || "…"}: ${mb(d.bytes)}${d.total ? " / " + mb(d.total) : ""} (${d.done.length} of ${d.queue.length} done)`;
@@ -980,8 +1089,10 @@ async function renderResults() {
     h += "</div>";
   }
   const dateOf = t => t ? new Date(t * 1000).toLocaleString("en-GB", {day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"}) : "";
+  const foldBtn = (open, label) => `<button type="button" class="fold sm" aria-expanded="${open}" aria-label="${esc(label)}">${TRI}</button>`;
   const tileGroup = t => {
-    let g = `<div class="rdir" style="font-weight:500">📁 ${t.x}/ <span style="flex:1"></span><button class="small" data-opendir="${esc(t.dir)}">Open folder</button></div><div class="rin">`;
+    const fk = "tile:" + t.x, off = isFolded(fk);
+    let g = `<div class="rdir" data-fold="${esc(fk)}" style="font-weight:500">${foldBtn(!off, t.x + "/")}📁 ${t.x}/ <span style="flex:1"></span><button class="small" data-opendir="${esc(t.dir)}">Open folder</button></div><div class="rin"${off ? " hidden" : ""}>`;
     for (const it of t.items) {
       const extra = [dateOf(it.mtime), it.label || "", contourName(it.contour)];
       g += `<div class="rtile">` + it.files.map(f => fileRow(f, extra, it.new, it.plain)).join("") + "</div>";
@@ -989,8 +1100,10 @@ async function renderResults() {
     return g + "</div>";
   };
   const lastT = r.tiles.filter(t => t.last), otherT = r.tiles.filter(t => !t.last);
-  if (lastT.length) h += `<div class="rdir">2. Tiles of the last run <span class="note">→ Bolt: maps/tiles/8/</span></div>` + lastT.map(tileGroup).join("");
-  if (otherT.length) h += `<div class="rdir">${lastT.length ? "3. Other tiles" : "2. Tiles"} <span class="note">${lastT.length ? "made by earlier runs" : "→ Bolt: maps/tiles/8/"}</span></div>` + otherT.map(tileGroup).join("");
+  const tileList = (key, label, head, tiles) => { const off = isFolded(key);
+    return `<div class="rdir" data-fold="${key}">${foldBtn(!off, label)}${head}</div><div class="rlist"${off ? " hidden" : ""}>` + tiles.map(tileGroup).join("") + "</div>"; };
+  if (lastT.length) h += tileList("list:last", "Tiles of the last run", `2. Tiles of the last run <span class="note">→ Bolt: maps/tiles/8/</span>`, lastT);
+  if (otherT.length) h += tileList("list:other", lastT.length ? "Other tiles" : "Tiles", `${lastT.length ? "3. Other tiles" : "2. Tiles"} <span class="note">${lastT.length ? "made by earlier runs" : "→ Bolt: maps/tiles/8/"}</span>`, otherT);
   box.innerHTML = h;
 }
 $("#results").addEventListener("dragstart", e => {
@@ -999,7 +1112,15 @@ $("#results").addEventListener("dragstart", e => {
   e.dataTransfer.effectAllowed = "copy";
 });
 $("#results").addEventListener("click", async e => {
-  const b = e.target.closest("button[data-opendir]"); if (!b) return;
+  const b = e.target.closest("button[data-opendir]");
+  if (!b) {
+    const f = e.target.closest("[data-fold]");                  // a tile folder or one of the two lists: fold / unfold
+    if (f && !e.target.closest("a, button:not(.fold)") && f.nextElementSibling) {
+      const body = f.nextElementSibling, off = !body.hidden;
+      body.hidden = off; $("button.fold", f).setAttribute("aria-expanded", String(!off)); setFolded(f.dataset.fold, off);
+    }
+    return;
+  }
   try { await api("/api/open_folder", {path: b.dataset.opendir}); } catch (err) { $("#runMsg").textContent = "Cannot open this folder: " + err.message; }
 });
 

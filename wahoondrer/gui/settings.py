@@ -37,7 +37,8 @@ DEFAULTS = {
     },
     "build": {"skip_classic": False, "contour": False, "contour_spacing": "25-75-150",
               "contour_per_tile": False, "contour_tiles": {}},
-    "ui": {"sections": {}},          # per-section Simple/Pro choice: {"pois": "simple" | "pro"}; missing = follow `mode`
+    "ui": {"sections": {},           # per-section Simple/Pro choice: {"pois": "simple" | "pro"}; missing = follow `mode`
+           "folded": {}},            # folded / open choices that differ from the default: {"sec:osm": false, "reg:Germany": true}
     "pois": {"overrides": {}, "custom": []},   # the user's POI choices, apart from the defaults in config/poi-rules.json
 }
 

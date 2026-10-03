@@ -1,4 +1,4 @@
-# Wahoondrer
+# maprBoy
 
 Builds Wahoo ELEMNT (Bolt v2) maps with [WahooMapsCreator](https://github.com/treee111/wahooMapsCreator) (WMC)
 and bakes your **Wandrer** data (unexplored roads, achievement boundaries) into the base map.
@@ -100,7 +100,7 @@ an internet connection; without it, type the tiles in the box. Copying to the Bo
 ## Contour lines (optional, experimental)
 Tick **Add contour lines** in step 8 (Pro mode), or use `--contour` with `scripts/build_tiles.py`. The lines come
 from the free Viewfinder Panoramas elevation data (3 arc-seconds: standard lines, not the finest SRTM 1 ones) and
-need **no account**. Wahoondrer's theme draws them in thin grey/brown lines (100 m lines from zoom 12, 50 m from 13,
+need **no account**. maprBoy's theme draws them in thin grey/brown lines (100 m lines from zoom 12, 50 m from 13,
 10 m from 14). Not tested on a Bolt yet.
 
 Line spacing (Pro mode, or `--contour-spacing`): `10-50-100` (finest), `25-75-150` (default) or `30-90-180`
@@ -131,7 +131,7 @@ cannot disturb GDAL or shapely):
     python3 scripts/build_tiles.py --setup-contour
 
 Why not WMC's own contour step? It calls `phyghtmap` 2.23, an old program that fails with current Python libraries.
-Wahoondrer runs `pyhgtmap` (its maintained fork) itself with the same settings and hands the result to WMC.
+maprBoy runs `pyhgtmap` (its maintained fork) itself with the same settings and hands the result to WMC.
 
 The first run downloads the elevation data and computes the lines of every tile (slow); both are kept for the next
 runs (an unfinished or empty contour file is detected and redone). Tiles become heavier: check `size_report.txt`.
@@ -145,7 +145,7 @@ generates a private copy of the config and theme in `~/.wahoondrer/generated/` a
 files stay untouched.
 
 ## Installation
-Wahoondrer itself needs only Python 3 (standard library). `scripts/build_tiles.py` also needs
+maprBoy itself needs only Python 3 (standard library). `scripts/build_tiles.py` also needs
 WMC and its tools: Java, osmium-tool, Osmosis and GDAL (`ogr2ogr` **and** the Python `osgeo`
 module, from the same GDAL build).
 

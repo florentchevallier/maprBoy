@@ -1,4 +1,4 @@
-# Wahoondrer — Project Notes
+# maprBoy — Project Notes
 
 Working notes and history of the project. Kept for the project history: they explain **why** things are the way they are. For how to use the tool, see `README.md`; for technical details of the pipeline, see `docs/PIPELINE.md`.
 

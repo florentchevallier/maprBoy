@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Start the Wahoondrer web interface (opens your browser).
+"""Start the maprBoy web interface (opens your browser).
 
 Usage:  python3 scripts/gui.py [--port 8765] [--no-browser]
 Run it in the environment where WahooMapsCreator is installed (wahoondrer-env).

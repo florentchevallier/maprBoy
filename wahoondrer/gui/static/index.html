@@ -664,7 +664,7 @@ $$("[data-open]").forEach(b => b.onclick = async () => {
   try { await api("/api/open_folder", {path: get(S, b.dataset.open)}); } catch (e) { $("#runMsg").textContent = "Cannot open this folder: " + e.message; }
 });
 $("#btnSetup").onclick = async () => {
-  const base = await chooseFolder("Where should the Wahoondrer folders be created?", S.folders.data);
+  const base = await chooseFolder("Where should the maprBoy folders be created?", S.folders.data);
   if (!base) return;
   try { const r = await api("/api/make_folders", {base}); S = r.settings; renderInputs(); await refresh(); await rescan(); }
   catch (e) { $("#runMsg").textContent = e.message; }

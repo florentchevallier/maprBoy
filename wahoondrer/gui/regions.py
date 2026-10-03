@@ -23,7 +23,7 @@ SUFFIX = "-latest.osm.pbf"
 OSM_FOLDER = "OSM_data"
 MAX_TRIES = 4                      # attempts per region before giving up
 RETRY_DELAYS = (2, 5, 10)          # seconds to wait when only failing regions are left
-USER_AGENT = "Wahoondrer/0.1 (local tool for personal use)"
+USER_AGENT = "maprBoy/0.1 (local tool for personal use)"
 
 _catalog = {"mtime": None, "items": {}}
 _TAG = re.compile(r"<[^>]*>")
@@ -126,7 +126,7 @@ def delete(key):
 
 
 def data_dir_info(base=""):
-    """Where WMC's data really is, and whether it is inside `base` (the user's Wahoondrer folder)."""
+    """Where WMC's data really is, and whether it is inside `base` (the user's maprBoy folder)."""
     real = os.path.realpath(WMC_DIR)
     want = os.path.join(os.path.abspath(os.path.expanduser(base)), OSM_FOLDER) if base else ""
     size = 0

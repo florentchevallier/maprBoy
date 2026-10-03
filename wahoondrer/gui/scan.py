@@ -17,7 +17,7 @@ from wahoondrer.kmz import read_export
 from wahoondrer.tiles import tiles_for_bbox
 
 CACHE_PATH = os.path.join(os.path.expanduser("~"), ".wahoondrer", "cache.json")
-USER_AGENT = "Wahoondrer/0.1 (local tool for personal use)"
+USER_AGENT = "maprBoy/0.1 (local tool for personal use)"
 HUB_CELL = 0.05          # degrees: grid used to find where the rides are concentrated
 
 _lock = threading.Lock()

@@ -1,7 +1,7 @@
 """Contour lines: finds and runs pyhgtmap, which turns elevation data into OSM contour lines.
 
 WMC's own contour step calls the old `phyghtmap` 2.23, which no longer works with current
-Python libraries. Wahoondrer therefore runs `pyhgtmap` (the maintained fork) itself and writes the
+Python libraries. maprBoy therefore runs `pyhgtmap` (the maintained fork) itself and writes the
 result where WMC's merge step expects it. pyhgtmap lives in its own small environment so that
 its dependencies cannot disturb GDAL or shapely. Standard library only.
 """
@@ -69,7 +69,7 @@ def _bin_dir():
 
 
 def pyhgtmap_path():
-    """The pyhgtmap program of the Wahoondrer environment, else one found on the PATH, else None."""
+    """The pyhgtmap program of the maprBoy environment, else one found on the PATH, else None."""
     for name in ("pyhgtmap.exe", "pyhgtmap"):
         p = os.path.join(_bin_dir(), name)
         if os.path.isfile(p):

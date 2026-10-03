@@ -182,7 +182,7 @@ def regions_state():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "Wahoondrer"
+    server_version = "maprBoy"
 
     def log_message(self, fmt, *args):   # keep the terminal quiet
         pass
@@ -406,7 +406,7 @@ class Handler(BaseHTTPRequestHandler):
 def serve(port=8765, open_browser=True):
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/"
-    print(f"Wahoondrer is running at {url}  (Ctrl+C to stop)")
+    print(f"maprBoy is running at {url}  (Ctrl+C to stop)")
     message = jobs.check_environment()["message"]
     if message:
         print(f"\nWARNING: {message}\n")

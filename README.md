@@ -10,7 +10,7 @@ and bakes your **Wandrer** data (unexplored roads, achievement boundaries) into 
 
 ## Status
 - Proof of concept validated on tile 136/88 (Bolt v2).
-- `wahoondrer/kmz.py`: reads and merges several exports with de-duplication (newest export wins, ordered by the timestamp inside the KML).
+- `wahoondrer/kmz.py`: reads and merges several exports with de-duplication (newest export wins, ordered by the timestamp inside the KML; an older road disappears only when the newer export redraws it).
 - `wahoondrer/process.py`: keeps unvisited roads only within a radius of traveled roads (default 250 m; options to keep every unpaved or every paved road), merges chained segments (always), simplifies geometry.
 - `scripts/build_tiles.py`: classic WMC tiles + Wandrer tiles, output folder with a copy guide for the Bolt.
 - `wahoondrer/progress.py`: download progress bar (replaces WMC's silent download function) and "step n of N" counter; in the GUI they are sent as log lines starting with the character `\x01` (`P|text` bar, `S|n|total|label` step).

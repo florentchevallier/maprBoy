@@ -13,13 +13,16 @@ Merging several exports (exports overlap):
   KML (<Document><name>Wandrer Export YYYYMMDD-HH:MM:SS</name>), not from the
   file name:
     * same key -> the state of the newer export wins;
-    * an old segment that is absent from a newer export COVERING it is removed
-      (it was ridden, or the OSM geometry changed), but only for the states the
-      newer export can describe:
-        - an "unvisited" segment is removed only if the export has Untraveled;
-        - a "visited" segment is removed only if the export has Traveled;
-- an export's coverage = union of its boundary polygons (falls back to the
-  bounding box if the export has no boundaries);
+    * an old segment that is absent from a newer export is removed ONLY when the
+      newer export REPLACES it, i.e. holds roads that lie on the old segment
+      (Wandrer redrew the road after an OpenStreetMap update). Absence alone
+      proves nothing: an export lists the boundaries of a much larger area than
+      the roads it really contains, so "inside its boundaries" is not "described
+      by it". Such segments are kept and counted (kept_absent);
+    * removal also needs the same activity (bike / foot exports never remove each
+      other's segments) and only concerns the states the newer export can
+      describe (an "unvisited" segment only if the export has Untraveled, a
+      "visited" one only if it has Traveled);
 - boundaries are deduplicated by ring key; two neighbouring sectors sharing a
   border each keep their own trace (the overlap is intended).
 
@@ -27,13 +30,12 @@ The activity (bike / foot) is read from the inner KML file name; mixing
 activities is left to the user (a warning is printed).
 """
 
+import math
 import os
 import re
 import zipfile
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
-
-from .coverage import Coverage
 
 KML_STYLE_STATE = {
     "Traveled": ("visited", False),
@@ -61,7 +63,6 @@ class Export:
     has_untraveled: bool = False
     activity: str = ""       # "bike" | "foot" | "combined" ... | "" (from the inner KML name)
     timestamp: str = ""      # "AAAAMMJJ-HH:MM:SS" (nom du Document)
-    coverage: object = None  # Coverage (boundaries) or None
 
 
 def _key(coords):
@@ -123,19 +124,68 @@ def read_export(path):
                 if len(c) >= 4:
                     exp.boundaries[_key(c)] = c
     exp.bbox = (w, s, e, n)
-    exp.coverage = Coverage(exp.boundaries.values())
     return exp
 
 
-def _covers(exp, coords):
-    if exp.coverage:
-        return exp.coverage.contains_line(coords)
-    return _inside(coords, exp.bbox)
+# --- does a newer export REPLACE an older segment? ---------------------------
+# Local projection (same constants as process.py, ~2 % error in Bavaria).
+_M_LAT = 110540.0
+_M_LON = 111320.0 * math.cos(math.radians(48.5))
+FINE_M = 4.0        # cell of the "roads of the newer export" index
+MATCH_STEP_M = 4.0  # sampling step along the old segment
+COARSE_M = 100.0    # cell used to skip the parts of the newer export far from any candidate
+MATCH_FRACTION = 0.9
+BBOX_MARGIN_M = 100.0   # candidates are searched in the bbox of the newer export + this margin
 
 
-def _inside(coords, bbox):
-    w, s, e, n = bbox
-    return all(w <= x <= e and s <= y <= n for x, y in coords)
+def _cell(lon, lat, size):
+    return int(lon * _M_LON // size), int(lat * _M_LAT // size)
+
+
+def _samples(coords, step):
+    """Points every `step` metres along a line, ends and the middle included."""
+    out = [coords[0]]
+    for (ax, ay), (bx, by) in zip(coords, coords[1:]):
+        d = math.hypot((bx - ax) * _M_LON, (by - ay) * _M_LAT)
+        for k in range(1, int(d // step) + 1):
+            t = k * step / d
+            out.append((ax + (bx - ax) * t, ay + (by - ay) * t))
+        out.append((bx, by))
+    if len(out) < 3:
+        out.append(((coords[0][0] + coords[-1][0]) / 2, (coords[0][1] + coords[-1][1]) / 2))
+    return out
+
+
+def _near_cells(cells, lon, lat):
+    cx, cy = _cell(lon, lat, FINE_M)
+    return any((cx + i, cy + j) in cells for i in (-1, 0, 1) for j in (-1, 0, 1))
+
+
+def _road_index(exp, candidates):
+    """Fine cells covered by the roads of `exp`, only near the candidate segments."""
+    coarse = set()
+    for seg in candidates:
+        for x, y in _samples(seg.coords, 50.0):
+            cx, cy = _cell(x, y, COARSE_M)
+            coarse.update((cx + i, cy + j) for i in (-1, 0, 1) for j in (-1, 0, 1))
+    cells = set()
+    for seg in exp.segments.values():
+        if not any(_cell(x, y, COARSE_M) in coarse for x, y in _samples(seg.coords, 50.0)):
+            continue
+        for x, y in _samples(seg.coords, FINE_M / 2):
+            cells.add(_cell(x, y, FINE_M))
+    return cells
+
+
+def _replaced(seg, cells):
+    pts = _samples(seg.coords, MATCH_STEP_M)
+    hit = sum(1 for x, y in pts if _near_cells(cells, x, y))
+    need = len(pts) if len(pts) <= 4 else math.ceil(MATCH_FRACTION * len(pts))
+    return hit >= need
+
+
+def _compatible(a, b):
+    return not a or not b or a == b
 
 
 def merge_exports(exports):
@@ -145,22 +195,35 @@ def merge_exports(exports):
     Return (segments, boundaries, report).
     """
     segments = {}
+    origin = {}      # key -> activity of the export the segment comes from
     boundaries = {}
     report = []
     exports = sorted(exports, key=lambda e: e.timestamp)  # stable sort
     for exp in exports:
-        replaced = removed = added = 0
-        # 1) remove old segments that are covered by this export but absent from it
-        for k in list(segments):
-            if k in exp.segments:
-                continue
-            seg = segments[k]
-            if not _covers(exp, seg.coords):
+        replaced = removed = added = absent = 0
+        # 1) old segments absent from this export: remove them only if the export replaces them
+        w, s_, e_, n = exp.bbox
+        w, e_ = w - BBOX_MARGIN_M / _M_LON, e_ + BBOX_MARGIN_M / _M_LON
+        s_, n = s_ - BBOX_MARGIN_M / _M_LAT, n + BBOX_MARGIN_M / _M_LAT
+        candidates = []
+        for k, seg in segments.items():
+            if k in exp.segments or not _compatible(origin.get(k), exp.activity):
                 continue
             knows = exp.has_untraveled if seg.state == "unvisited" else exp.has_traveled
-            if knows:
-                del segments[k]
-                removed += 1
+            if not knows:
+                continue
+            x, y = seg.coords[len(seg.coords) // 2]
+            if w <= x <= e_ and s_ <= y <= n:
+                candidates.append((k, seg))
+        if candidates:
+            cells = _road_index(exp, [seg for _, seg in candidates])
+            for k, seg in candidates:
+                if _replaced(seg, cells):
+                    del segments[k]
+                    origin.pop(k, None)
+                    removed += 1
+                else:
+                    absent += 1
         # 2) add / replace
         for k, seg in exp.segments.items():
             old = segments.get(k)
@@ -169,6 +232,7 @@ def merge_exports(exports):
             elif (old.state, old.unpaved) != (seg.state, seg.unpaved):
                 replaced += 1
             segments[k] = seg
+            origin[k] = exp.activity
         # 3) boundaries
         nb = 0
         for k, ring in exp.boundaries.items():
@@ -177,6 +241,6 @@ def merge_exports(exports):
             boundaries[k] = ring
         report.append(
             dict(export=exp.name, segments=len(exp.segments), added=added,
-                 state_changed=replaced, removed_stale=removed,
+                 state_changed=replaced, removed_stale=removed, kept_absent=absent,
                  new_boundaries=nb))
     return segments, boundaries, report

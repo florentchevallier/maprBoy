@@ -99,8 +99,9 @@ def main():
     print("\nMerge (most recent wins):")
     for r in report:
         print(f"  {os.path.basename(r['export'])}: +{r['added']} new, "
-              f"{r['state_changed']} state changes, {r['removed_stale']} stale "
-              f"removed, +{r['new_boundaries']} boundaries")
+              f"{r['state_changed']} state changes, {r['removed_stale']} replaced "
+              f"(redrawn by this export), {r['kept_absent']} older roads kept "
+              f"(absent but not redrawn), +{r['new_boundaries']} boundaries")
 
     opts = Options(radius_m=args.radius_m, unpaved_always=args.unpaved_always,
                    paved_always=args.paved_always,

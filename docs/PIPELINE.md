@@ -10,8 +10,8 @@ Proof of concept validated on tile 136/88 (Bolt v2): WMC base map + orange unvis
 
 ## De-duplication across exports
 Key = coordinates rounded to 1e-6, direction ignored. The most recent export wins; order comes from the timestamp in the KML (`<Document><name>Wandrer Export YYYYMMDD-HH:MM:SS`), not from the file name. The activity (`bike`/`foot`) is read from the inner KML file name (warning if mixed).
-An old segment inside the area of a newer export (union of its boundary polygons; bounding box as fallback) and absent from it is removed if the newer export has that class (unvisited only if it has Untraveled, visited only if it has Traveled). Boundaries are de-duplicated by ring.
-Checked: 100 % of an export's segments fall inside its own boundary polygons.
+An old segment absent from a newer export is removed only if that export REPLACES it: at least 90 % of the old segment's points (sampled every 4 m) lie within a few metres of the newer export's roads (Wandrer redrew the road after an OpenStreetMap edit, or it was ridden and came back as a traveled segment with another geometry). Further conditions: same activity (bike/foot exports never remove each other's roads), the export has that class (unvisited only if it has Untraveled, visited only if it has Traveled), and the old segment lies in the export's bounding box (plus 100 m). Boundaries are de-duplicated by ring.
+Absence alone proves nothing: the boundary polygons of an export cover far more than the roads it holds (checked on real exports: removing by boundary deleted about 40,000 valid roads). Segments that are absent but not redrawn are kept and counted ("older roads kept" in the merge log).
 
 ## Slimming the data (all options, to be exposed in the GUI)
 Applied after merging, before writing OSM (`wahoondrer/process.py`):

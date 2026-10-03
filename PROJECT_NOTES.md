@@ -282,7 +282,7 @@ Node IDs start at 50,000,000,000 and way IDs at 9,000,000,000 so they never clas
 
 - **Radius filter:** unvisited roads are kept only within 250 m of traveled roads (paved or not), using a 50 m grid.
 - **Chain merging** of consecutive segments (up to 1000 points) and **Douglas–Peucker** simplification (1.5 m).
-- **Several exports are merged:** a segment's key is its coordinates rounded to 1e-6 (direction ignored). The **newest export wins** on overlap: an old segment that lies inside the newer export's coverage (its boundary polygons) and is absent from it is removed.
+- **Several exports are merged:** a segment's key is its coordinates rounded to 1e-6 (direction ignored). The **newest export wins** on overlap: an old segment that is absent from a newer export is removed only if that export **replaces** it (its roads lie on the old one, >= 90 % of the points within a few metres: Wandrer redrew the road, or it was ridden and is now a traveled segment with another geometry). Absence alone is not enough, even inside the export's boundaries: an export lists the boundaries of a much larger area than the roads it contains (the first version removed by boundary and lost about 40,000 valid unvisited roads).
 
 ---
 

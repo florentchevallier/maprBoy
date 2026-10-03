@@ -41,6 +41,10 @@ Remove `--plan` for the real run. See `docs/PIPELINE.md` for details.
 wahoondrer-env                     # or any environment where WMC is installed
 python3 scripts/gui.py             # opens http://127.0.0.1:8765/ in your browser
 ```
+The page checks that WMC and its libraries can be imported by the Python that runs it. If not (the usual cause:
+the environment was not activated before starting the page), a red box at the top names the missing modules and the
+buttons that start a build stay disabled; the same warning is printed in the terminal.
+
 1. **Folders**: press "Set up my folders" and pick a location; the page creates `Wandrer_exports`,
    `Squadrats_exports`, `Output`, `Work_files` and `OSM_data` there (or choose your own folders; "Open" shows
    a folder in your file manager). Drop your `.kmz` / `.kml` files on the page or into those folders.
@@ -73,6 +77,11 @@ python3 scripts/gui.py             # opens http://127.0.0.1:8765/ in your browse
    the terminal running `gui.py`): reopen the page to see the log again. The red **STOP** button under the log
    cancels it (after a confirmation); the log ends with the total time. A "To know" box repeats the warnings
    (lines starting with `!`), e.g. tiles without Wandrer data.
+   When a run ends, a system notification says that the maps are ready (and how long it took) or which step failed,
+   so you can do something else meanwhile; untick "Notify me when a run ends" to turn it off. On macOS the banner is
+   shown under the name "Script Editor" (allow it in System Settings > Notifications); on Linux it needs
+   `notify-send`; the Windows version has not been tested yet. When the log shows a known cause of failure (a module
+   missing because the environment is not active, a full disk), a "Hint:" line says what to do.
    While it runs, a progress bar shows each OSM download (size, percentage, speed), and a "step n of N" bar
    follows the stages of the build (the stages themselves are run by WMC and have no finer percentage).
    Wandrer and Squadrats are independent: Squadrats alone need no Wandrer export, and the Wandrer exports are

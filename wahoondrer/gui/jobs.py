@@ -1,12 +1,16 @@
 """Turn the settings into command lines, and run them one after the other."""
+import importlib.util
 import json
 import os
+import platform
+import re
 import subprocess
 import sys
 import threading
 import time
 
 from .. import contour, poi_config
+from . import native
 from . import settings as settings_mod
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,6 +29,66 @@ def format_duration(seconds):
 
 class SettingsError(ValueError):
     """A problem the user can fix (shown in the page)."""
+
+
+# What the build step imports (WahooMapsCreator and the libraries it needs, see environment.yml).
+# Checked in the Python that runs this page, which is also the one that runs the build.
+REQUIRED_MODULES = ("wahoomc", "osgeo", "shapely", "geojson", "requests")
+ENV_NAME = "wahoondrer-env"
+
+
+def environment_message(missing):
+    if not missing:
+        return ""
+    return (f"Python module{'s' if len(missing) > 1 else ''} not found: {', '.join(missing)}. "
+            f"The maps cannot be built with this Python ({sys.executable}). "
+            f"Stop the page (Ctrl+C in the terminal), activate the {ENV_NAME} environment "
+            f"(see \"Installation\" in the README), then start the page again.")
+
+
+def check_environment():
+    """Is everything the build needs installed in the Python running this page?
+    -> {"python", "version", "missing": [module names], "message": text for the page ("" if all is well)}"""
+    missing = []
+    for name in REQUIRED_MODULES:
+        try:
+            found = importlib.util.find_spec(name) is not None
+        except (ImportError, ValueError, AttributeError):
+            found = False
+        if not found:
+            missing.append(name)
+    return {"python": sys.executable, "version": platform.python_version(),
+            "missing": missing, "message": environment_message(missing)}
+
+
+def require_environment():
+    """Refuse to start a build that would stop at its first import."""
+    message = check_environment()["message"]
+    if message:
+        raise SettingsError(message)
+
+
+# Failures a newcomer cannot read in a traceback: (pattern, short text for the notification, longer hint for the log).
+HINTS = (
+    (re.compile(r"No module named '?([\w.]+)"),
+     "Python module '{0}' not found: the page was probably started outside the " + ENV_NAME + " environment.",
+     "Hint: the Python module '{0}' is not installed in " + sys.executable + ". The page was probably started outside the "
+     + ENV_NAME + " environment: stop it (Ctrl+C), activate that environment (see \"Installation\" in the README), "
+     "start the page again."),
+    (re.compile(r"No space left on device|not enough space on the disk", re.I),
+     "The disk is full.",
+     "Hint: the disk is full. Delete OSM regions in step 7 or old tiles, then run again: the finished steps are not redone."),
+)
+
+
+def hint_for(lines):
+    """(short, long) hint for a failed run, from the end of its log; None if the cause is not a known one."""
+    for line in reversed(list(lines)[-60:]):
+        for pattern, short, long in HINTS:
+            m = pattern.search(line)
+            if m:
+                return short.format(*m.groups()), long.format(*m.groups())
+    return None
 
 
 def parse_tiles(tiles):
@@ -188,18 +252,21 @@ class Job:
     def reset(self):
         self.lines, self.status, self.proc, self.cancelled = [], "idle", None, False
         self.title, self.started, self.finished, self.kind = "", 0.0, 0.0, ""
+        self.notify, self.thread = False, None
         self.plan = getattr(self, "plan", None)   # last "Check the plan" result, kept between jobs
 
     def running(self):
         return self.status == "running"
 
-    def start(self, commands, kind="run"):
+    def start(self, commands, kind="run", notify=False):
+        """notify: show a system notification when a "run" ends (done or failed; not when cancelled)."""
         with self.lock:
             if self.running():
                 raise SettingsError("A job is already running.")
             self.reset()
-            self.status, self.started, self.kind = "running", time.time(), kind
-        threading.Thread(target=self._run, args=(commands,), daemon=True).start()
+            self.status, self.started, self.kind, self.notify = "running", time.time(), kind, notify
+            self.thread = threading.Thread(target=self._run, args=(commands,), daemon=True)
+        self.thread.start()
 
     def _log(self, text):
         if text.startswith("PLAN-JSON "):        # machine-readable line from build_tiles.py --plan
@@ -236,11 +303,32 @@ class Job:
                 self._log(f"\nStopped: this step failed (exit code {code}).")
                 ok = False
                 break
+        hint = None
+        if not ok and not self.cancelled:
+            with self.lock:
+                hint = hint_for(self.lines)
+            if hint:
+                self._log(f"\n{hint[1]}")
         with self.lock:
             self.finished = time.time()
             self.status = "cancelled" if self.cancelled else ("done" if ok else "failed")
         took = format_duration(self.finished - self.started) if self.started else ""
         self._log({"done": f"\nFinished in {took}.", "failed": f"\nTime spent: {took}.", "cancelled": f"\nCancelled after {took}."}[self.status])
+        self._notify(took, hint)
+
+    def _notify(self, took, hint):
+        """The page may be hidden behind other windows during a long build: tell the user how it ended."""
+        if not self.notify or self.kind != "run" or self.status not in ("done", "failed"):
+            return
+        if self.status == "done":
+            with self.lock:
+                notes = sum(1 for l in self.lines if l.startswith("! "))
+            more = (f"{notes} note{'s' if notes > 1 else ''} to read: open the page."
+                    if notes else "Open the page to copy the files to the Bolt.")
+            native.notify("maprBoy: maps ready", f"Finished in {took}. {more}")
+        else:
+            step = re.sub(r"^\d+/\d+ ", "", self.title)
+            native.notify("maprBoy: stopped", f"\u201c{step}\u201d failed. " + (hint[0] if hint else "Open the page for details."), ok=False)
 
     def cancel(self):
         self.cancelled = True

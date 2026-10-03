@@ -8,7 +8,9 @@ from tests import synthetic
 import json
 import time
 
-from wahoondrer.gui import jobs, regions, scan, server, settings
+import sys
+
+from wahoondrer.gui import jobs, native, regions, scan, server, settings
 
 
 def _write(path, data, mode="w"):
@@ -406,6 +408,224 @@ class SettingsTests(unittest.TestCase):
             s = settings.load(p)
             self.assertEqual(s["ui"]["sections"], {"pois": "pro"})
             self.assertEqual(s["ui"]["folded"], {})
+
+
+class NotifySettingTests(unittest.TestCase):
+    def test_notification_is_on_by_default_and_the_choice_is_kept(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            _write(p, json.dumps({"build": {"skip_classic": True}}))        # written before the option existed
+            s = settings.load(p)
+            self.assertIs(s["build"]["notify"], True)
+            self.assertIs(s["build"]["skip_classic"], True)
+            s["build"]["notify"] = False
+            settings.save(s, p)
+            self.assertIs(settings.load(p)["build"]["notify"], False)
+
+
+class NativeNotifyTests(unittest.TestCase):
+    """native.notify builds the right command on each system, and nothing typed in the text can change it."""
+
+    def call(self, platform, *args, which="/usr/bin/notify-send", **kw):
+        with mock.patch.object(native.sys, "platform", platform), \
+                mock.patch.object(native.shutil, "which", return_value=which), \
+                mock.patch.object(native.subprocess, "Popen") as popen:
+            result = native.notify(*args, **kw)
+        return result, popen
+
+    def test_macos_passes_title_text_and_sound_as_separate_arguments(self):
+        nasty = 'Finished "in" 5 s; do shell script "rm -rf ~" \\ $(x) `y`'
+        ok, popen = self.call("darwin", "maprBoy: maps ready", nasty)
+        self.assertTrue(ok)
+        argv = popen.call_args[0][0]
+        self.assertEqual(argv[:2], ["osascript", "-e"])
+        self.assertNotIn("rm -rf", argv[2])                         # the script never contains the text
+        self.assertEqual(argv[3:], ["maprBoy: maps ready", nasty, "Glass"])
+        _, popen = self.call("darwin", "t", "x", ok=False)
+        self.assertEqual(popen.call_args[0][0][-1], "Basso")
+
+    def test_linux_uses_notify_send_with_urgency(self):
+        ok, popen = self.call("linux", "maprBoy: stopped", "-oops", ok=False)
+        self.assertTrue(ok)
+        argv = popen.call_args[0][0]
+        self.assertEqual(argv[0], "notify-send")
+        self.assertEqual(argv[argv.index("-u") + 1], "critical")
+        self.assertEqual(argv[-3:], ["--", "maprBoy: stopped", "-oops"])       # "--": a text starting with "-" is not an option
+        _, popen = self.call("linux", "t", "x")
+        self.assertEqual(popen.call_args[0][0][popen.call_args[0][0].index("-u") + 1], "normal")
+
+    def test_linux_without_notify_send_does_nothing(self):
+        ok, popen = self.call("linux", "t", "x", which=None)
+        self.assertFalse(ok)
+        popen.assert_not_called()
+
+    def test_windows_passes_the_text_in_the_environment_not_in_the_script(self):
+        ok, popen = self.call("win32", "maprBoy: maps ready", "it's \"done\"")
+        self.assertTrue(ok)
+        argv, kw = popen.call_args[0][0], popen.call_args[1]
+        self.assertEqual(argv[0], "powershell")
+        self.assertNotIn("done", argv[-1])
+        self.assertEqual((kw["env"]["MAPRBOY_TITLE"], kw["env"]["MAPRBOY_TEXT"]), ("maprBoy: maps ready", "it's \"done\""))
+        self.assertIn("Error", self.call("win32", "t", "x", ok=False)[1].call_args[0][0][-1])
+
+    def test_never_raises(self):
+        with mock.patch.object(native.sys, "platform", "darwin"), \
+                mock.patch.object(native.subprocess, "Popen", side_effect=FileNotFoundError("osascript")):
+            self.assertFalse(native.notify("t", "x"))
+
+    def test_text_is_one_short_printable_line(self):
+        _, popen = self.call("darwin", "a\nb\x07\tc", "line one\nline two " + "x" * 500)
+        argv = popen.call_args[0][0]
+        self.assertEqual(argv[3], "a b c")
+        self.assertNotIn("\n", argv[4])
+        self.assertLessEqual(len(argv[4]), 220)
+        self.assertTrue(argv[4].endswith("\u2026"))
+
+
+def run_job(commands, kind="run", notify=True, wait=30):
+    """Run commands in a Job with native.notify replaced by a mock; return (job, mock)."""
+    job = jobs.Job()
+    with mock.patch.object(jobs.native, "notify") as note:
+        job.start(commands, kind, notify=notify)
+        job.thread.join(wait)
+    return job, note
+
+
+def py(code):
+    return [sys.executable, "-c", code]
+
+
+class JobNotificationTests(unittest.TestCase):
+    def test_done_run_notifies_with_the_duration(self):
+        job, note = run_job([("Build the map tiles", py("print('hello')"))])
+        self.assertEqual(job.status, "done")
+        note.assert_called_once()
+        title, text = note.call_args[0]
+        self.assertIn("ready", title)
+        self.assertIn("Finished in", text)
+        self.assertNotIn("note", text)
+        self.assertNotIn("ok", note.call_args[1])                      # default: a good news notification
+
+    def test_notes_to_read_are_counted(self):
+        job, note = run_job([("Build", py("print('! Tile 1/1 has no Wandrer data'); print('! another')"))])
+        self.assertIn("2 notes to read", note.call_args[0][1])
+        job, note = run_job([("Build", py("print('! one')"))])
+        self.assertIn("1 note to read", note.call_args[0][1])
+
+    def test_failed_run_notifies_with_the_step_name(self):
+        job, note = run_job([("Convert the exports", py("print('fine')")),
+                             ("Build the map tiles", py("import sys; print('boom'); sys.exit(3)"))])
+        self.assertEqual(job.status, "failed")
+        note.assert_called_once()
+        title, text = note.call_args[0]
+        self.assertIn("stopped", title)
+        self.assertIn("Build the map tiles", text)
+        self.assertNotIn("2/2", text)
+        self.assertIs(note.call_args[1]["ok"], False)
+
+    def test_missing_module_is_explained_in_the_log_and_the_notification(self):
+        job, note = run_job([("Build the map tiles", py("import a_module_that_is_not_installed_xyz"))])
+        self.assertEqual(job.status, "failed")
+        log = "\n".join(job.lines)
+        self.assertIn("Stopped: this step failed", log)
+        self.assertIn("Hint:", log)
+        self.assertIn("a_module_that_is_not_installed_xyz", log)
+        self.assertIn("wahoondrer-env", note.call_args[0][1])
+        self.assertLess(log.index("Stopped: this step failed"), log.index("Hint:"))
+        self.assertLess(log.index("Hint:"), log.index("Time spent"))
+
+    def test_no_notification_when_cancelled_for_a_plan_or_when_switched_off(self):
+        job = jobs.Job()
+        with mock.patch.object(jobs.native, "notify") as note:
+            job.start([("Slow", py("import time; time.sleep(60)"))], "run", notify=True)
+            for _ in range(200):
+                if job.proc:
+                    break
+                time.sleep(0.05)
+            job.cancel()
+            job.thread.join(30)
+        self.assertEqual(job.status, "cancelled")
+        note.assert_not_called()
+        for kind, notify in (("plan", True), ("run", False)):
+            job, note = run_job([("Quick", py("print('x')"))], kind=kind, notify=notify)
+            self.assertEqual(job.status, "done")
+            note.assert_not_called()
+
+    def test_a_plan_that_fails_still_shows_the_hint_but_does_not_notify(self):
+        job, note = run_job([("Plan", py("import a_module_that_is_not_installed_xyz"))], kind="plan")
+        self.assertEqual(job.status, "failed")
+        self.assertIn("Hint:", "\n".join(job.lines))
+        note.assert_not_called()
+
+    def test_default_is_silent(self):
+        job = jobs.Job()
+        with mock.patch.object(jobs.native, "notify") as note:
+            job.start([("Quick", py("print('x')"))])
+            job.thread.join(30)
+        note.assert_not_called()
+
+
+class HintTests(unittest.TestCase):
+    def test_missing_module(self):
+        short, long = jobs.hint_for(["Traceback (most recent call last):", "ModuleNotFoundError: No module named 'wahoomc'"])
+        self.assertIn("'wahoomc'", short)
+        self.assertIn("wahoondrer-env", short)
+        self.assertTrue(long.startswith("Hint:"))
+        self.assertIn("'wahoomc'", long)
+
+    def test_submodule_name_is_kept(self):
+        self.assertIn("osgeo._gdal", jobs.hint_for(["ModuleNotFoundError: No module named 'osgeo._gdal'"])[0])
+
+    def test_disk_full(self):
+        for line in ("OSError: [Errno 28] No space left on device", "OSError: [Errno 112] There is not enough space on the disk"):
+            self.assertIn("disk is full", jobs.hint_for(["x", line])[0])
+
+    def test_unknown_failure_has_no_hint(self):
+        self.assertIsNone(jobs.hint_for(["Traceback", "ValueError: nope"]))
+        self.assertIsNone(jobs.hint_for([]))
+
+    def test_only_the_end_of_the_log_counts(self):
+        old = ["ModuleNotFoundError: No module named 'wahoomc'"] + ["line"] * 100
+        self.assertIsNone(jobs.hint_for(old))
+
+
+class EnvironmentTests(unittest.TestCase):
+    def check(self, absent):
+        real = jobs.importlib.util.find_spec
+        fake = lambda name, *a: None if name in absent else real("json")
+        with mock.patch.object(jobs.importlib.util, "find_spec", side_effect=fake):
+            return jobs.check_environment()
+
+    def test_everything_installed(self):
+        env = self.check(set())
+        self.assertEqual(env["missing"], [])
+        self.assertEqual(env["message"], "")
+        self.assertEqual(env["python"], sys.executable)
+        self.assertTrue(env["version"][0].isdigit())
+
+    def test_missing_modules_are_named_with_the_way_out(self):
+        env = self.check({"wahoomc", "osgeo"})
+        self.assertEqual(env["missing"], ["wahoomc", "osgeo"])
+        for word in ("wahoomc", "osgeo", sys.executable, "wahoondrer-env", "Ctrl+C"):
+            self.assertIn(word, env["message"])
+        self.assertNotIn("shapely", env["message"])
+
+    def test_a_module_that_cannot_even_be_looked_up_counts_as_missing(self):
+        with mock.patch.object(jobs.importlib.util, "find_spec", side_effect=ValueError("bad")):
+            self.assertEqual(jobs.check_environment()["missing"], list(jobs.REQUIRED_MODULES))
+
+    def test_require_environment_refuses_to_start_a_build(self):
+        with mock.patch.object(jobs, "check_environment", return_value={"message": "Python module not found: wahoomc."}):
+            with self.assertRaises(jobs.SettingsError) as cm:
+                jobs.require_environment()
+        self.assertIn("wahoomc", str(cm.exception))
+        with mock.patch.object(jobs, "check_environment", return_value={"message": ""}):
+            jobs.require_environment()
+
+    def test_the_page_receives_the_result(self):
+        import copy
+        with mock.patch.object(jobs, "check_environment", return_value={"missing": ["wahoomc"], "message": "m"}):
+            self.assertEqual(server.state(copy.deepcopy(settings.DEFAULTS))["env"]["missing"], ["wahoomc"])
 
 
 class ContourTests(unittest.TestCase):

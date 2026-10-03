@@ -44,6 +44,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .chk input{margin-top:4px}
 .chk small,.note{color:var(--mute);font-size:12.5px;display:block}
 .warn{color:var(--bad);font-size:13px;margin:6px 0}
+.envwarn{border:1px solid var(--bad);border-left-width:5px;border-radius:10px;background:var(--card);padding:12px 16px;font-size:14px}
+.envwarn b{color:var(--bad)}
 table{border-collapse:collapse;width:100%;font-size:13.5px}
 th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
 th{color:var(--mute);font-weight:500}
@@ -86,7 +88,7 @@ details.var div{margin:3px 0 0 4px;color:var(--ink)}
 .rtile{margin:12px 0 0}.cdate{width:150px;white-space:nowrap}.ccity{width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ccont{display:none}.pro .ccont{display:inline-block;width:118px;white-space:nowrap}.newslot{min-width:190px;text-align:right}.plaintile{background:var(--line);color:var(--mute);border-radius:6px;padding:0 6px;font-size:12.5px}.newtile{background:#fff3d6;color:#8a5a00;border-radius:6px;padding:0 6px;font-size:12.5px}
 .opts{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
 @media (max-width:760px){.opts{grid-template-columns:1fr}label.row{grid-template-columns:1fr}}
-#stepWrap{display:flex;gap:10px;align-items:center;margin:10px 0 0;font-size:13px}#stepWrap progress{flex:0 0 220px;height:14px;accent-color:var(--accent,#2f6fdb)}#dlBar{background:var(--code);color:var(--codeink);font:12.5px/1.4 ui-monospace,Menlo,monospace;margin:0;padding:0 12px 12px;border-radius:0 0 10px 10px;white-space:pre;overflow:auto}#dlBar[hidden]{display:none}pre#log:has(+ #dlBar:not([hidden])){border-radius:10px 10px 0 0;padding-bottom:6px}
+#stepWrap[hidden]{display:none}#stepWrap{display:flex;gap:10px;align-items:center;margin:10px 0 0;font-size:13px}#stepWrap progress{flex:0 0 220px;height:14px;accent-color:var(--accent,#2f6fdb)}#dlBar{background:var(--code);color:var(--codeink);font:12.5px/1.4 ui-monospace,Menlo,monospace;margin:0;padding:0 12px 12px;border-radius:0 0 10px 10px;white-space:pre;overflow:auto}#dlBar[hidden]{display:none}pre#log:has(+ #dlBar:not([hidden])){border-radius:10px 10px 0 0;padding-bottom:6px}
 pre#log{background:var(--code);color:var(--codeink);border-radius:10px;padding:12px;height:300px;overflow:auto;font:12.5px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:10px 0 0}
 .pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12.5px;background:var(--line)}
 .pill.running{background:var(--accent);color:#fff}.pill.done{background:var(--ok);color:#fff}.pill.failed{background:var(--bad);color:#fff}
@@ -139,6 +141,7 @@ tr.rgrp.folded .gsum{display:inline}
   </div>
 </header>
 <main>
+<div id="envWarn" class="envwarn" role="alert" hidden></div>
 
 <section class="card" data-sec="folders">
   <h2><span class="n">1</span>Folders<select class="secmode" data-secmode="folders" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
@@ -268,6 +271,7 @@ tr.rgrp.folded .gsum{display:inline}
     <label class="chk pro-only" style="margin:0"><input type="checkbox" data-path="build.skip_classic"><span>Only redo the Wandrer part <small>faster: reuses the classic tiles of the last run. Ignored (with a message) if the tiles, POIs, contour lines or OSM data changed since</small></span></label>
     <span id="status" class="pill">idle</span><span id="elapsed" class="note"></span>
   </div>
+  <label class="chk" style="margin-top:8px"><input type="checkbox" data-path="build.notify"><span>Notify me when a run ends <small>a system notification when the maps are ready, or when a step failed (useful while you do something else)</small></span></label>
   <div class="pro-only" id="contourBox" style="margin-top:8px">
     <label class="chk"><input type="checkbox" data-path="build.contour"><span>Add contour lines (relief) <small>needs <b>pyhgtmap</b> (one-time install); the first run is much longer and the tiles heavier</small></span></label>
     <label class="row" style="grid-template-columns:150px auto 1fr">Contour spacing<select data-path="build.contour_spacing" style="width:auto"><option value="10-50-100">Fine: 10 / 50 / 100 m</option><option value="25-75-150">Medium: 25 / 75 / 150 m (default)</option><option value="30-90-180">Coarse: 30 / 90 / 180 m</option></select><small class="note">thin / medium / thick lines; changing it recomputes the lines</small></label>
@@ -915,6 +919,15 @@ $("#mapLocate").onclick = () => {
 $("#btnReload").onclick = $("#btnReload2").onclick = async () => { await refresh(); await rescan(); };
 window.addEventListener("focus", () => { if (S && (S.folders.wandrer || S.folders.squadrats)) rescan(); });
 
+// ---------- environment (the Python running this page must have what the build imports)
+const envBad = () => !!(ST && ST.env && ST.env.missing.length);
+function renderEnv() {
+  const box = $("#envWarn"), bad = envBad();
+  box.hidden = !bad;
+  box.innerHTML = bad ? `<b>Environment not ready.</b> ${esc(ST.env.message)}` : "";
+  $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = bad || (ST.job && ST.job.status === "running");
+}
+
 // ---------- running
 let since = 0, poll = null, warnLines = [];
 async function start(kind) {
@@ -948,7 +961,7 @@ async function tick() {
   const st = $("#status"); st.textContent = j.status === "running" ? j.title : j.status; st.className = "pill " + j.status;
   $("#elapsed").textContent = j.seconds ? (j.status === "running" ? "" : "took ") + (j.seconds >= 3600 ? Math.floor(j.seconds / 3600) + " h " + String(Math.floor(j.seconds % 3600 / 60)).padStart(2, "0") + " min" : j.seconds >= 60 ? Math.floor(j.seconds / 60) + " min " + String(j.seconds % 60).padStart(2, "0") + " s" : j.seconds + " s") : "";
   const running = j.status === "running";
-  $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = running;
+  $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = running || envBad();
   $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, step 8)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log in step 8." : ""); $("#btnCancel").hidden = !running;
   if (!running) { clearInterval(poll); poll = null; $("#dlBar").hidden = true; renderRegions();
     if (warnLines.length && j.status === "done") { $("#runMsg").style.whiteSpace = "pre-line"; $("#runMsg").textContent = "To know:\n" + warnLines.map(l => "• " + l.slice(2)).join("\n"); }
@@ -1128,7 +1141,7 @@ $("#results").addEventListener("click", async e => {
 async function refresh(keepMap) {
   const fresh = await api("/api/state"); ST = fresh;
   if (!unsaved) S = fresh.settings; else ST.settings = S;
-  renderInputs(); renderActivity(); renderExports(); renderDerived();
+  renderInputs(); renderActivity(); renderExports(); renderDerived(); renderEnv();
   if (!keepMap) { renderOsm().catch(() => {}); if (modeOf("make") === "pro") renderContour(); }
   renderPois();
 }

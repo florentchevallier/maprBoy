@@ -68,7 +68,7 @@ def state(s):
             "activities": sorted({i["activity"] for i in infos if i.get("activity")}),
             "pending": sum(1 for i in infos if i.get("pending")),
             "squadrats": sq, "squadrats_used": chosen["name"] if chosen else "",
-            "scan": SCANNER.status(), "job": JOB.snapshot(0)}
+            "scan": SCANNER.status(), "job": JOB.snapshot(0), "env": jobs.check_environment()}
 
 
 def poi_catalog():
@@ -355,6 +355,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _run(self, body, plan):
         s = settings.save(body)
+        jobs.require_environment()          # the build would stop at its first import: say why now
         if SCANNER.status()["running"]:
             raise jobs.SettingsError("The exports are still being read: wait a moment.")
         if DOWNLOADER.status()["running"]:
@@ -367,7 +368,7 @@ class Handler(BaseHTTPRequestHandler):
         if s["folders"]["work"]:
             os.makedirs(os.path.expanduser(s["folders"]["work"]), exist_ok=True)
         os.makedirs(os.path.expanduser(s["folders"]["out"]), exist_ok=True)
-        JOB.start(cmds, "plan" if plan else "run")
+        JOB.start(cmds, "plan" if plan else "run", notify=bool(s["build"].get("notify", True)))
         return self._send(200, {"started": True, "commands": [c[1] for c in cmds]})
 
     def _upload(self, q):
@@ -406,6 +407,9 @@ def serve(port=8765, open_browser=True):
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/"
     print(f"Wahoondrer is running at {url}  (Ctrl+C to stop)")
+    message = jobs.check_environment()["message"]
+    if message:
+        print(f"\nWARNING: {message}\n")
     if open_browser:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:

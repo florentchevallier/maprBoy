@@ -74,8 +74,8 @@ buttons that start a build stay disabled; the same warning is printed in the ter
    Tick several regions (or a whole country or group with the box in front of its name) and press "Delete the ticked regions" (or "Delete all") to free the disk in one go; WMC downloads again what a map needs.
 8. **Make the maps**: "Check the plan" lists the tiles and OSM regions needed; "Generate maps" runs
    `kmz_to_osm.py` then `build_tiles.py` and shows the log. The run goes on if you close the page (it belongs to
-   the terminal running `gui.py`): reopen the page to see the log again. The red **STOP** button under the log
-   cancels it (after a confirmation); the log ends with the total time. A "To know" box repeats the warnings
+   the terminal running `gui.py`): reopen the page to see the log again. The three buttons ("Check the plan", "Generate maps" and the red **STOP**) are in a column left of the log;
+   STOP is greyed out unless a run is going, and cancels it (after a confirmation); the log ends with the total time. A "To know" box repeats the warnings
    (lines starting with `!`), e.g. tiles without Wandrer data.
    A tile that no OSM region covers (open sea) is left out and reported there; the other tiles are still built.
    When a run ends, a system notification says that the maps are ready (and how long it took) or which step failed,

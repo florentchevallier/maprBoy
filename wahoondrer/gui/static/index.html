@@ -88,8 +88,13 @@ details.var div{margin:3px 0 0 4px;color:var(--ink)}
 .rtile{margin:12px 0 0}.cdate{width:150px;white-space:nowrap}.ccity{width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ccont{display:none}.pro .ccont{display:inline-block;width:118px;white-space:nowrap}.newslot{min-width:190px;text-align:right}.plaintile{background:var(--line);color:var(--mute);border-radius:6px;padding:0 6px;font-size:12.5px}.newtile{background:#fff3d6;color:#8a5a00;border-radius:6px;padding:0 6px;font-size:12.5px}
 .opts{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
 @media (max-width:760px){.opts{grid-template-columns:1fr}label.row{grid-template-columns:1fr}}
-#stepWrap[hidden]{display:none}#stepWrap{display:flex;gap:10px;align-items:center;margin:10px 0 0;font-size:13px}#stepWrap progress{flex:0 0 220px;height:14px;accent-color:var(--accent,#2f6fdb)}#dlBar{background:var(--code);color:var(--codeink);font:12.5px/1.4 ui-monospace,Menlo,monospace;margin:0;padding:0 12px 12px;border-radius:0 0 10px 10px;white-space:pre;overflow:auto}#dlBar[hidden]{display:none}pre#log:has(+ #dlBar:not([hidden])){border-radius:10px 10px 0 0;padding-bottom:6px}
-pre#log{background:var(--code);color:var(--codeink);border-radius:10px;padding:12px;height:300px;overflow:auto;font:12.5px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:10px 0 0}
+#stepWrap[hidden]{display:none}#stepWrap{display:flex;flex-direction:column;gap:4px;margin:2px 0 0;font-size:12.5px;line-height:1.3}#stepWrap progress{width:100%;height:12px;accent-color:var(--accent,#2f6fdb)}#dlBar{background:var(--code);color:var(--codeink);font:12.5px/1.4 ui-monospace,Menlo,monospace;margin:0;padding:0 12px 12px;border-radius:0 0 10px 10px;white-space:pre;overflow:auto}#dlBar[hidden]{display:none}pre#log:has(+ #dlBar:not([hidden])){border-radius:10px 10px 0 0;padding-bottom:6px}
+.runbox{display:grid;grid-template-columns:176px minmax(0,1fr);gap:14px;align-items:start;margin-top:8px}
+.runbtns{display:flex;flex-direction:column;gap:8px;height:400px}
+#runMsg{flex:1;min-height:0;overflow:auto;margin:2px 0 0;font-size:12px;line-height:1.3}.runbtns button{width:100%;margin:0;padding:8px 12px}
+.runout{min-width:0}.runstat{display:flex;flex-direction:column;gap:3px}#elapsed{text-align:center;margin:0;min-height:1.3em}.runstat .pill{display:block;width:100%;box-sizing:border-box;padding:8px 12px;border-radius:8px;text-align:center;font-size:14px;line-height:1.25;white-space:normal;overflow-wrap:anywhere}
+@media (max-width:700px){.runbox{grid-template-columns:1fr}.runbtns{flex-direction:row;flex-wrap:wrap;align-items:center;height:auto}.runbtns button{width:auto}.runstat,.runbtns #stepWrap,#runMsg,#elapsed{flex:0 0 100%}#runMsg{overflow:visible}}
+pre#log{background:var(--code);color:var(--codeink);border-radius:10px;padding:12px;height:400px;overflow:auto;font:12.5px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:0}
 .pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12.5px;background:var(--line)}
 .pill.running{background:var(--accent);color:#fff}.pill.done{background:var(--ok);color:#fff}.pill.failed{background:var(--bad);color:#fff}
 .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -265,13 +270,8 @@ tr.rgrp.folded .gsum{display:inline}
 
 <section class="card" data-sec="make">
   <h2><span class="n">8</span>Make the maps<select class="secmode" data-secmode="make" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
-  <div class="actions">
-    <button id="btnPlan">Check the plan</button>
-    <button id="btnRun" class="primary">Generate maps</button>
-    <label class="chk pro-only" style="margin:0"><input type="checkbox" data-path="build.skip_classic"><span>Only redo the Wandrer part <small>faster: reuses the classic tiles of the last run. Ignored (with a message) if the tiles, POIs, contour lines or OSM data changed since</small></span></label>
-    <span id="status" class="pill">idle</span><span id="elapsed" class="note"></span>
-  </div>
-  <label class="chk" style="margin-top:8px"><input type="checkbox" data-path="build.notify"><span>Notify me when a run ends <small>a system notification when the maps are ready, or when a step failed (useful while you do something else)</small></span></label>
+  <label class="chk pro-only"><input type="checkbox" data-path="build.skip_classic"><span>Only redo the Wandrer part <small>faster: reuses the classic tiles of the last run. Ignored (with a message) if the tiles, POIs, contour lines or OSM data changed since</small></span></label>
+  <label class="chk"><input type="checkbox" data-path="build.notify"><span>Notify me when a run ends <small>a system notification when the maps are ready, or when a step failed (useful while you do something else)</small></span></label>
   <div class="pro-only" id="contourBox" style="margin-top:8px">
     <label class="chk"><input type="checkbox" data-path="build.contour"><span>Add contour lines (relief) <small>needs <b>pyhgtmap</b> (one-time install); the first run is much longer and the tiles heavier</small></span></label>
     <label class="row" style="grid-template-columns:150px auto 1fr">Contour spacing<select data-path="build.contour_spacing" style="width:auto"><option value="10-50-100">Fine: 10 / 50 / 100 m</option><option value="25-75-150">Medium: 25 / 75 / 150 m (default)</option><option value="30-90-180">Coarse: 30 / 90 / 180 m</option></select><small class="note">thin / medium / thick lines; changing it recomputes the lines</small></label>
@@ -280,11 +280,21 @@ tr.rgrp.folded .gsum{display:inline}
     <div id="map2" style="display:none;height:340px;margin:8px 0 0 26px;border-radius:8px"></div>
     <p class="note" id="contourStatus"></p>
   </div>
-  <div id="runMsg" class="warn"></div>
-  <div id="stepWrap" hidden><progress id="stepBar" max="1" value="0"></progress> <span id="stepTxt"></span></div>
-  <pre id="log"></pre>
-  <div id="dlBar" hidden></div>
-  <button id="btnCancel" class="stop" hidden>■ STOP</button>
+  <div class="runbox">
+    <div class="runbtns">
+      <button id="btnPlan">Check the plan</button>
+      <button id="btnRun" class="primary">Generate maps</button>
+      <button id="btnCancel" class="stop" disabled>■ STOP</button>
+      <div class="runstat"><span id="status" class="pill">idle</span></div>
+      <div id="stepWrap" hidden><progress id="stepBar" max="1" value="0"></progress><span id="stepTxt"></span></div>
+      <div id="runMsg" class="warn"></div>
+      <div id="elapsed" class="note"></div>
+    </div>
+    <div class="runout">
+      <pre id="log"></pre>
+      <div id="dlBar" hidden></div>
+    </div>
+  </div>
   <p class="note" id="doneNote"></p>
   <div id="results"></div>
 </section>
@@ -958,11 +968,11 @@ async function tick() {
   if (shown.length) log.textContent += shown.join("\n") + "\n";
   warnLines.push(...shown.filter(l => l.startsWith("! ")));
   if (atEnd) log.scrollTop = log.scrollHeight;
-  const st = $("#status"); st.textContent = j.status === "running" ? j.title : j.status; st.className = "pill " + j.status;
+  const st = $("#status"); st.textContent = j.status === "running" ? j.title : j.status; st.className = "pill " + j.status; st.title = st.textContent;
   $("#elapsed").textContent = j.seconds ? (j.status === "running" ? "" : "took ") + (j.seconds >= 3600 ? Math.floor(j.seconds / 3600) + " h " + String(Math.floor(j.seconds % 3600 / 60)).padStart(2, "0") + " min" : j.seconds >= 60 ? Math.floor(j.seconds / 60) + " min " + String(j.seconds % 60).padStart(2, "0") + " s" : j.seconds + " s") : "";
   const running = j.status === "running";
   $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = running || envBad();
-  $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, step 8)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log in step 8." : ""); $("#btnCancel").hidden = !running;
+  $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, step 8)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log in step 8." : ""); $("#btnCancel").disabled = !running;
   if (!running) { clearInterval(poll); poll = null; $("#dlBar").hidden = true; renderRegions();
     if (warnLines.length && j.status === "done") { $("#runMsg").style.whiteSpace = "pre-line"; $("#runMsg").textContent = "To know:\n" + warnLines.map(l => "• " + l.slice(2)).join("\n"); }
     if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to the Bolt (one by one, after a backup), or use the list below.`; renderResults(); }

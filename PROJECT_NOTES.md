@@ -186,7 +186,7 @@ Custom icons are plain SVG files declared in the theme:
 
 ```xml
 <m v="toilets">
-    <symbol src="icons/toilets.svg" symbol-percent="150"/>
+    <symbol src="icons/toilets_blue.svg" symbol-percent="150"/>
 </m>
 ```
 
@@ -198,9 +198,9 @@ A POI can look different depending on a second tag. Tested on toilets:
 
 | OSM tags | Icon | Colour |
 |---|---|---|
-| `amenity=toilets` + `fee=yes` | `toilets_paid.svg` | red |
-| `amenity=toilets` + `fee=no` | `toilets_free.svg` | green |
-| `amenity=toilets`, no `fee` tag (NA) | `toilets.svg` | blue |
+| `amenity=toilets` + `fee=yes` | `toilets_red.svg` | red |
+| `amenity=toilets` + `fee=no` | `toilets_green.svg` | green |
+| `amenity=toilets`, no `fee` tag (NA) | `toilets_blue.svg` | blue |
 | `amenity=toilets` + `access=customers` or `private` | *hidden* | — |
 
 Theme rule:
@@ -208,9 +208,9 @@ Theme rule:
 ```xml
 <m v="toilets">
    <m k="access" v="-|customers|private">
-      <m k="fee" v="yes"><symbol src="icons/toilets_paid.svg" symbol-percent="150"/></m>
-      <m k="fee" v="no"><symbol src="icons/toilets_free.svg" symbol-percent="150"/></m>
-      <m k="fee" v="-|yes|no"><symbol src="icons/toilets.svg" symbol-percent="150"/></m>
+      <m k="fee" v="yes"><symbol src="icons/toilets_red.svg" symbol-percent="150"/></m>
+      <m k="fee" v="no"><symbol src="icons/toilets_green.svg" symbol-percent="150"/></m>
+      <m k="fee" v="-|yes|no"><symbol src="icons/toilets_blue.svg" symbol-percent="150"/></m>
    </m>
 </m>
 ```

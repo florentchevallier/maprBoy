@@ -39,8 +39,10 @@ optional `hide_if` tag values and optional `variants` = another icon depending o
 - `config/tags-to-keep.json` (add-only: missing values are added, nothing is removed).
 Everything outside the markers is left untouched. `--check` only reports what is out of date.
 Icons (SVG) go in `themes/vtm/icons/`; the script refuses an icon that does not exist.
-Example: toilets use `toilets_free.svg` (`fee=no`), `toilets_paid.svg` (`fee=yes`), `toilets.svg` (no `fee`),
+Example: toilets use `toilets_green.svg` (`fee=no`), `toilets_red.svg` (`fee=yes`), `toilets_blue.svg` (no `fee`),
 and are hidden when `access` is `customers` or `private`.
+POIs with the same `group` (and `group_label`) are shown as one line in the web page, with one tick box each (the water sources other than drinking water).
+In the web page the user can also hide one variant (`off` in the choices: e.g. only the free toilets); a hidden variant is not drawn, not even with the default icon.
 After a change: run the script, regenerate the tiles with `build_tiles.py`, copy the new icons and the theme
 to the Bolt. `tag-wahoo-wandrer.xml` / `tag-wahoo-wandrer-poi-min.xml` are alternative full tag files and are not generated.
 

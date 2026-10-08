@@ -71,7 +71,7 @@ select.secmode{width:auto;margin-left:auto;padding:2px 6px;font-size:12px;color:
 .poi-ico{width:22px;height:22px;vertical-align:middle;background:#8884;border-radius:4px;padding:1px}
 table.pois select{width:auto;padding:3px 5px}
 table.pois input[type=number]{width:70px;padding:3px 5px}
-table.pois td.k{color:var(--mute);font-size:12px}
+table.pois td.ico{white-space:nowrap}.tagtxt{color:var(--mute);font-size:12px;margin-left:4px}table.pois td.k{color:var(--mute);font-size:12px}
 .customform{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
 .customform input[type=text]{width:150px}
 .customform select{width:auto}
@@ -1035,20 +1035,44 @@ function poiSetOv(id, field, value, dflt) {
   if (!Object.keys(o).length) delete S.pois.overrides[id];
 }
 const POI_OPEN = new Set();
-function variantsHtml(p, o) {
-  if (!p.variants.length && !Object.keys(p.hide_if || {}).length && !Object.keys(p.only_if || {}).length) return "";
-  const img = i => `<img class="poi-ico" src="${icoUrl(i)}" alt="">`;
+const tagText = p => p.key + " = " + p.value + Object.entries(p.only_if || {}).map(([k, v]) => " + " + k + " = " + v.join(" / ")).join("");
+function isOff(o, key) { return (o.off || []).includes(key); }
+function setOff(id, key, off) {
+  const o = poiOv(id), l = (o.off || []).filter(k => k !== key);
+  if (off) l.push(key);
+  if (l.length) o.off = l; else delete o.off;
+  if (!Object.keys(o).length) delete S.pois.overrides[id];
+}
+const poiNotes = p => {
   let h = "";
-  if (o.icon) h += "<div>Your icon replaces the variants.</div>";
-  else {
-    h += p.variants.map(v => `<div>${img(v.icon)} ${esc(v.label)} <span class="note" style="display:inline">(${esc(v.tag)} = ${esc(v.value)})</span></div>`).join("");
-    if (p.variants.length) h += `<div>${img(o.icon || p.icon)} otherwise (default icon)</div>`;
-  }
   const hide = Object.entries(p.hide_if || {}).map(([k, v]) => k + " = " + v.join(" / ")).join("; ");
   if (hide) h += `<div class="note">Not shown when: ${esc(hide)}</div>`;
   const only = Object.entries(p.only_if || {}).map(([k, v]) => k + " = " + v.join(" / ")).join("; ");
   if (only) h += `<div class="note">Only shown when: ${esc(only)}</div>`;
+  return h;
+};
+function variantsHtml(p, o, pro) {
+  if (!p.variants.length && !Object.keys(p.hide_if || {}).length && !Object.keys(p.only_if || {}).length) return "";
+  const img = i => `<img class="poi-ico" src="${icoUrl(i)}" alt="">`, chosen = o.variants || {};
+  let h = p.variants.map(v => {
+    const key = v.tag + "=" + v.value, icon = chosen[key] || v.icon;
+    return `<div><input type="checkbox" data-f="vshow" data-vk="${esc(key)}"${isOff(o, key) ? "" : " checked"}> ${img(icon)} ${esc(v.label)} <span class="note" style="display:inline">(${esc(key)})</span>${pro ? ` <select data-f="variant" data-vk="${esc(key)}">${iconOptions(chosen[key] || "", true)}</select>` : ""}</div>`;
+  }).join("");
+  if (p.variants.length) h += `<div><input type="checkbox" data-f="vshow" data-vk="other"${isOff(o, "other") ? "" : " checked"}> ${img(o.icon || p.icon)} otherwise <span class="note" style="display:inline">(default icon${pro ? ", chosen in the Icon column" : ""})</span></div>`;
+  h += poiNotes(p);
   return `<details class="var" data-id="${esc(p.id)}"${POI_OPEN.has(p.id) ? " open" : ""}><summary>${p.variants.length ? "Variants (" + p.variants.length + ")" : "Rules"}</summary>${h}</details>`;
+}
+function groupHtml(ms, pro, ov) {
+  const img = i => `<img class="poi-ico" src="${icoUrl(i)}" alt="">`, m0 = ms[0], o0 = ov[m0.id] || {}, chosen = o0.variants || {};
+  const on = m => (ov[m.id] || {}).enabled ?? m.enabled, id = "group:" + m0.group;
+  let h = ms.map(m => `<div><input type="checkbox" data-f="member" data-mid="${esc(m.id)}"${on(m) ? " checked" : ""}> ${esc(m.label)} <span class="note" style="display:inline">(${esc(tagText(m))})</span></div>`).join("");
+  h += m0.variants.map(v => {
+    const key = v.tag + "=" + v.value;
+    return `<div>${img(chosen[key] || v.icon)} ${esc(v.label)} <span class="note" style="display:inline">(${esc(key)})</span>${pro ? ` <select data-f="variant" data-vk="${esc(key)}">${iconOptions(chosen[key] || "", true)}</select>` : ""}</div>`;
+  }).join("");
+  if (m0.variants.length) h += `<div>${img(o0.icon || m0.icon)} otherwise <span class="note" style="display:inline">(default icon${pro ? ", chosen in the Icon column" : ""})</span></div>`;
+  h += poiNotes(m0);
+  return `<details class="var" data-id="${esc(id)}"${POI_OPEN.has(id) ? " open" : ""}><summary>Options (${ms.length})</summary>${h}</details>`;
 }
 function renderPois() {
   const tb = $("#poiTable");
@@ -1056,25 +1080,42 @@ function renderPois() {
   if (!POIC) { tb.innerHTML = '<tr><td class="note">Loading…</td></tr>'; return; }
   S.pois = S.pois || {overrides: {}, custom: []};
   const pro = modeOf("pois") === "pro", ov = S.pois.overrides || {};
-  let h = `<tr><th></th><th>Place</th><th>From zoom</th><th>Icon</th>${pro ? '<th class="pro-only">Size %</th><th class="pro-only">OSM tag</th><th class="pro-only"></th>' : ""}</tr>`;
+  let h = `<tr><th></th><th>Place</th><th>From zoom</th><th>Icon</th>${pro ? '<th class="pro-only">Size %</th><th class="pro-only"></th>' : ""}</tr>`;
+  const groups = {}, rows = [];
   POIC.pois.forEach(p => {
-    const o = ov[p.id] || {}, on = o.enabled ?? p.enabled, zoom = o.zoom ?? p.zoom, icon = o.icon ?? p.icon, size = o.size ?? p.size ?? 100;
-    h += `<tr class="${on ? "" : "off"}" data-id="${esc(p.id)}"><td><input type="checkbox" data-f="enabled"${on ? " checked" : ""}></td><td>${esc(p.label)}${variantsHtml(p, o)}</td>
+    if (!p.group) { rows.push({p}); return; }
+    if (!groups[p.group]) { groups[p.group] = []; rows.push({group: p.group}); }
+    groups[p.group].push(p);
+  });
+  rows.forEach(r => {
+    if (r.group) {
+      const ms = groups[r.group], m0 = ms[0], o0 = ov[m0.id] || {}, onN = ms.filter(m => (ov[m.id] || {}).enabled ?? m.enabled).length;
+      const zoom = o0.zoom ?? m0.zoom, icon = o0.icon ?? m0.icon, size = o0.size ?? m0.size ?? 100, any = ms.some(m => Object.keys(ov[m.id] || {}).length);
+      h += `<tr class="${onN ? "" : "off"}" data-group="${esc(r.group)}"><td><input type="checkbox" data-f="enabled"${onN === ms.length ? " checked" : ""}${onN && onN < ms.length ? " data-ind=\"1\"" : ""}></td><td>${esc(m0.group_label || r.group)}${pro ? groupHtml(ms, pro, ov) : ""}</td>
       <td><select data-f="zoom">${zoomOptions(zoom)}</select></td>
-      <td><img class="poi-ico" src="${icoUrl(icon)}" alt="">${pro ? ` <select data-f="icon">${iconOptions(o.icon || "", true)}</select>` : ""}</td>
-      ${pro ? `<td class="pro-only"><input type="number" min="20" max="400" step="10" data-f="size" value="${size}"></td><td class="pro-only k">${esc(p.id.replace("=", " = "))}</td><td class="pro-only">${Object.keys(o).length ? '<button class="small" data-reset="1" title="Back to the default of this line">↺</button>' : ""}</td>` : ""}</tr>`;
+      <td class="ico"><img class="poi-ico" src="${icoUrl(icon)}" alt="">${pro ? ` <select data-f="icon">${iconOptions(o0.icon || "", true)}</select>` : ""}</td>
+      ${pro ? `<td class="pro-only"><input type="number" min="20" max="400" step="10" data-f="size" value="${size}"></td><td class="pro-only">${any ? '<button class="small" data-reset="1" title="Back to the default of this line">↺</button>' : ""}</td>` : ""}</tr>`;
+      return;
+    }
+    const p = r.p;
+    const o = ov[p.id] || {}, on = o.enabled ?? p.enabled, zoom = o.zoom ?? p.zoom, icon = o.icon ?? p.icon, size = o.size ?? p.size ?? 100;
+    h += `<tr class="${on ? "" : "off"}" data-id="${esc(p.id)}"><td><input type="checkbox" data-f="enabled"${on ? " checked" : ""}></td><td>${esc(p.label)}${pro ? ` <span class="tagtxt">${esc(tagText(p))}</span>` : ""}${variantsHtml(p, o, pro)}</td>
+      <td><select data-f="zoom">${zoomOptions(zoom)}</select></td>
+      <td class="ico"><img class="poi-ico" src="${icoUrl(icon)}" alt="">${pro ? ` <select data-f="icon">${iconOptions(o.icon || "", true)}</select>` : ""}</td>
+      ${pro ? `<td class="pro-only"><input type="number" min="20" max="400" step="10" data-f="size" value="${size}"></td><td class="pro-only">${Object.keys(o).length ? '<button class="small" data-reset="1" title="Back to the default of this line">↺</button>' : ""}</td>` : ""}</tr>`;
   });
   (S.pois.custom || []).forEach((c, i) => {
-    h += `<tr class="${c.enabled === false ? "off" : ""}" data-custom="${i}"><td><input type="checkbox" data-f="enabled"${c.enabled === false ? "" : " checked"}></td><td>${esc(c.label || c.key + "=" + c.value)} <span class="note" style="display:inline">(yours)</span></td>
+    h += `<tr class="${c.enabled === false ? "off" : ""}" data-custom="${i}"><td><input type="checkbox" data-f="enabled"${c.enabled === false ? "" : " checked"}></td><td>${esc(c.label || c.key + "=" + c.value)} <span class="note" style="display:inline">(yours)</span>${pro ? ` <span class="tagtxt">${esc(c.key + " = " + c.value)}</span>` : ""}</td>
       <td><select data-f="zoom">${zoomOptions(c.zoom)}</select></td>
-      <td><img class="poi-ico" src="${icoUrl(c.icon)}" alt="">${pro ? ` <select data-f="icon">${iconOptions(c.icon, false)}</select>` : ""}</td>
-      ${pro ? `<td class="pro-only"><input type="number" min="20" max="400" step="10" data-f="size" value="${c.size ?? 100}"></td><td class="pro-only k">${esc(c.key + " = " + c.value)}</td><td class="pro-only"><button class="small" data-del="1" title="Remove this place">✕</button></td>` : ""}</tr>`;
+      <td class="ico"><img class="poi-ico" src="${icoUrl(c.icon)}" alt="">${pro ? ` <select data-f="icon">${iconOptions(c.icon, false)}</select>` : ""}</td>
+      ${pro ? `<td class="pro-only"><input type="number" min="20" max="400" step="10" data-f="size" value="${c.size ?? 100}"></td><td class="pro-only"><button class="small" data-del="1" title="Remove this place">✕</button></td>` : ""}</tr>`;
   });
   tb.innerHTML = h;
   const nOn = POIC.pois.filter(p => (ov[p.id] || {}).enabled ?? p.enabled).length + (S.pois.custom || []).filter(c => c.enabled !== false).length;
   const changed = Object.keys(ov).length + (S.pois.custom || []).length;
   $("#poiNote").textContent = nOn + " type" + (nOn === 1 ? "" : "s") + " of places on the map" + (changed ? " · your choices differ from the defaults" : " · default style");
   $("#poiReset").disabled = !changed;
+  tb.querySelectorAll("input[data-ind]").forEach(i => { i.indeterminate = true; });
 }
 function poiSave() { scheduleSave(false); renderPois(); }
 $("#poiTable").addEventListener("toggle", e => {
@@ -1090,17 +1131,36 @@ $("#poiTable").addEventListener("change", e => {
     else if (f === "icon") c.icon = el.value; else if (f === "size") c.size = Number(el.value) || 100;
     return poiSave();
   }
-  const p = POIC.pois.find(x => x.id === tr.dataset.id);
+  if (tr.dataset.group !== undefined) {
+    const ms = POIC.pois.filter(x => x.group === tr.dataset.group);
+    if (f === "member") { const m = ms.find(x => x.id === el.dataset.mid); poiSetOv(m.id, "enabled", el.checked, m.enabled); }
+    else ms.forEach(m => applyPoiField(m, f, el));
+    return poiSave();
+  }
+  applyPoiField(POIC.pois.find(x => x.id === tr.dataset.id), f, el);
+  poiSave();
+});
+function applyPoiField(p, f, el) {
   if (f === "enabled") poiSetOv(p.id, "enabled", el.checked, p.enabled);
   else if (f === "zoom") poiSetOv(p.id, "zoom", Number(el.value), p.zoom);
   else if (f === "icon") poiSetOv(p.id, "icon", el.value, p.icon);
+  else if (f === "variant") {
+    const o = poiOv(p.id); o.variants = o.variants || {};
+    if (el.value) o.variants[el.dataset.vk] = el.value; else delete o.variants[el.dataset.vk];
+    if (!Object.keys(o.variants).length) delete o.variants;
+    if (!Object.keys(o).length) delete S.pois.overrides[p.id];
+  }
+  else if (f === "vshow") setOff(p.id, el.dataset.vk, !el.checked);
   else if (f === "size") poiSetOv(p.id, "size", Number(el.value) || 100, p.size ?? 100);
-  poiSave();
-});
+}
 $("#poiTable").addEventListener("click", e => {
   const b = e.target.closest("button"), tr = e.target.closest("tr");
   if (!b || !tr) return;
-  if (b.dataset.reset) { delete S.pois.overrides[tr.dataset.id]; poiSave(); }
+  if (b.dataset.reset) {
+    if (tr.dataset.group !== undefined) POIC.pois.filter(x => x.group === tr.dataset.group).forEach(m => delete S.pois.overrides[m.id]);
+    else delete S.pois.overrides[tr.dataset.id];
+    poiSave();
+  }
   if (b.dataset.del) { S.pois.custom.splice(Number(tr.dataset.custom), 1); poiSave(); }
 });
 $("#poiReset").onclick = () => { S.pois = {overrides: {}, custom: []}; poiSave(); };

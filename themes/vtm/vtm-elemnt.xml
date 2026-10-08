@@ -923,18 +923,46 @@
       <symbol src="icons/cafe.svg" symbol-percent="150"/>
    </m>
    <m k="amenity" v="drinking_water" zoom-min="14">
-      <symbol src="icons/drinking_water.svg" symbol-percent="150"/>
+      <symbol src="icons/water_blue.svg" symbol-percent="150"/>
+   </m>
+   <m k="amenity" v="fountain" zoom-min="14">
+      <m k="access" v="-|customers|private|no">
+         <m k="drinking_water" v="yes">
+            <symbol src="icons/water_blue.svg" symbol-percent="150"/>
+         </m>
+      </m>
+   </m>
+   <m k="man_made" v="water_tap" zoom-min="14">
+      <m k="access" v="-|customers|private|no">
+         <m k="drinking_water" v="yes">
+            <symbol src="icons/water_blue.svg" symbol-percent="150"/>
+         </m>
+      </m>
+   </m>
+   <m k="natural" v="spring" zoom-min="14">
+      <m k="access" v="-|customers|private|no">
+         <m k="drinking_water" v="yes">
+            <symbol src="icons/water_blue.svg" symbol-percent="150"/>
+         </m>
+      </m>
+   </m>
+   <m k="amenity" v="water_point" zoom-min="14">
+      <m k="access" v="-|customers|private|no">
+         <m k="drinking_water" v="yes">
+            <symbol src="icons/water_blue.svg" symbol-percent="150"/>
+         </m>
+      </m>
    </m>
    <m k="amenity" v="toilets" zoom-min="14">
       <m k="access" v="-|customers|private">
          <m k="fee" v="yes">
-            <symbol src="icons/toilets_paid.svg" symbol-percent="150"/>
+            <symbol src="icons/toilets_red.svg" symbol-percent="150"/>
          </m>
          <m k="fee" v="no">
-            <symbol src="icons/toilets_free.svg" symbol-percent="150"/>
+            <symbol src="icons/toilets_green.svg" symbol-percent="150"/>
          </m>
          <m k="fee" v="-|yes|no">
-            <symbol src="icons/toilets.svg" symbol-percent="150"/>
+            <symbol src="icons/toilets_blue.svg" symbol-percent="150"/>
          </m>
       </m>
    </m>

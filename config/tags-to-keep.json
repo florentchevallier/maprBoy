@@ -13,7 +13,9 @@
             "cafe",
             "drinking_water",
             "shelter",
-            "toilets"
+            "toilets",
+            "fountain",
+            "water_point"
         ],
         "shop": [
             "bakery",
@@ -58,7 +60,8 @@
             "scrub",
             "water",
             "wetland",
-            "wood"
+            "wood",
+            "spring"
         ],
         "landuse": [
             "forest",
@@ -90,10 +93,10 @@
         "wood": "deciduous",
         "tourism": "alpine_hut",
         "wandrer": [
-    		"visited",
-    		"unvisited",
-    		"boundary"
-		],
+            "visited",
+            "unvisited",
+            "boundary"
+        ],
         "fee": [
             "yes",
             "no"
@@ -101,6 +104,12 @@
         "squadrat": [
             "big",
             "small"
+        ],
+        "man_made": [
+            "water_tap"
+        ],
+        "drinking_water": [
+            "yes"
         ]
     },
     "NAME_TAGS_TO_KEEP_UNIVERSAL": {

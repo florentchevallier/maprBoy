@@ -1,15 +1,31 @@
 {
-  "_comment": "POI catalogue and defaults. Edit this file, then run: python3 scripts/generate_poi_config.py. It rewrites the generated parts of the tag-mapping XMLs, the VTM theme and (add-only) tags-to-keep.json. The web page offers every POI of this list (label = name shown there); the user's choices are stored apart and never change this file. zoom = zoom level from which the POI is stored and drawn. size = icon size in percent (optional, default 100). enabled = false: offered in the web page but not on by default. icon = an SVG of themes/vtm/icons, or shape:<circle|square|triangle|diamond>:<red|blue|green|yellow|purple|orange|black|white>. hide_if = POI is not drawn when one of these tags has one of these values. only_if = POI is drawn only when one of these tags has one of these values (a whitelist). variants = other icon when a secondary tag has a given value; the default icon is used when the tag is absent or has another value.",
+  "_comment": "POI catalogue and defaults. Edit this file, then run: python3 scripts/generate_poi_config.py. It rewrites the generated parts of the tag-mapping XMLs, the VTM theme and (add-only) tags-to-keep.json. The web page offers every POI of this list (label = name shown there); the user's choices are stored apart and never change this file. zoom = zoom level from which the POI is stored and drawn. size = icon size in percent (optional, default 100). enabled = false: offered in the web page but not on by default. icon = an SVG of themes/vtm/icons, or shape:<circle|square|triangle|diamond>:<red|blue|green|yellow|purple|orange|black|white>. hide_if = POI is not drawn when one of these tags has one of these values. only_if = POI is drawn only when one of these tags has one of these values (a whitelist). id = name of the POI in the user's choices when the same tag is drawn several ways (default key=value). group + group_label = POIs shown as one line in the web page, with one tick box each (e.g. the drinking water points and the other water sources). variants = other icon when a secondary tag has a given value; the default icon is used when the tag is absent or has another value.",
   "pois": [
     {"key": "amenity", "value": "fuel", "label": "Fuel station", "zoom": 14, "icon": "fuel.svg", "size": 150},
     {"key": "amenity", "value": "cafe", "label": "Café", "zoom": 15, "icon": "cafe.svg", "size": 150},
-    {"key": "amenity", "value": "drinking_water", "label": "Drinking water", "zoom": 14, "icon": "drinking_water.svg", "size": 150},
+    {"key": "amenity", "value": "drinking_water", "label": "Drinking water point", "group": "drinking_water", "group_label": "Drinking water", "zoom": 14, "icon": "water_blue.svg", "size": 150},
+    {"id": "amenity=fountain+drinkable", "key": "amenity", "value": "fountain", "label": "Fountain", "group": "drinking_water", "group_label": "Drinking water", "zoom": 14, "icon": "water_blue.svg", "size": 150,
+      "only_if": {"drinking_water": ["yes"]}, "hide_if": {"access": ["customers", "private", "no"]}},
+    {"id": "man_made=water_tap+drinkable", "key": "man_made", "value": "water_tap", "label": "Water tap", "group": "drinking_water", "group_label": "Drinking water", "zoom": 14, "icon": "water_blue.svg", "size": 150,
+      "only_if": {"drinking_water": ["yes"]}, "hide_if": {"access": ["customers", "private", "no"]}},
+    {"id": "natural=spring+drinkable", "key": "natural", "value": "spring", "label": "Spring", "group": "drinking_water", "group_label": "Drinking water", "zoom": 14, "icon": "water_blue.svg", "size": 150,
+      "only_if": {"drinking_water": ["yes"]}, "hide_if": {"access": ["customers", "private", "no"]}},
+    {"id": "amenity=water_point+drinkable", "key": "amenity", "value": "water_point", "label": "Water point", "group": "drinking_water", "group_label": "Drinking water", "zoom": 14, "icon": "water_blue.svg", "size": 150,
+      "only_if": {"drinking_water": ["yes"]}, "hide_if": {"access": ["customers", "private", "no"]}},
+    {"key": "amenity", "value": "fountain", "label": "Fountain", "group": "other_water", "group_label": "Other water sources", "enabled": false, "zoom": 15, "icon": "water_brown.svg", "size": 150,
+      "hide_if": {"access": ["customers", "private", "no"], "drinking_water": ["yes"]}},
+    {"key": "man_made", "value": "water_tap", "label": "Water tap", "group": "other_water", "group_label": "Other water sources", "enabled": false, "zoom": 15, "icon": "water_brown.svg", "size": 150,
+      "hide_if": {"access": ["customers", "private", "no"], "drinking_water": ["yes"]}},
+    {"key": "natural", "value": "spring", "label": "Spring", "group": "other_water", "group_label": "Other water sources", "enabled": false, "zoom": 15, "icon": "water_brown.svg", "size": 150,
+      "hide_if": {"access": ["customers", "private", "no"], "drinking_water": ["yes"]}},
+    {"key": "amenity", "value": "water_point", "label": "Water point", "group": "other_water", "group_label": "Other water sources", "enabled": false, "zoom": 15, "icon": "water_brown.svg", "size": 150,
+      "hide_if": {"access": ["customers", "private", "no"], "drinking_water": ["yes"]}},
     {
-      "key": "amenity", "value": "toilets", "label": "Toilets", "zoom": 14, "icon": "toilets.svg", "size": 150,
+      "key": "amenity", "value": "toilets", "label": "Toilets", "zoom": 14, "icon": "toilets_blue.svg", "size": 150,
       "hide_if": {"access": ["customers", "private"]},
       "variants": [
-        {"tag": "fee", "value": "yes", "icon": "toilets_paid.svg", "label": "paid"},
-        {"tag": "fee", "value": "no", "icon": "toilets_free.svg", "label": "free"}
+        {"tag": "fee", "value": "yes", "icon": "toilets_red.svg", "label": "paid"},
+        {"tag": "fee", "value": "no", "icon": "toilets_green.svg", "label": "free"}
       ]
     },
     {"key": "shop", "value": "bakery", "label": "Bakery", "zoom": 14, "icon": "bakery.svg"},

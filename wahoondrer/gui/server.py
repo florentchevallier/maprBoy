@@ -81,7 +81,8 @@ def poi_catalog():
                      "size": p.get("size"), "icon": p["icon"], "enabled": p.get("enabled", True),
                      "variants": [{"tag": v["tag"], "value": v["value"], "icon": v["icon"],
                                    "label": v.get("label") or f'{v["tag"]} = {v["value"]}'} for v in p.get("variants", [])],
-                     "hide_if": p.get("hide_if", {}), "only_if": p.get("only_if", {})})
+                     "hide_if": p.get("hide_if", {}), "only_if": p.get("only_if", {}),
+                     "group": p.get("group", ""), "group_label": p.get("group_label", "")})
     return {"pois": pois, "icons": poi_config.library_icons(paths.icon_dir),
             "shapes": list(poi_config.SHAPES), "colors": list(poi_config.COLORS),
             "zoom_min": poi_config.ZOOM_MIN, "zoom_max": poi_config.ZOOM_MAX}

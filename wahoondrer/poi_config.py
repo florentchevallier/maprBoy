@@ -87,7 +87,9 @@ class Paths:
 
 
 def poi_id(p):
-    return f"{p['key']}={p['value']}"
+    """The name the user's choices use for a POI: 'key=value', or its own 'id' when the same tag is drawn in
+    several ways (e.g. drinkable and other fountains)."""
+    return p.get("id") or f"{p['key']}={p['value']}"
 
 
 # ------------------------------------------------------------------ rules
@@ -119,9 +121,11 @@ def validate(pois, icon_dir):
             raise ValueError(f"{name}: 'zoom' must be an integer between {ZOOM_MIN} and {ZOOM_MAX}")
         if "size" in p and (not isinstance(p["size"], int) or isinstance(p["size"], bool) or not 20 <= p["size"] <= 400):
             raise ValueError(f"{name}: 'size' must be a percentage between 20 and 400")
-        if (p["key"], p["value"]) in seen:
+        if p.get("id") is not None and (not isinstance(p["id"], str) or not re.fullmatch(r"[A-Za-z0-9_=:.+\-]+", p["id"])):
+            raise ValueError(f"{name}: 'id' may only contain letters, digits and _ = : . + -")
+        if poi_id(p) in seen:
             raise ValueError(f"{name}: declared twice")
-        seen.add((p["key"], p["value"]))
+        seen.add(poi_id(p))
         variants = p.get("variants", [])
         if len({v.get("tag") for v in variants}) > 1:
             raise ValueError(f"{name}: all variants must use the same secondary tag")
@@ -150,8 +154,18 @@ def load_rules(path=DEFAULT_RULES, icon_dir=None):
     return validate([p for p in read_rules(path) if p.get("enabled", True)], icon_dir)
 
 
+OTHER_VARIANT = "other"      # in the user's choices: the case where no variant applies (the default icon)
+
+
+def variant_key(variant):
+    """How the user's choices name a variant: 'fee=yes'."""
+    return f'{variant["tag"]}={variant["value"]}'
+
+
 def effective_pois(base, user):
-    """Base rules + the user's choices ({"overrides": {id: {enabled, zoom, size, icon}}, "custom": [...]}).
+    """Base rules + the user's choices ({"overrides": {id: {enabled, zoom, size, icon, variants, off}}, "custom": [...]}).
+    `icon` is the default icon (used when no variant applies); `variants` maps 'fee=yes' to the icon chosen for it;
+    `off` lists the variants that are not drawn ('fee=yes', and 'other' for the default case).
     Returns every POI (disabled ones included) with an 'enabled' flag."""
     user = user or {}
     overrides = user.get("overrides") or {}
@@ -166,8 +180,13 @@ def effective_pois(base, user):
                     q.pop(field, None)
                 else:
                     q[field] = o[field]
-        if "icon" in o:
-            q.pop("variants", None)            # a chosen icon replaces the paid/free toilet variants
+        chosen = o.get("variants") or {}
+        off = [k for k in (o.get("off") or []) if isinstance(k, str)]
+        if q.get("variants") and (chosen or off):    # an icon chosen for one variant ("fee=yes": "toilets_red.svg"), variants hidden
+            q["variants"] = [{**v, "icon": chosen.get(variant_key(v)) or v["icon"],
+                              **({"enabled": False} if variant_key(v) in off else {})} for v in q["variants"]]
+            if OTHER_VARIANT in off:
+                q["default_enabled"] = False         # nothing is drawn when no variant applies
         out.append(q)
     for c in user.get("custom") or []:
         q = dict(c)
@@ -203,9 +222,17 @@ def _sub_tag_zooms(pois):
     return zooms
 
 
+def _main_tags(pois):
+    """{(key, value): zoom}: a tag drawn several ways is stored once, from the lowest zoom."""
+    zooms = {}
+    for p in pois:
+        k = (p["key"], p["value"])
+        zooms[k] = min(zooms.get(k, 99), p["zoom"])
+    return zooms
+
+
 def nodes_block(pois, skip):
-    lines = [f'<osm-tag key="{p["key"]}" value="{p["value"]}" zoom-appear="{p["zoom"]}" />'
-             for p in pois]
+    lines = [f'<osm-tag key="{k}" value="{v}" zoom-appear="{z}" />' for (k, v), z in _main_tags(pois).items()]
     extra = [f'<osm-tag key="{k}" value="{v}" zoom-appear="{z}" />'
              for (k, v), z in _sub_tag_zooms(pois).items() if (k, v) not in skip]
     if extra:
@@ -214,8 +241,8 @@ def nodes_block(pois, skip):
 
 
 def ways_block(pois, skip):
-    lines = [f'<osm-tag key="{p["key"]}" label-position="true" value="{p["value"]}" '
-             f'zoom-appear="{p["zoom"]}" />' for p in pois]
+    lines = [f'<osm-tag key="{k}" label-position="true" value="{v}" zoom-appear="{z}" />'
+             for (k, v), z in _main_tags(pois).items()]
     lines += [f'<osm-tag key="{k}" value="{v}" zoom-appear="{z}" />'
               for (k, v), z in _sub_tag_zooms(pois).items() if (k, v) not in skip]
     return lines
@@ -237,13 +264,16 @@ def theme_block(pois):
         if variants:
             tag = variants[0]["tag"]
             for v in variants:
+                if v.get("enabled") is False:
+                    continue                                  # hidden: not drawn, and not drawn as the default either
                 out.append("   " * depth + f'<m k="{tag}" v="{v["value"]}">')
                 out.append("   " * (depth + 1) + f'<symbol src="icons/{icon_file(v["icon"])}"{size}/>')
                 out.append("   " * depth + "</m>")
-            others = "|".join(v["value"] for v in variants)
-            out.append("   " * depth + f'<m k="{tag}" v="-|{others}">')
-            out.append("   " * (depth + 1) + f'<symbol src="icons/{icon_file(p["icon"])}"{size}/>')
-            out.append("   " * depth + "</m>")
+            if p.get("default_enabled") is not False:
+                others = "|".join(v["value"] for v in variants)
+                out.append("   " * depth + f'<m k="{tag}" v="-|{others}">')
+                out.append("   " * (depth + 1) + f'<symbol src="icons/{icon_file(p["icon"])}"{size}/>')
+                out.append("   " * depth + "</m>")
         else:
             out.append("   " * depth + f'<symbol src="icons/{icon_file(p["icon"])}"{size}/>')
         for depth in range(depth - 1, 0, -1):

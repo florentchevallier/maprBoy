@@ -828,8 +828,71 @@ class PoiTests(unittest.TestCase):
         self.assertFalse(eff["amenity=fuel"]["enabled"])
         self.assertEqual(eff["amenity=cafe"]["zoom"], 12)
         self.assertTrue(eff["amenity=bench"]["custom"])
-        t = {self.pc.poi_id(p): p for p in self.pc.effective_pois(self.base, {"overrides": {"amenity=toilets": {"icon": "shape:circle:red"}}})}
-        self.assertNotIn("variants", t["amenity=toilets"])
+
+    def test_variant_icons_are_chosen_one_by_one(self):
+        user = {"overrides": {"amenity=toilets": {"variants": {"fee=yes": "shape:square:purple", "fee=maybe": "x.svg"}}}}
+        t = {self.pc.poi_id(p): p for p in self.pc.effective_pois(self.base, user)}["amenity=toilets"]
+        icons = {v["value"]: v["icon"] for v in t["variants"]}
+        self.assertEqual(icons, {"yes": "shape:square:purple", "no": "toilets_green.svg"})    # the others keep their icon
+        self.assertEqual(t["icon"], "toilets_blue.svg")
+        self.pc.validate([t], self.pc.Paths().icon_dir)
+        t2 = {self.pc.poi_id(p): p for p in self.pc.effective_pois(self.base, {"overrides": {"amenity=toilets": {"icon": "shape:circle:red"}}})}["amenity=toilets"]
+        self.assertEqual(t2["icon"], "shape:circle:red")                                      # the default icon only
+        self.assertEqual(len(t2["variants"]), 2)
+
+    def test_hidden_variants_are_not_drawn(self):
+        def toilets(off):
+            user = {"overrides": {"amenity=toilets": {"off": off}}}
+            return self.pc.theme_block([p for p in self.pc.effective_pois(self.base, user) if self.pc.poi_id(p) == "amenity=toilets"])
+        shown = "\n".join(toilets([]))
+        self.assertIn('v="yes"', shown); self.assertIn('v="-|yes|no"', shown)
+        paid = "\n".join(toilets(["fee=yes"]))
+        self.assertNotIn('<m k="fee" v="yes">', paid)
+        self.assertIn('v="-|yes|no"', paid)                  # paid toilets do not fall back on the default icon
+        self.assertIn("toilets_green.svg", paid); self.assertIn("toilets_blue.svg", paid)
+        nodefault = "\n".join(toilets(["other"]))
+        self.assertNotIn("toilets_blue.svg", nodefault); self.assertIn("toilets_red.svg", nodefault)
+        none = "\n".join(toilets(["fee=yes", "fee=no", "other"]))
+        self.assertNotIn("<symbol", none)
+
+    WATER = ("amenity=fountain", "man_made=water_tap", "natural=spring", "amenity=water_point")
+
+    def test_water_groups(self):
+        eff = {self.pc.poi_id(p): p for p in self.pc.effective_pois(self.base, {})}
+        drink = [p for p in eff.values() if p.get("group") == "drinking_water"]
+        other = [p for p in eff.values() if p.get("group") == "other_water"]
+        self.assertEqual(len(drink), 5); self.assertEqual(len(other), 4)
+        self.assertTrue(all(p["group_label"] == "Drinking water" and p["enabled"] and p["zoom"] == 14 and p["icon"] == "water_blue.svg" for p in drink))
+        self.assertTrue(all(p["group_label"] == "Other water sources" and not p["enabled"] and p["zoom"] == 15 and p["icon"] == "water_brown.svg" for p in other))
+        self.assertNotIn("only_if", eff["amenity=drinking_water"])
+        for pid in self.WATER:
+            drinkable, rest = eff[pid + "+drinkable"], eff[pid]
+            self.assertEqual(drinkable["only_if"], {"drinking_water": ["yes"]})           # drinkable: tagged drinking_water=yes
+            self.assertEqual(rest["hide_if"]["drinking_water"], ["yes"])                  # the others: everything else
+            for p in (drinkable, rest):
+                self.assertIn("private", p["hide_if"]["access"])
+        from wahoondrer.gui import server
+        cat = {p["id"]: p for p in server.poi_catalog()["pois"]}
+        self.assertEqual(cat["amenity=fountain"]["group"], "other_water")
+        self.assertEqual(cat["amenity=fountain+drinkable"]["group"], "drinking_water")
+        self.assertEqual(cat["amenity=toilets"]["group"], "")
+
+    def test_drinkable_and_other_fountains_are_drawn_apart(self):
+        on = [p for p in self.pc.effective_pois(self.base, {"overrides": {"amenity=fountain": {"enabled": True}}}) if p["enabled"]]
+        self.pc.validate(on, self.pc.Paths().icon_dir)                                       # same tag twice is fine with an id
+        theme = "\n".join(self.pc.theme_block([p for p in on if p["value"] == "fountain"]))
+        self.assertEqual(theme.count('v="fountain"'), 2)
+        self.assertIn('<m k="drinking_water" v="yes">', theme)                               # drinkable one
+        self.assertIn("water_blue.svg", theme); self.assertIn("water_brown.svg", theme)
+        nodes = "\n".join(self.pc.nodes_block(on, set()))
+        self.assertEqual(nodes.count('value="fountain"'), 1)                                 # stored once, from the lowest zoom
+        self.assertIn('value="fountain" zoom-appear="14"', nodes)
+
+    def test_same_tag_twice_needs_an_id(self):
+        a = {"key": "amenity", "value": "bench", "zoom": 14, "icon": "shape:circle:red"}
+        with self.assertRaises(ValueError):
+            self.pc.validate([a, dict(a)], self.pc.Paths().icon_dir)
+        self.pc.validate([a, dict(a, id="amenity=bench+x")], self.pc.Paths().icon_dir)
 
     def test_validate_rejects_bad_values(self):
         icons = self.pc.Paths().icon_dir

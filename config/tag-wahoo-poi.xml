@@ -8,16 +8,22 @@
     <osm-tag key="amenity" value="fuel" zoom-appear="14" />
     <osm-tag key="amenity" value="cafe" zoom-appear="15" />
     <osm-tag key="amenity" value="drinking_water" zoom-appear="14" />
+    <osm-tag key="amenity" value="fountain" zoom-appear="14" />
+    <osm-tag key="man_made" value="water_tap" zoom-appear="14" />
+    <osm-tag key="natural" value="spring" zoom-appear="14" />
+    <osm-tag key="amenity" value="water_point" zoom-appear="14" />
     <osm-tag key="amenity" value="toilets" zoom-appear="14" />
     <osm-tag key="shop" value="bakery" zoom-appear="14" />
     <osm-tag key="shop" value="bicycle" zoom-appear="14" />
     <osm-tag key="railway" value="station" zoom-appear="13" />
     <osm-tag key="railway" value="stop" zoom-appear="13" />
     <!-- secondary tags (variants / hidden values) -->
-    <osm-tag key="fee" value="yes" zoom-appear="14" />
-    <osm-tag key="fee" value="no" zoom-appear="14" />
     <osm-tag key="access" value="customers" zoom-appear="14" />
     <osm-tag key="access" value="private" zoom-appear="14" />
+    <osm-tag key="access" value="no" zoom-appear="14" />
+    <osm-tag key="drinking_water" value="yes" zoom-appear="14" />
+    <osm-tag key="fee" value="yes" zoom-appear="14" />
+    <osm-tag key="fee" value="no" zoom-appear="14" />
     <!-- END generated:poi-nodes -->
     <osm-tag key="amenity" value="shelter" zoom-appear="10" />
 
@@ -29,14 +35,20 @@
     <osm-tag key="amenity" label-position="true" value="fuel" zoom-appear="14" />
     <osm-tag key="amenity" label-position="true" value="cafe" zoom-appear="15" />
     <osm-tag key="amenity" label-position="true" value="drinking_water" zoom-appear="14" />
+    <osm-tag key="amenity" label-position="true" value="fountain" zoom-appear="14" />
+    <osm-tag key="man_made" label-position="true" value="water_tap" zoom-appear="14" />
+    <osm-tag key="natural" label-position="true" value="spring" zoom-appear="14" />
+    <osm-tag key="amenity" label-position="true" value="water_point" zoom-appear="14" />
     <osm-tag key="amenity" label-position="true" value="toilets" zoom-appear="14" />
     <osm-tag key="shop" label-position="true" value="bakery" zoom-appear="14" />
     <osm-tag key="shop" label-position="true" value="bicycle" zoom-appear="14" />
     <osm-tag key="railway" label-position="true" value="station" zoom-appear="13" />
     <osm-tag key="railway" label-position="true" value="stop" zoom-appear="13" />
+    <osm-tag key="access" value="customers" zoom-appear="14" />
+    <osm-tag key="access" value="no" zoom-appear="14" />
+    <osm-tag key="drinking_water" value="yes" zoom-appear="14" />
     <osm-tag key="fee" value="yes" zoom-appear="14" />
     <osm-tag key="fee" value="no" zoom-appear="14" />
-    <osm-tag key="access" value="customers" zoom-appear="14" />
     <!-- END generated:poi-ways -->
     <osm-tag key="amenity" value="shelter" zoom-appear="10" />
 

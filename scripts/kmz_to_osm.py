@@ -14,7 +14,7 @@ Exports are ordered automatically by the timestamp stored in the KML (the most
 recent wins), whatever the file names. A warning is printed if bike and foot
 exports are mixed.
 By default already-traveled roads are not written (they make the map heavier
-and are not displayed); --with-traveled keeps them.
+and are only useful to see them); --with-traveled keeps them, drawn as thin green lines.
 Unvisited roads are kept only within --radius-m (250 m) of traveled roads;
 --radius-m 0 disables this filter.
 

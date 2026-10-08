@@ -127,6 +127,11 @@
    <style-line id="wandrer-unpaved-bolt2-dark" cat="bolt2-dark" stroke="#FF8800" width="1.5" dasharray="7,5" />
    <style-line id="wandrer-boundary-halo-bolt2-dark" cat="bolt2-dark" stroke="#40B57BFF" width="5.0" />
    <style-line id="wandrer-boundary-bolt2-dark" cat="bolt2-dark" stroke="#B57BFF" width="1.2" dasharray="8,16" />
+   <!-- Wandrer: roads already ridden (only present in the tiles when the option is ticked) -->
+   <style-line id="wandrer-visited-roam" cat="roam" stroke="#2E9E4F" width="1.0" />
+   <style-line id="wandrer-visited-bolt" cat="bolt" stroke="#2E9E4F" width="1.0" />
+   <style-line id="wandrer-visited-bolt2" cat="bolt2" stroke="#2E9E4F" width="1.0" />
+   <style-line id="wandrer-visited-bolt2-dark" cat="bolt2-dark" stroke="#4CCB7A" width="1.0" />
    <!-- Squadrats: outlines of unexplored squares (big = z14, small = z17) -->
    <style-line id="squadrat-big-roam" cat="roam" stroke="#E03030" width="1.6" />
    <style-line id="squadrat-small-roam" cat="roam" stroke="#E03030" width="1.4" dasharray="6,6" />
@@ -966,6 +971,12 @@
                 <line use="wandrer-unvisited-outline-bolt2-dark" />
                 <line use="wandrer-unvisited-bolt2-dark" />
          </m>
+      </m>
+      <m v="visited">
+                <line use="wandrer-visited-roam" />
+                <line use="wandrer-visited-bolt" />
+                <line use="wandrer-visited-bolt2" />
+                <line use="wandrer-visited-bolt2-dark" />
       </m>
       <m v="boundary">
                 <line use="wandrer-boundary-halo-roam" />

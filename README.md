@@ -6,7 +6,7 @@ and bakes your **Wandrer** data (unexplored roads, achievement boundaries) into 
 - Source: Wandrer KML/KMZ exports (no OSM matching).
 - Output: `.map.lzma` files per z8 tile, with a `highway=wandrer` layer (`wandrer=visited|unvisited`).
 - Optional Squadrats layer (from a Squadrats KML export): outlines of the squares NOT yet explored, as thin red lines (big z14 squares solid, small z17 squares dashed).
-- VTM theme `vtm-elemnt.xml`: unvisited roads in orange (dashed when unpaved), boundaries as a subtle violet dashed line.
+- VTM theme `vtm-elemnt.xml`: unvisited roads in orange (dashed when unpaved), boundaries as a subtle violet dashed line, and (optional) the roads already ridden as thin green lines.
 
 ## Status
 - Proof of concept validated on tile 136/88 (Bolt v2).

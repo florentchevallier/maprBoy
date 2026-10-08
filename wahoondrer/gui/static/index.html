@@ -204,10 +204,10 @@ tr.rgrp.folded .gsum{display:inline}
           <option value="custom">custom distance…</option></select></label>
       <label class="row" id="radiusCustom" style="grid-template-columns:150px 110px 1fr;display:none">Distance (m)<input type="number" min="0" step="10" data-path="wandrer.radius_m" data-num="1"><small class="note">0 = everywhere</small></label>
       <p class="note">Roads farther than this from a road you rode are left out to keep the tiles light. <b>In an area where you have ridden nothing yet, no unvisited road is shown</b>: choose a larger distance or "everywhere" (heavier tiles). Wandrer only counts roads open to the public, so the orange layer shows which ones count.</p>
+      <label class="chk"><input type="checkbox" data-path="wandrer.with_traveled"><span>Show visited roads <small>thin green lines; makes tiles heavier</small></span></label>
     </div>
     <div class="pro-only">
       <label class="row" style="grid-template-columns:150px 110px 1fr">Simplify (m)<input type="number" min="0" step="0.5" data-path="wandrer.simplify_m" data-num="1"><small class="note">0 = none</small></label>
-      <label class="chk"><input type="checkbox" data-path="wandrer.with_traveled"><span>Also write the roads already ridden <small>makes tiles heavier; not displayed</small></span></label>
       <label class="chk"><input type="checkbox" data-path="wandrer.unpaved_always"><span>Keep every unvisited unpaved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
       <label class="chk"><input type="checkbox" data-path="wandrer.paved_always"><span>Keep every unvisited paved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
     </div>

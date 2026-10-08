@@ -325,6 +325,23 @@ class CommandTests(unittest.TestCase):
         self.assertIn("--no-boundaries", a); self.assertIn("--with-traveled", a)
         self.assertEqual(a[a.index("--radius-m") + 1], "0")
 
+    def test_default_look_adds_no_option(self):
+        b = jobs.build_commands(self.s(), ["/x/a.kmz"], None)[-1][1]
+        self.assertNotIn("--theme-look", b)
+
+    def test_custom_look_is_passed_to_the_build_only(self):
+        look = {"light": {"unvisited": {"color": "#00aaff", "width": 2.0, "outline": False}}}
+        s = self.s(wandrer={"look": look})
+        b = jobs.build_commands(s, ["/x/a.kmz"], None)[-1][1]
+        sent = json.loads(b[b.index("--theme-look") + 1])
+        self.assertEqual(sent["light"]["unvisited"], {"color": "#00AAFF", "width": 2.0, "outline": False})
+        self.assertEqual(sent["dark"]["visited"]["color"], "#4CCB7A")          # what was not changed keeps its default
+        self.assertNotIn("--theme-look", jobs.build_commands(s, ["/x/a.kmz"], None, plan=True)[-1][1])
+
+    def test_bad_look_is_refused(self):
+        with self.assertRaises(jobs.SettingsError):
+            jobs.build_commands(self.s(wandrer={"look": {"dark": {"visited": {"color": "green"}}}}), ["/x/a.kmz"], None)
+
     def test_contour_flags(self):
         s = self.s(); s["build"] = {"skip_classic": False, "contour": True}
         b = jobs.build_commands(s, [], None)[-1][1]
@@ -966,6 +983,9 @@ class ResultsTests(unittest.TestCase):
             self.assertIsNone(server.result_file(out, "secret.txt"))
             self.assertIsNone(server.result_file(out, "../" + os.path.basename(out) + "/secret.txt"))
             self.assertEqual(server.results(os.path.join(out, "none"))["tiles"], [])
+            self.assertFalse(r["theme"]["new"])
+            _write(os.path.join(out, "last_run.json"), json.dumps({"selected": [], "built": [], "theme_new": True}))
+            self.assertTrue(server.results(out)["theme"]["new"])
 
 
 class ProgressTests(unittest.TestCase):

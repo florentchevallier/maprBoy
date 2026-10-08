@@ -128,6 +128,11 @@
    <style-line id="wandrer-boundary-halo-bolt2-dark" cat="bolt2-dark" stroke="#40B57BFF" width="5.0" />
    <style-line id="wandrer-boundary-bolt2-dark" cat="bolt2-dark" stroke="#B57BFF" width="1.2" dasharray="8,16" />
    <!-- Wandrer: roads already ridden (only present in the tiles when the option is ticked) -->
+   <!-- the outlines of the visited roads are not used by default: wahoondrer/theme_style.py adds them to the rule on request -->
+   <style-line id="wandrer-visited-outline-roam" cat="roam" stroke="#000000" width="1.9" />
+   <style-line id="wandrer-visited-outline-bolt" cat="bolt" stroke="#000000" width="1.9" />
+   <style-line id="wandrer-visited-outline-bolt2" cat="bolt2" stroke="#000000" width="1.9" />
+   <style-line id="wandrer-visited-outline-bolt2-dark" cat="bolt2-dark" stroke="#000000" width="1.9" />
    <style-line id="wandrer-visited-roam" cat="roam" stroke="#2E9E4F" width="1.0" />
    <style-line id="wandrer-visited-bolt" cat="bolt" stroke="#2E9E4F" width="1.0" />
    <style-line id="wandrer-visited-bolt2" cat="bolt2" stroke="#2E9E4F" width="1.0" />

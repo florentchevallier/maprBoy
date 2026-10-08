@@ -10,7 +10,7 @@ import sys
 import threading
 import time
 
-from .. import contour, poi_config
+from .. import contour, poi_config, theme_style
 from . import native
 from . import settings as settings_mod
 
@@ -160,6 +160,17 @@ def _inside(path, parent):
     return path == parent or path.startswith(parent + os.sep)
 
 
+def look_args(w):
+    """['--theme-look', json] when the look of the Wandrer roads is not the default one, else []."""
+    try:
+        look = theme_style.clean(w.get("look"))
+    except ValueError as exc:
+        raise SettingsError(f"Look of the Wandrer roads: {exc}")
+    if theme_style.is_default(look):
+        return []
+    return ["--theme-look", json.dumps(look)]
+
+
 def poi_args(s):
     """['--poi-rules', file] when the user changed POIs (the effective list is written next to the settings),
     else [] (the defaults of config/poi-rules.json are used)."""
@@ -288,6 +299,7 @@ def build_commands(s, exports, squadrats_file, plan=False):
                     b += ["--contour-tile", f"{k}={v}"]
     if not plan:
         b += poi_args(s)
+        b += look_args(w)
     if plan:
         b.append("--plan")
     cmds.append(("Plan: tiles and OSM regions" if plan else "Build the map tiles", b))

@@ -3,6 +3,8 @@ import copy
 import json
 import os
 
+from .. import theme_style
+
 SETTINGS_PATH = os.path.join(os.path.expanduser("~"), ".wahoondrer", "settings.json")
 
 DEFAULTS = {
@@ -27,6 +29,7 @@ DEFAULTS = {
         "paved_always": False,
         "simplify_m": 1.5,
         "merge": True,
+        "look": theme_style.defaults(),   # colour, width and outline of the unvisited / visited roads, light and dark (Pro)
     },
     "squadrats": {
         "enabled": False,

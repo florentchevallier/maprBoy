@@ -86,7 +86,7 @@ details.var div{margin:3px 0 0 4px;color:var(--ink)}
 .rfile .sz{color:var(--mute);font-size:12.5px}
 .rdir{display:flex;gap:8px;align-items:center;margin:8px 0 2px;font-weight:600}
 .rin{margin-left:22px}
-.rtile{margin:12px 0 0}.cdate{width:150px;white-space:nowrap}.ccity{width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ccont{display:none}.pro .ccont{display:inline-block;width:118px;white-space:nowrap}.newslot{min-width:190px;text-align:right}.plaintile{background:var(--line);color:var(--mute);border-radius:6px;padding:0 6px;font-size:12.5px}.newtile{background:#fff3d6;color:#8a5a00;border-radius:6px;padding:0 6px;font-size:12.5px}
+.rtile{margin:12px 0 0}.cdate{width:150px;white-space:nowrap}.ccity{width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ccont{display:none}.pro .ccont{display:inline-block;width:118px;white-space:nowrap}.newslot{min-width:190px;text-align:right}.plaintile{background:var(--line);color:var(--mute);border-radius:6px;padding:0 6px;font-size:12.5px}.newtile{background:#fff3d6;color:#8a5a00;border-radius:6px;padding:0 6px;font-size:12.5px}.looktbl{border-collapse:collapse;margin:6px 0}.looktbl th,.looktbl td{padding:3px 14px 3px 0;text-align:left;font-weight:normal}.looktbl thead th{font-weight:600}.looktbl .lookmode th{padding-top:8px;font-weight:600}.looktbl input[type=number]{width:80px}.looktbl input[type=color]{width:52px;height:28px;padding:0}.rfile a{white-space:nowrap}.newslot{white-space:nowrap}.newtheme{white-space:nowrap;background:#c62828;color:#fff;font-weight:600;border-radius:6px;padding:0 8px;font-size:12.5px}
 .opts{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
 @media (max-width:760px){.opts{grid-template-columns:1fr}label.row{grid-template-columns:1fr}}
 #stepWrap[hidden]{display:none}#stepWrap{display:flex;flex-direction:column;gap:4px;margin:2px 0 0;font-size:12.5px;line-height:1.3}#stepWrap progress{width:100%;height:12px;accent-color:var(--accent,#2f6fdb)}#dlBar{background:var(--code);color:var(--codeink);font:12.5px/1.4 ui-monospace,Menlo,monospace;margin:0;padding:0 12px 12px;border-radius:0 0 10px 10px;white-space:pre;overflow:auto}#dlBar[hidden]{display:none}pre#log:has(+ #dlBar:not([hidden])){border-radius:10px 10px 0 0;padding-bottom:6px}
@@ -210,6 +210,21 @@ tr.rgrp.folded .gsum{display:inline}
       <label class="row" style="grid-template-columns:150px 110px 1fr">Simplify (m)<input type="number" min="0" step="0.5" data-path="wandrer.simplify_m" data-num="1"><small class="note">0 = none</small></label>
       <label class="chk"><input type="checkbox" data-path="wandrer.unpaved_always"><span>Keep every unvisited unpaved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
       <label class="chk"><input type="checkbox" data-path="wandrer.paved_always"><span>Keep every unvisited paved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
+      <table class="looktbl">
+        <thead><tr><th></th><th>Unvisited</th><th>Visited</th></tr></thead>
+        <tbody>
+          <tr class="lookmode"><th colspan="3">Light styles <small>Roam, Bolt, Bolt 2</small></th></tr>
+          <tr><td>Colour</td><td><input type="color" data-path="wandrer.look.light.unvisited.color"></td><td><input type="color" data-path="wandrer.look.light.visited.color"></td></tr>
+          <tr><td>Width</td><td><input type="number" min="0.1" max="10" step="0.1" data-path="wandrer.look.light.unvisited.width" data-num="1"></td><td><input type="number" min="0.1" max="10" step="0.1" data-path="wandrer.look.light.visited.width" data-num="1"></td></tr>
+          <tr><td>Outline</td><td><input type="checkbox" data-path="wandrer.look.light.unvisited.outline"></td><td><input type="checkbox" data-path="wandrer.look.light.visited.outline"></td></tr>
+          <tr class="lookmode"><th colspan="3">Dark style <small>Bolt 2 dark mode</small></th></tr>
+          <tr><td>Colour</td><td><input type="color" data-path="wandrer.look.dark.unvisited.color"></td><td><input type="color" data-path="wandrer.look.dark.visited.color"></td></tr>
+          <tr><td>Width</td><td><input type="number" min="0.1" max="10" step="0.1" data-path="wandrer.look.dark.unvisited.width" data-num="1"></td><td><input type="number" min="0.1" max="10" step="0.1" data-path="wandrer.look.dark.visited.width" data-num="1"></td></tr>
+          <tr><td>Outline</td><td><input type="checkbox" data-path="wandrer.look.dark.unvisited.outline"></td><td><input type="checkbox" data-path="wandrer.look.dark.visited.outline"></td></tr>
+        </tbody>
+      </table>
+      <p><button class="small" id="btnLookReset" type="button">Reset the look of the roads</button></p>
+      <p class="note">These settings change the <b>theme</b>, not the tiles: after a build, copy the new <b>vtm-elemnt.xml</b> to the Bolt (see “Files for the Bolt”, a red warning marks it).</p>
     </div>
   </div>
 </section>
@@ -895,6 +910,12 @@ $$("[data-path]").forEach(el => el.addEventListener("change", () => {
   else scheduleSave(el.dataset.path === "wandrer.radius_m");
   if (el.dataset.path.startsWith("build.contour")) drawTileMenus();
 }));
+const LOOK_DEFAULT = {
+  light: {unvisited: {color: "#ff8800", width: 1.5, outline: true}, visited: {color: "#2e9e4f", width: 1.0, outline: false}},
+  dark: {unvisited: {color: "#ff8800", width: 1.5, outline: true}, visited: {color: "#4ccb7a", width: 1.0, outline: false}}};
+$("#btnLookReset").onclick = () => {
+  S.wandrer.look = JSON.parse(JSON.stringify(LOOK_DEFAULT)); renderInputs(); scheduleSave(false);
+};
 $("#radiusSel").onchange = e => {
   if (e.target.value === "custom") { $("#radiusCustom").style.display = "grid"; return; }
   S.wandrer.radius_m = Number(e.target.value); $("#radiusCustom").style.display = "none"; scheduleSave(false);
@@ -1102,7 +1123,7 @@ async function loadPois() {
 
 // ---------- result files (what to copy to the Bolt)
 const fileUrl = rel => "/api/file?rel=" + encodeURIComponent(rel);
-const fileRow = (f, extra, newTile, plain) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${plain ? '<span class="plaintile" title="No Wandrer data in this tile: plain map, no Wandrer or Squadrats lines">plain tile</span> ' : ""}${newTile ? '<span class="newtile">🌟 New tile!</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
+const fileRow = (f, extra, newTile, plain, newTheme) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${plain ? '<span class="plaintile" title="No Wandrer data in this tile: plain map, no Wandrer or Squadrats lines">plain tile</span> ' : ""}${newTile ? '<span class="newtile">🌟 New tile!</span>' : ""}${newTheme ? '<span class="newtheme">🚨 NEW THEME: update the file on Bolt 🚨</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
 async function renderResults() {
   const box = $("#results");
   if (!S.folders.out) { box.innerHTML = ""; return; }
@@ -1112,7 +1133,7 @@ async function renderResults() {
   let h = '<h3>Files for the Bolt</h3><p class="note">Copy them <b>one by one</b>, after a backup. Easiest: “Open folder”, then copy in your file manager (or Android File Transfer). In Chrome or Edge you can also drag a file from here to the Bolt window; a folder cannot be dragged from a web page. Click a name to download it.</p>';
   if (r.theme) {
     h += `<div class="rdir">1. Theme <span class="note">→ Bolt: maps/vtm-elemnt/</span><span style="flex:1"></span><button class="small" data-opendir="${esc(r.theme.dir)}">Open folder</button></div><div class="rin">`;
-    h += r.theme.files.map(f => fileRow(f)).join("");
+    h += r.theme.files.map(f => fileRow(f, f.name === "vtm-elemnt.xml" ? ["", "", ""] : null, false, false, r.theme.new && f.name === "vtm-elemnt.xml")).join("");
     if (r.theme.icons.length) h += `<details class="var"><summary>icons/ (${r.theme.icons.length}) — only if the Bolt has none yet; do not overwrite icons that already work</summary>${r.theme.icons.map(f => fileRow(f)).join("")}</details>`;
     h += "</div>";
   }

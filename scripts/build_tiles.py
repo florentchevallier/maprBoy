@@ -28,6 +28,7 @@ Usage (WMC installed and importable; Java + osmium required):
 
 import argparse
 import glob
+import hashlib
 import json
 import os
 import shutil
@@ -42,6 +43,7 @@ from wahoondrer import contour as contour_lines  # noqa: E402
 from wahoondrer import poi_config  # noqa: E402
 from wahoondrer import progress  # noqa: E402
 from wahoondrer import reuse  # noqa: E402
+from wahoondrer import theme_style  # noqa: E402
 from wahoondrer.tiles import label_file_name, split_covered  # noqa: E402
 
 # Where config/ and themes/ are read from: the repository, or a private copy written for the user's POIs.
@@ -110,6 +112,32 @@ def use_poi_rules(path):
     print(f"POIs: {len(pois)} type(s) enabled ({', '.join(p['key'] + '=' + p['value'] for p in pois) or 'none'})")
 
 
+def use_theme_look(look):
+    """Draw the Wandrer roads as `look` says (see wahoondrer/theme_style.py), in the private copy of config/
+    and the theme (the one made for the POIs if there is one, else a new one). The repository is not touched."""
+    global ASSETS
+    try:
+        look = theme_style.clean(look)
+        dst = os.path.join(os.path.expanduser("~"), ".wahoondrer", "generated")
+        if ASSETS == REPO:
+            if os.path.isdir(dst):
+                shutil.rmtree(dst)
+            for sub in ("config", os.path.join("themes", "vtm")):
+                shutil.copytree(os.path.join(REPO, sub), os.path.join(dst, sub),
+                                ignore=shutil.ignore_patterns("__pycache__", ".DS_Store"))
+            ASSETS = dst
+        path = os.path.join(ASSETS, "themes", "vtm", "vtm-elemnt.xml")
+        with open(path, encoding="utf-8", newline="") as f:
+            text = f.read()
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write(theme_style.apply(text, look))
+    except ValueError as exc:
+        sys.exit(f"! Look of the Wandrer roads: {exc}")
+    print("Look of the Wandrer roads changed in the theme: " + "; ".join(
+        f"{mode} {kind} {v['color']} {v['width']:g}{' outlined' if v['outline'] else ''}"
+        for mode, kinds in look.items() for kind, v in kinds.items()))
+
+
 def contour_choices(items):
     """['136/88=none', ...] -> {'136/88': 'none'}; stops with a clear message on a bad item."""
     out = {}
@@ -170,6 +198,15 @@ def generate_contours(tiles, spacing=contour_lines.DEFAULT_PRESET, per_tile=None
         if not all(contour_lines.file_ok(f) for f in made):
             print(f"  ! tile {t['x']}/{t['y']}: almost no elevation data found (open sea?).")
         contour_lines.write_marker(tdir, spacing_t)
+
+
+def file_hash(path):
+    """SHA-256 of a file, or "" when it cannot be read."""
+    try:
+        with open(path, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except OSError:
+        return ""
 
 
 def copy_theme(dst_root):
@@ -292,6 +329,9 @@ def main():
     ap.add_argument("--contour", action="store_true", help="add contour lines (needs pyhgtmap, see --setup-contour)")
     ap.add_argument("--poi-rules", help="JSON file with the POIs to enable (written by the web page); "
                                         "default: config/poi-rules.json")
+    ap.add_argument("--theme-look", metavar="JSON",
+                    help="how the Wandrer roads look in the theme (written by the web page, see wahoondrer/theme_style.py); "
+                         "default: the theme as it is")
     ap.add_argument("--contour-spacing", default=contour_lines.DEFAULT_PRESET, choices=list(contour_lines.PRESETS),
                     help="contour lines minor-medium-major spacing in metres (default %(default)s)")
     ap.add_argument("--contour-tile", action="append", default=[], metavar="X/Y=SPACING",
@@ -307,6 +347,13 @@ def main():
 
     if args.poi_rules:
         use_poi_rules(args.poi_rules)
+    if args.theme_look:
+        try:
+            custom_look = not theme_style.is_default(json.loads(args.theme_look))
+        except ValueError as exc:
+            sys.exit(f"! Look of the Wandrer roads: {exc}")
+        if custom_look:
+            use_theme_look(json.loads(args.theme_look))
     initialize_work_directories()
     adjustments_due_to_breaking_changes()
     download_tooling()
@@ -431,10 +478,19 @@ def main():
         copy_theme(out_c)
 
     write_docs(args.out, data.tiles, changed, report, args.contour, nowandrer)
-    with open(os.path.join(args.out, "last_run.json"), "w", encoding="utf-8") as f:   # read by the web interface
+    last_run = os.path.join(args.out, "last_run.json")
+    theme_hash = file_hash(os.path.join(out_w, "maps", "vtm-elemnt", "vtm-elemnt.xml"))
+    try:
+        with open(last_run, encoding="utf-8") as f:
+            before = json.load(f).get("theme_hash")
+    except (OSError, ValueError, AttributeError):
+        before = None
+    with open(last_run, "w", encoding="utf-8") as f:   # read by the web interface
         json.dump({"time": time.strftime("%Y-%m-%dT%H:%M:%S"),
                    "selected": [f"{t['x']}/{t['y']}" for t in data.tiles],
-                   "built": [f"{x}/{y}" for x, y in changed]}, f)
+                   "built": [f"{x}/{y}" for x, y in changed],
+                   "theme_hash": theme_hash,
+                   "theme_new": bool(theme_hash) and theme_hash != before}, f)    # first run, or a theme that differs from the last run's
     info_path = os.path.join(args.out, "tiles_info.json")      # what each built tile contains (kept between runs)
     try:
         with open(info_path, encoding="utf-8") as f:

@@ -118,7 +118,7 @@ def results(out):
     theme = os.path.join(maps, "vtm-elemnt")
     if os.path.isdir(theme):
         icons = os.path.join(theme, "icons")
-        res["theme"] = {"dir": theme, "icons_dir": icons,
+        res["theme"] = {"dir": theme, "icons_dir": icons, "new": bool(lr.get("theme_new")),
                         "files": [entry(os.path.join(theme, f)) for f in sorted(os.listdir(theme))
                                   if not is_junk(f) and os.path.isfile(os.path.join(theme, f))],
                         "icons": [entry(os.path.join(icons, f)) for f in sorted(os.listdir(icons))

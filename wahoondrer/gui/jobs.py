@@ -172,11 +172,15 @@ def build_commands(s, exports, squadrats_file, plan=False):
                                 "(its wmc_classic and wahoondrer_maps sub-folders are deleted at each run).")
 
     w, q = s["wandrer"], s["squadrats"]
-    if q["enabled"] and not squadrats_file:
-        raise SettingsError("No Squadrats KML file found in the Squadrats folder.")
     use_wandrer = bool(w["enabled"] and exports)
     use_squadrats = bool(q["enabled"])          # independent of Wandrer
     cmds = []
+    if use_squadrats and not squadrats_file:
+        use_squadrats = False           # no KML: build without the layer (a note says so) instead of stopping
+        cmds.append(("No Squadrats file: the layer is left out",
+                     [sys.executable, "-c",
+                      "print('! Squadrats: no KML file found in the Squadrats folder, so this layer is left out. '"
+                      "'Put your Squadrats export there (step 5) or untick the layer.')"]))
     if use_wandrer and not plan and not _wandrer_covers(exports, tiles):
         use_wandrer = False             # nothing to convert: no export touches the chosen tiles
         if not use_squadrats:
@@ -203,7 +207,7 @@ def build_commands(s, exports, squadrats_file, plan=False):
             a.append("--paved-always")
         if not w["boundaries"]:
             a.append("--no-boundaries")
-        if q["enabled"]:
+        if use_squadrats:
             levels = [l for l in q["levels"] if l in ("big", "small")]
             if not levels:
                 raise SettingsError("Squadrats: choose at least one level.")

@@ -303,6 +303,19 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(b[b.index("--xy") + 1], "135/88,136/88")
         self.assertIn("--wandrer", b)
 
+    def test_squadrats_without_file_is_left_out(self):
+        for plan in (False, True):
+            cmds = jobs.build_commands(self.s(squadrats={"enabled": True}), [], None, plan=plan)
+            self.assertIn("! Squadrats: no KML file", cmds[0][1][-1])        # a note, not an error
+            self.assertNotIn("--squadrats", cmds[-1][1])
+            self.assertEqual(cmds[-1][0], "Plan: tiles and OSM regions" if plan else "Build the map tiles")
+
+    def test_squadrats_without_file_keeps_wandrer(self):
+        cmds = jobs.build_commands(self.s(squadrats={"enabled": True}), ["/x/a.kmz"], None)
+        convert = [c for c in cmds if c[0].startswith("Convert")][0][1]
+        self.assertNotIn("--squadrats", convert); self.assertIn("/x/a.kmz", convert)
+        self.assertIn("--wandrer", cmds[-1][1])
+
     def test_options_are_passed(self):
         cmds = jobs.build_commands(self.s(wandrer={"boundaries": False, "radius_m": 0,
                                                    "with_traveled": True, "paved_always": True}), ["/x/a.kmz"], None)
@@ -362,8 +375,6 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(len(cmds), 2)
         self.assertIn("--squadrats", cmds[0][1]); self.assertIn("--tiles", cmds[0][1])
         self.assertIn("--wandrer", cmds[1][1])
-        with self.assertRaises(jobs.SettingsError):      # squadrats without file
-            jobs.build_commands(self.s(squadrats={"enabled": True}), ["/x/a.kmz"], None)
         s = self.s(); s["folders"]["out"] = os.path.join(jobs.REPO, "out")
         with self.assertRaises(jobs.SettingsError):      # output inside the repo
             jobs.build_commands(s, [], None)

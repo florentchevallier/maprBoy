@@ -299,7 +299,7 @@ def copy_tile(src_dir, x, y, dst_root, label=""):
     name = label_file_name(y, label) if label else None
     if name:
         with open(os.path.join(tdir, name), "w", encoding="utf-8") as f:
-            f.write(f"Tile 8/{x}/{y}: {label}\nInfo file only: do NOT copy it to the Bolt.\n")
+            f.write(f"Tile 8/{x}/{y}: {label}\nInfo file only: the Bolt ignores it, so copying it is harmless (it helps to tell the tiles apart).\n")
     base = os.path.join(src_dir, str(x), str(y))
     for ext in (".map.lzma", ".map.lzma.17"):
         shutil.copy2(base + ext, os.path.join(tdir, f"{y}{ext}"))
@@ -527,7 +527,7 @@ def write_docs(out, tiles, changed, report, contour=False, nowandrer=()):
     L.append("1. BACKUP: first copy the Bolt's maps/tiles/8 folder to your computer.")
     L.append("2. Copy FILES one by one (or one tile folder x at a time). Do not replace a")
     L.append("   whole folder: the Bolt may then delete neighbouring tiles that are not here.")
-    L.append("   Files named like '88_Munich.txt' only tell you which city a tile covers: do NOT copy them.")
+    L.append("   Files named like '88_Munich.txt' only tell you which city a tile covers. The Bolt ignores them: copy them or not.")
     L.append("")
     L.append("A. Tiles  (wahoondrer_maps/maps/tiles/8/...)  -> Bolt: maps/tiles/8/...")
     for x, y in changed:

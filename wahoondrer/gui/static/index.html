@@ -909,6 +909,7 @@ $$("[data-path]").forEach(el => el.addEventListener("change", () => {
   else if (el.dataset.path === "geocode") { api("/api/settings", S).then(rescan); }
   else scheduleSave(el.dataset.path === "wandrer.radius_m");
   if (el.dataset.path.startsWith("build.contour")) drawTileMenus();
+  if (el.dataset.path === "build.contour") renderContour();
 }));
 const LOOK_DEFAULT = {
   light: {unvisited: {color: "#ff8800", width: 1.5, outline: true}, visited: {color: "#2e9e4f", width: 1.0, outline: false}},
@@ -1009,8 +1010,11 @@ $("#btnCancel").onclick = () => { if (confirm("Stop now? The files being built a
 async function renderContour() {
   try {
     const c = await api("/api/contour_status");
-    $("#contourStatus").textContent = c.pyhgtmap ? "✓ pyhgtmap found (no account needed)"
-      : "✗ pyhgtmap not installed: run once in a terminal  python3 scripts/build_tiles.py --setup-contour";
+    const el = $("#contourStatus"), stops = !c.pyhgtmap && S.build && S.build.contour;
+    el.textContent = c.pyhgtmap ? "✓ pyhgtmap found (no account needed)"
+      : "✗ pyhgtmap not installed: run once in a terminal  python3 scripts/build_tiles.py --setup-contour"
+        + (stops ? " — the run will stop at the start while “Add contour lines” is ticked." : "");
+    el.style.color = stops ? "var(--bad)" : ""; el.style.fontWeight = stops ? "600" : "";
   } catch (e) { /* not important */ }
 }
 

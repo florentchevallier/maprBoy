@@ -44,6 +44,8 @@ python3 scripts/gui.py             # opens http://127.0.0.1:8765/ in your browse
 The page checks that WMC and its libraries can be imported by the Python that runs it. If not (the usual cause:
 the environment was not activated before starting the page), a red box at the top names the missing modules and the
 buttons that start a build stay disabled; the same warning is printed in the terminal.
+It also checks the versions: Python 3.10 or newer and WahooMapsCreator 4.4.0. An older WMC or Python stops the same way,
+with the command to fix it; a newer WMC only shows a note (it may work, it was not tested).
 
 1. **Folders**: press "Set up my folders" and pick a location; the page creates `Wandrer_exports`,
    `Squadrats_exports`, `Output`, `Work_files` and `OSM_data` there (or choose your own folders; "Open" shows

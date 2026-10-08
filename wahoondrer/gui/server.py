@@ -407,9 +407,11 @@ def serve(port=8765, open_browser=True):
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/"
     print(f"maprBoy is running at {url}  (Ctrl+C to stop)")
-    message = jobs.check_environment()["message"]
-    if message:
-        print(f"\nWARNING: {message}\n")
+    env = jobs.check_environment()
+    if env["message"]:
+        print(f"\nWARNING: {env['message']}\n")
+    if env["notice"]:
+        print(f"\nNOTE: {env['notice']}\n")
     if open_browser:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:

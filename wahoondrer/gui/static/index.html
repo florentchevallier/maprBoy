@@ -46,6 +46,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .warn{color:var(--bad);font-size:13px;margin:6px 0}
 .envwarn{border:1px solid var(--bad);border-left-width:5px;border-radius:10px;background:var(--card);padding:12px 16px;font-size:14px}
 .envwarn b{color:var(--bad)}
+.envnote{border-color:#c98a00;font-size:13px}
 table{border-collapse:collapse;width:100%;font-size:13.5px}
 th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
 th{color:var(--mute);font-weight:500}
@@ -147,6 +148,7 @@ tr.rgrp.folded .gsum{display:inline}
 </header>
 <main>
 <div id="envWarn" class="envwarn" role="alert" hidden></div>
+<div id="envNote" class="envwarn envnote" hidden></div>
 
 <section class="card" data-sec="folders">
   <h2><span class="n">1</span>Folders<select class="secmode" data-secmode="folders" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
@@ -930,11 +932,14 @@ $("#btnReload").onclick = $("#btnReload2").onclick = async () => { await refresh
 window.addEventListener("focus", () => { if (S && (S.folders.wandrer || S.folders.squadrats)) rescan(); });
 
 // ---------- environment (the Python running this page must have what the build imports)
-const envBad = () => !!(ST && ST.env && ST.env.missing.length);
+const envBad = () => !!(ST && ST.env && ST.env.message);
 function renderEnv() {
   const box = $("#envWarn"), bad = envBad();
   box.hidden = !bad;
   box.innerHTML = bad ? `<b>Environment not ready.</b> ${esc(ST.env.message)}` : "";
+  const note = $("#envNote"), text = ST && ST.env && ST.env.notice;
+  note.hidden = !text;
+  note.textContent = text || "";
   $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = bad || (ST.job && ST.job.status === "running");
 }
 

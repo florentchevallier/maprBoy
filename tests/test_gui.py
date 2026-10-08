@@ -1,5 +1,6 @@
 import glob
 import os
+import re
 import tempfile
 import unittest
 from unittest import mock
@@ -577,6 +578,12 @@ class JobNotificationTests(unittest.TestCase):
 
 
 class HintTests(unittest.TestCase):
+    def test_old_wmc_import_error_is_explained(self):
+        lines = ["ImportError: cannot import name 'download_tooling' from 'wahoomc.downloader' (/x/wahoomc/downloader.py)"]
+        short, long = jobs.hint_for(lines)
+        self.assertIn("too old", short); self.assertIn("4.4.0", short)
+        self.assertIn("pip install wahoomc==4.4.0", long)
+
     def test_missing_module(self):
         short, long = jobs.hint_for(["Traceback (most recent call last):", "ModuleNotFoundError: No module named 'wahoomc'"])
         self.assertIn("'wahoomc'", short)
@@ -609,11 +616,51 @@ class HintTests(unittest.TestCase):
 
 
 class EnvironmentTests(unittest.TestCase):
-    def check(self, absent):
+    def check(self, absent, wmc=None):
         real = jobs.importlib.util.find_spec
         fake = lambda name, *a: None if name in absent else real("json")
-        with mock.patch.object(jobs.importlib.util, "find_spec", side_effect=fake):
+        with mock.patch.object(jobs.importlib.util, "find_spec", side_effect=fake), \
+                mock.patch.object(jobs, "installed_version", return_value=wmc):
             return jobs.check_environment()
+
+    def test_old_wmc_stops_the_build_and_says_how_to_update(self):
+        env = self.check(set(), wmc="4.2.0")
+        self.assertEqual(env["missing"], [])
+        for word in ("4.2.0", "4.4.0", "pip install wahoomc==4.4.0", "wahoondrer-env"):
+            self.assertIn(word, env["message"])
+        self.assertEqual(env["notice"], "")
+
+    def test_same_wmc_is_fine_and_a_newer_one_only_gets_a_note(self):
+        for ok in ("4.4.0", "4.4.0.post1"):
+            env = self.check(set(), wmc=ok)
+            self.assertEqual((env["message"], env["notice"]), ("", ""), ok)
+        env = self.check(set(), wmc="4.10.0")                    # 4.10 is newer than 4.4 (numbers, not text)
+        self.assertEqual(env["message"], "")
+        self.assertIn("4.10.0", env["notice"]); self.assertIn("not guaranteed", env["notice"])
+
+    def test_an_unreadable_wmc_version_is_not_a_reason_to_stop(self):
+        env = self.check(set(), wmc=None)
+        self.assertEqual((env["message"], env["notice"], env["wmc_version"]), ("", "", None))
+
+    def test_python_too_old_stops_the_build(self):
+        with mock.patch.object(jobs, "MIN_PYTHON", (99, 0)):
+            env = self.check(set())
+        self.assertIn("99.0 or newer", env["message"]); self.assertIn("wahoondrer-env", env["message"])
+
+    def test_missing_module_and_old_wmc_are_both_reported(self):
+        env = self.check({"osgeo"}, wmc="4.2.0")
+        self.assertIn("osgeo", env["message"]); self.assertIn("4.2.0", env["message"])
+
+    def test_version_numbers_compare_as_numbers(self):
+        self.assertLess(jobs.version_tuple("4.4.0"), jobs.version_tuple("4.10.0"))
+        self.assertEqual(jobs.version_tuple("4.5.0rc1"), (4, 5, 0))
+        self.assertEqual(jobs.version_tuple("garbage"), ())
+
+    def test_the_required_version_is_the_pinned_one(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for name in ("requirements.txt", "environment.yml"):
+            with open(os.path.join(root, name), encoding="utf-8") as f:
+                self.assertRegex(f.read(), r"(?m)^\s*(?:- )?wahoomc==" + re.escape(jobs.WMC_VERSION) + r"\s*$", name)
 
     def test_everything_installed(self):
         env = self.check(set())

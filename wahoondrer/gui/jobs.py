@@ -1,4 +1,5 @@
 """Turn the settings into command lines, and run them one after the other."""
+import importlib.metadata
 import importlib.util
 import json
 import os
@@ -35,6 +36,8 @@ class SettingsError(ValueError):
 # Checked in the Python that runs this page, which is also the one that runs the build.
 REQUIRED_MODULES = ("wahoomc", "osgeo", "shapely", "geojson", "requests")
 ENV_NAME = "wahoondrer-env"
+WMC_VERSION = "4.4.0"       # the WahooMapsCreator version maprBoy was tested with (same pin as requirements.txt and environment.yml)
+MIN_PYTHON = (3, 10)        # WMC 4.4.0 declares Python 3.10 or newer
 
 
 def environment_message(missing):
@@ -46,9 +49,31 @@ def environment_message(missing):
             f"(see \"Installation\" in the README), then start the page again.")
 
 
+def version_tuple(text):
+    """'4.10.1' -> (4, 10, 1); stops at the first part that is not a number ('4.5.0rc1' -> (4, 5, 0))."""
+    parts = []
+    for piece in re.split(r"[.\-+]", str(text)):
+        m = re.match(r"\d+", piece)
+        if not m:
+            break
+        parts.append(int(m.group()))
+        if m.end() != len(piece):
+            break
+    return tuple(parts)
+
+
+def installed_version(name):
+    """Version of an installed package, None if it cannot be read."""
+    try:
+        return importlib.metadata.version(name)
+    except Exception:           # PackageNotFoundError, or damaged metadata: not worth stopping for
+        return None
+
+
 def check_environment():
     """Is everything the build needs installed in the Python running this page?
-    -> {"python", "version", "missing": [module names], "message": text for the page ("" if all is well)}"""
+    -> {"python", "version", "wmc_version", "missing": [module names],
+        "message": what stops a build ("" if all is well), "notice": a remark that does not stop anything}"""
     missing = []
     for name in REQUIRED_MODULES:
         try:
@@ -57,8 +82,23 @@ def check_environment():
             found = False
         if not found:
             missing.append(name)
-    return {"python": sys.executable, "version": platform.python_version(),
-            "missing": missing, "message": environment_message(missing)}
+    wmc = installed_version("wahoomc") if "wahoomc" not in missing else None
+    problems, notice = [], ""
+    if missing:
+        problems.append(environment_message(missing))
+    if sys.version_info[:2] < MIN_PYTHON:
+        problems.append(f"This Python is {platform.python_version()} ({sys.executable}), maprBoy needs "
+                        f"{'.'.join(map(str, MIN_PYTHON))} or newer: use the {ENV_NAME} environment "
+                        f"(see \"Installation\" in the README).")
+    if wmc and version_tuple(wmc) < version_tuple(WMC_VERSION):
+        problems.append(f"WahooMapsCreator {wmc} is installed in this Python ({sys.executable}), but maprBoy needs "
+                        f"{WMC_VERSION}: in the {ENV_NAME} environment run  pip install wahoomc=={WMC_VERSION}  "
+                        f"(see \"Installation\" in the README).")
+    elif wmc and version_tuple(wmc) > version_tuple(WMC_VERSION):
+        notice = (f"WahooMapsCreator {wmc} is installed; maprBoy was tested with {WMC_VERSION}. "
+                  f"It may work, but this is not guaranteed.")
+    return {"python": sys.executable, "version": platform.python_version(), "wmc_version": wmc,
+            "missing": missing, "message": " ".join(problems), "notice": notice}
 
 
 def require_environment():
@@ -75,6 +115,10 @@ HINTS = (
      "Hint: the Python module '{0}' is not installed in " + sys.executable + ". The page was probably started outside the "
      + ENV_NAME + " environment: stop it (Ctrl+C), activate that environment (see \"Installation\" in the README), "
      "start the page again."),
+    (re.compile(r"cannot import name '\w+' from 'wahoomc"),
+     "WahooMapsCreator is too old: maprBoy needs " + WMC_VERSION + ".",
+     "Hint: the installed WahooMapsCreator is older than the " + WMC_VERSION + " that maprBoy needs. In the " + ENV_NAME
+     + " environment (Python 3.10 or newer) run:  pip install wahoomc==" + WMC_VERSION + "  then start the page again."),
     (re.compile(r"XY coordinate '(\d+/\d+)' consists of no countries"),
      "Tile {0} has no land: no OpenStreetMap region covers it.",
      "Hint: tile {0} is in the open sea, no OpenStreetMap region covers it, so there is nothing to build. "

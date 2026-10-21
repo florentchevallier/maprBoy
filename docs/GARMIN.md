@@ -1,6 +1,7 @@
 # Garmin maps (mkgmap) — findings and recipe
 
-Status: experiments only, nothing wired into the app yet. Tested on a Forerunner 955.
+Status: the command line `scripts/build_garmin.py` (code in `wahoondrer/garmin/`) builds the Wandrer overlay;
+not wired into the app yet. Tested on a Forerunner 955.
 
 ## Principle
 Garmin devices read vector maps as `.img` files (`Garmin/gmapsupp.img`). They are built from OSM data with
@@ -36,8 +37,10 @@ Everything below was needed, each point cost an experiment:
    (`LineWidth=3`, `BorderWidth=1`) or a 32-pixel-wide bitmap pattern (dashes).
 5. **POIs** work in the same overlay: a point type in the style (`[0x6411 resolution 16]`) plus a `[_point]`
    with a `DayXpm` icon (24x24, converted from our SVG icons) in the TYP. They sit over the Garmin map's own POIs.
-6. Check a build is not empty before sending it to a device (the RGN sub-file should be more than a few hundred
-   bytes); a style rule that matches nothing still produces a valid but empty `.img`.
+6. Check a build is not empty before sending it to a device (an empty RGN is ~125 bytes); a style rule that
+   matches nothing still produces a valid but empty `.img`. To read the sizes, stop at the end of the FAT (the
+   blank-name entry gives where data starts) and only count the first entry of a sub-file: a large RGN spans
+   several FAT entries and the next ones have size 0.
 
 ## Display notes (Forerunner 955)
 - Use the "Classic" map theme; the "high contrast" theme does not show these overlays.
@@ -48,3 +51,22 @@ Everything below was needed, each point cost an experiment:
 ## To test later
 Dashed pattern for unpaved roads, a full OSM base map instead of the overlay, Squadrats lines, contour lines,
 other family ids, other devices (Edge).
+
+## Command line
+```
+python3 scripts/build_garmin.py --mkgmap /path/to/mkgmap.jar -o out/gmapsupp.img export1.kmz [export2.kmz ...]
+```
+Same options as `kmz_to_osm.py` for the exports (`--radius-m`, `--unpaved-always`, `--paved-always`, `--simplify-m`,
+`--no-merge`), `--no-boundaries`, `--area LAT,LON,KM` (only the roads within KM km of a point, e.g.
+`48.136,11.555,5`) and `--keep-osm FILE`. Visited roads are always drawn.
+Default look: unvisited red 4 px with white edge, visited cyan 4 px, unpaved dashed, boundaries thin purple.
+`--look look.json` changes it; only what differs is needed, widths are whole pixels, and at night only the colour
+can differ from the day look:
+```
+{"day": {"unvisited": {"color": "#FF00AA", "width": 3}, "visited": {"color": "#00FFFF"}},
+ "night": {"unvisited": {"color": "#FF77CC"}}}
+```
+The build refuses an empty map, a missing TYP or a TYP left as text. Tests: `MKGMAP_JAR=/path/mkgmap.jar` also runs
+the two tests that call mkgmap (skipped otherwise).
+Not checked on a device yet: dashed unpaved roads, thin purple boundaries, 4 px line with white edge (3 px was
+tested), the night colours (4-colour list in the TYP line).

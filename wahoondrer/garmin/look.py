@@ -1,18 +1,24 @@
-"""How the Wandrer roads look on a Garmin: colour, width in whole pixels, white edge; once for the day
-display and once for the night one. Unpaved roads are dashed (same colour, no edge). Every change of
-look means a new .img: the look is stored inside the file."""
+"""How the Wandrer roads look on a Garmin: colour, width in whole pixels, white edge, dashes; once for the
+day display and once for the night one. Unpaved roads have their own entries: by default the same colour,
+dashed (8 px drawn, 8 px empty). "dash": null gives a solid line instead (e.g. thinner, for small screens).
+A dashed line has no edge. Every change of look means a new .img: the look is stored inside the file."""
 import copy
 import json
 import re
 
-KINDS = ("unvisited", "visited", "boundary")
+KINDS = ("unvisited", "unvisited_unpaved", "visited", "visited_unpaved", "boundary")
 MODES = ("day", "night")
 MIN_WIDTH, MAX_WIDTH = 1, 8
+PATTERN = 32    # a TYP line bitmap is 32 px wide: dash + gap must divide it
 
-_UNVISITED = {"color": "#FF0000", "width": 4, "edge": True}
-_VISITED = {"color": "#00E1FF", "width": 4, "edge": False}
-_BOUNDARY = {"color": "#8000C0", "width": 1, "edge": False}
-DEFAULT = {mode: {"unvisited": dict(_UNVISITED), "visited": dict(_VISITED), "boundary": dict(_BOUNDARY)}
+_UNVISITED = {"color": "#FF0000", "width": 4, "edge": True, "dash": None}
+_VISITED = {"color": "#00E1FF", "width": 4, "edge": False, "dash": None}
+_BOUNDARY = {"color": "#B000FF", "width": 2, "edge": False, "dash": None}
+_UNVISITED_UNPAVED = {"color": "#FF0000", "width": 4, "edge": False, "dash": [8, 8]}
+_VISITED_UNPAVED = {"color": "#00E1FF", "width": 4, "edge": False, "dash": [8, 8]}
+DEFAULT = {mode: {"unvisited": dict(_UNVISITED), "unvisited_unpaved": dict(_UNVISITED_UNPAVED),
+                  "visited": dict(_VISITED), "visited_unpaved": dict(_VISITED_UNPAVED),
+                  "boundary": dict(_BOUNDARY)}
            for mode in MODES}
 
 
@@ -33,7 +39,19 @@ def _one(part, base, where):
         raise ValueError(f"{where}: width must be a whole number of pixels")
     if not MIN_WIDTH <= width <= MAX_WIDTH:
         raise ValueError(f"{where}: width must be between {MIN_WIDTH} and {MAX_WIDTH}")
-    return {"color": color.upper(), "width": width, "edge": bool(part["edge"])}
+    dash = part.get("dash")
+    if dash is not None:
+        try:
+            on, off = (int(v) for v in dash)
+        except (TypeError, ValueError):
+            raise ValueError(f"{where}: dash must be [drawn, empty] in pixels, or null for a solid line")
+        if on < 1 or off < 1 or PATTERN % (on + off):
+            raise ValueError(f"{where}: dash {on}+{off} px must be at least 1 px each and divide {PATTERN} px "
+                             f"(e.g. [8, 8], [6, 10], [16, 16])")
+        if part["edge"]:
+            raise ValueError(f"{where}: a dashed line cannot have an edge")
+        dash = [on, off]
+    return {"color": color.upper(), "width": width, "edge": bool(part["edge"]), "dash": dash}
 
 
 def clean(look):
@@ -45,8 +63,9 @@ def clean(look):
         src = look.get(mode) if isinstance(look.get(mode), dict) else (
             look.get("day") if mode == "night" and isinstance(look.get("day"), dict) else {})
         out[mode] = {kind: _one(src.get(kind), DEFAULT[mode][kind], f"{mode} {kind} roads") for kind in KINDS}
-    for kind in KINDS:   # a TYP line has one width and one edge: only the colour can change at night
-        out["night"][kind].update(width=out["day"][kind]["width"], edge=out["day"][kind]["edge"])
+    for kind in KINDS:   # a TYP line has one shape: only the colour can change at night
+        day = out["day"][kind]
+        out["night"][kind].update(width=day["width"], edge=day["edge"], dash=day["dash"])
     return out
 
 

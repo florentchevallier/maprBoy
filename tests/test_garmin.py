@@ -11,8 +11,8 @@ JAR = os.environ.get("MKGMAP_JAR", "")
 class LookTest(unittest.TestCase):
     def test_default_is_complete(self):
         c = look.clean({})
-        self.assertEqual(c["day"]["unvisited"], {"color": "#FF0000", "width": 4, "edge": True})
-        self.assertEqual(c["day"]["visited"], {"color": "#00E1FF", "width": 4, "edge": False})
+        self.assertEqual(c["day"]["unvisited"], {"color": "#FF0000", "width": 4, "edge": True, "dash": None})
+        self.assertEqual(c["day"]["visited"], {"color": "#00E1FF", "width": 4, "edge": False, "dash": None})
         self.assertEqual(c["night"], c["day"])
 
     def test_partial_override_and_night_follows_day(self):
@@ -24,7 +24,7 @@ class LookTest(unittest.TestCase):
     def test_night_changes_colour_only(self):
         c = look.clean({"day": {"unvisited": {"width": 3}},
                         "night": {"unvisited": {"color": "#112233", "width": 7, "edge": False}}})
-        self.assertEqual(c["night"]["unvisited"], {"color": "#112233", "width": 3, "edge": True})
+        self.assertEqual(c["night"]["unvisited"], {"color": "#112233", "width": 3, "edge": True, "dash": None})
 
     def test_bad_values(self):
         for bad in ({"day": {"unvisited": {"color": "red"}}},
@@ -60,11 +60,33 @@ class StyleTypTest(unittest.TestCase):
         self.assertIn('Xpm="0 0 4 0"\n"a c #FF0000"\n"b c #FFFFFF"\n"c c #FF55AA"\n"d c #FFFFFF"', text)
         self.assertNotIn("NightXpm", text)
 
-    def test_dashed_bitmap_is_as_high_as_the_width(self):
-        text = typ.typ_text(look.clean({"day": {"visited": {"width": 3}}}))
+    def test_unpaved_is_dashed_by_default(self):
+        text = typ.typ_text(look.clean({}))
+        block = text.split("String=Unvisited (unpaved)\n")[1].split("[end]")[0]
+        row = '"' + ("a" * 8 + "." * 8) * 2 + '"\n'
+        self.assertEqual(block, 'Xpm="32 4 2 1"\n"a c #FF0000"\n". c none"\n' + row * 4)
+
+    def test_dash_length_and_solid_option(self):
+        c = look.clean({"day": {"visited_unpaved": {"dash": [12, 4], "width": 3},
+                                "unvisited_unpaved": {"dash": None, "width": 2}}})
+        text = typ.typ_text(c)
         block = text.split("String=Visited (unpaved)\n")[1].split("[end]")[0]
         self.assertTrue(block.startswith('Xpm="32 3 2 1"'))
-        self.assertEqual(block.count("aaaaaaaaaaaaaaaa................"), 3)
+        self.assertEqual(block.count('"' + "a" * 12 + "...." + "a" * 12 + "...." + '"'), 3)
+        block = text.split("String=Unvisited (unpaved)\n")[1].split("[end]")[0]
+        self.assertEqual(block, 'LineWidth=2\nXpm="0 0 1 0"\n"a c #FF0000"\n')
+        self.assertEqual(c["day"]["visited"]["color"], "#00E1FF")
+
+    def test_bad_dashes(self):
+        for dash in ([5, 2], [0, 8], [8, 0], "x", [1]):
+            with self.assertRaises(ValueError):
+                look.clean({"day": {"visited_unpaved": {"dash": dash}}})
+        with self.assertRaisesRegex(ValueError, "edge"):
+            look.clean({"day": {"visited_unpaved": {"edge": True}}})
+
+    def test_boundary_default(self):
+        self.assertEqual(look.clean({})["day"]["boundary"],
+                         {"color": "#B000FF", "width": 2, "edge": False, "dash": None})
 
     def test_write_style(self):
         with tempfile.TemporaryDirectory() as d:

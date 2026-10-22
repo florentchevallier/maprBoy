@@ -34,7 +34,8 @@ Everything below was needed, each point cost an experiment:
    map. The values written in the TRE header (offset 0x3f..0x41) can be compared with a known-good file.
 3. **Family id.** 1299 (as Wandrer) was kept; whether another id works too has not been tested.
 4. **Line types 0x01 to 0x06** all work with a custom TYP; a TYP can define widths, a white border
-   (`LineWidth=3`, `BorderWidth=1`) or a 32-pixel-wide bitmap pattern (dashes).
+   (`LineWidth=3`, `BorderWidth=1`) or a 32-pixel-wide bitmap pattern (dashes, as Wandrer uses for unpaved roads;
+   no edge, and no night colours, for a bitmap line).
 5. **POIs** work in the same overlay: a point type in the style (`[0x6411 resolution 16]`) plus a `[_point]`
    with a `DayXpm` icon (24x24, converted from our SVG icons) in the TYP. They sit over the Garmin map's own POIs.
 6. Check a build is not empty before sending it to a device (an empty RGN is ~125 bytes); a style rule that
@@ -59,7 +60,10 @@ python3 scripts/build_garmin.py --mkgmap /path/to/mkgmap.jar -o out/gmapsupp.img
 Same options as `kmz_to_osm.py` for the exports (`--radius-m`, `--unpaved-always`, `--paved-always`, `--simplify-m`,
 `--no-merge`), `--no-boundaries`, `--area LAT,LON,KM` (only the roads within KM km of a point, e.g.
 `48.136,11.555,5`) and `--keep-osm FILE`. Visited roads are always drawn.
-Default look: unvisited red 4 px with white edge, visited cyan 4 px, unpaved dashed, boundaries thin purple.
+Default look: unvisited red 4 px with white edge, visited cyan 4 px, unpaved roads the same colour dashed (8 px
+drawn, 8 px empty), boundaries purple (#B000FF) 2 px. Unpaved roads have their own entries in the look
+(`unvisited_unpaved`, `visited_unpaved`); `"dash": [drawn, empty]` must add up to a divisor of 32 px, and
+`"dash": null` gives a solid line instead (for instance thinner, for a small watch screen).
 `--look look.json` changes it; only what differs is needed, widths are whole pixels, and at night only the colour
 can differ from the day look:
 ```
@@ -68,5 +72,7 @@ can differ from the day look:
 ```
 The build refuses an empty map, a missing TYP or a TYP left as text. Tests: `MKGMAP_JAR=/path/mkgmap.jar` also runs
 the two tests that call mkgmap (skipped otherwise).
-Not checked on a device yet: dashed unpaved roads, thin purple boundaries, 4 px line with white edge (3 px was
-tested), the night colours (4-colour list in the TYP line).
+Seen on the Forerunner 955 (Munich walk export): a 1 px boundary is almost invisible (hence 2 px); 16+16 px
+dashes are drawn but hard to read on the small screen; 6+2 px leave too little gap, 6+10 px dashes are too short:
+half and half works best with long enough dashes (hence 8+8 px). Not checked yet: 8+8 px dashes, 2 px
+boundaries, 4 px line with white edge (3 px was tested), the night colours (4-colour list in the TYP line).

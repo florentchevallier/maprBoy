@@ -94,5 +94,17 @@ square around the exports (or `--area`) and filtered to the POI tags; several re
 - No names: `--name-tag-list=maprboy:nolabel`, a tag that never exists. A POI drawn as an area (a station building)
   gets its icon in the middle (`--add-pois-to-areas`).
 - The Wandrer roads and the POIs are two tiles of the same `gmapsupp.img`.
-Needs osmium and cairosvg (both in `environment.yml`). Not checked on a device yet: icon sizes and the zoom levels
-at which they appear.
+Needs osmium and cairosvg (both in `environment.yml`). Checked on the Forerunner 955 (Munich walk export + POIs).
+
+## Squadrats
+```
+python3 scripts/build_garmin.py ... --squadrats squadrats.kml [--squadrats-levels big,small] [--squadrats-buffer 3]
+                                    [--squadrats-small-scope explored-big|band|both]
+python3 scripts/build_garmin.py ... --no-wandrer --squadrats squadrats.kml --area 48.136,11.555,5   # Squadrats only
+```
+Same outlines as for Wahoo (`squadrats.py`): unexplored squares in a band around the explored ones, in the z8 tiles
+that touch the area of the exports (or `--area`; then only the lines that touch the circle). They are written into the
+same `.osm` as the Wandrer roads (`squadrat=big|small`) and drawn as line types 0x01 (big) and 0x07 (small, the
+first type beyond 0x01-0x06). Default look: blue #1E50FF 2 px, big solid, small dashed 8+8 px (`squadrat_big`,
+`squadrat_small` in the look); the red of the Wahoo theme would be read as unvisited roads. Not checked on a device
+yet: line type 0x07, the colours.

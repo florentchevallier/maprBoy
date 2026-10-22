@@ -38,11 +38,19 @@ class LookTest(unittest.TestCase):
 class StyleTypTest(unittest.TestCase):
     def test_every_line_type_has_a_rule_and_a_typ_element(self):
         text = typ.typ_text(look.clean({}))
-        for t in (style.TYPE_UNVISITED, style.TYPE_VISITED, style.TYPE_UNVISITED_UNPAVED,
-                  style.TYPE_VISITED_UNPAVED, style.TYPE_BOUNDARY):
+        types = (style.TYPE_UNVISITED, style.TYPE_VISITED, style.TYPE_UNVISITED_UNPAVED,
+                 style.TYPE_VISITED_UNPAVED, style.TYPE_BOUNDARY, style.TYPE_SQUADRAT_BIG, style.TYPE_SQUADRAT_SMALL)
+        self.assertEqual(len(set(types)), len(types))
+        for t in types:
             self.assertIn(f"[0x{t:02x} resolution", style.LINES)
             self.assertIn(f"Type=0x{t:02x}\n", text)
-            self.assertLessEqual(t, 0x06)
+            self.assertLessEqual(t, 0x07)
+
+    def test_squadrats_default_look(self):
+        c = look.clean({})["day"]
+        self.assertEqual(c["squadrat_big"], {"color": "#1E50FF", "width": 2, "edge": False, "dash": None})
+        self.assertEqual(c["squadrat_small"]["dash"], [8, 8])
+        self.assertIn("squadrat=small [0x07 resolution", style.LINES)
 
     def test_unpaved_rules_come_before_the_general_ones(self):
         lines = style.LINES.splitlines()
@@ -170,6 +178,32 @@ OSM = """<?xml version="1.0" encoding="UTF-8"?>
   <way id="11"><nd ref="3"/><nd ref="4"/><tag k="highway" v="wandrer"/><tag k="wandrer" v="visited"/></way>
 </osm>
 """
+
+
+class SquadratsTest(unittest.TestCase):
+    def test_outlines_written_without_wandrer_export(self):
+        from tests.synthetic import write_squadrats_kml
+        from wahoondrer.process import Options
+        with tempfile.TemporaryDirectory() as d:
+            kml = os.path.join(d, "s.kml")
+            write_squadrats_kml(kml)
+            bbox = (11.45, 48.10, 11.55, 48.20)
+            lines = build.squadrat_lines(kml, bbox, log=lambda *_: None)
+            self.assertTrue(lines["big"] and lines["small"])
+            far = build.squadrat_lines(kml, bbox, area=(40.0, 0.0, 1), log=lambda *_: None)
+            self.assertEqual(far, {"big": [], "small": []})
+            osm = os.path.join(d, "s.osm")
+            build.wandrer_osm([], osm, Options(), squadrats=lines, log=lambda *_: None)
+            with open(osm) as f:
+                text = f.read()
+            self.assertIn('k="squadrat" v="big"', text)
+            self.assertIn('k="squadrat" v="small"', text)
+            self.assertNotIn('k="wandrer"', text)
+
+    def test_nothing_given(self):
+        from wahoondrer.process import Options
+        with self.assertRaises(build.GarminError):
+            build.wandrer_osm([], os.path.join(tempfile.gettempdir(), "x.osm"), Options(), log=lambda *_: None)
 
 
 @unittest.skipUnless(JAR and os.path.isfile(JAR), "set MKGMAP_JAR to the mkgmap jar to run the mkgmap test")

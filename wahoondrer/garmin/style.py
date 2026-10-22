@@ -1,6 +1,6 @@
 """The mkgmap style: which tags written by osmxml.py become which Garmin line type.
 
-Types stay within 0x01-0x06, the ones checked on a device. Rules are tried in order, the first match wins."""
+Types 0x01-0x06 were checked on a device; 0x07 (small Squadrats) is the next one. Rules are tried in order, the first match wins."""
 import os
 
 # Garmin line type of each kind of road
@@ -9,6 +9,8 @@ TYPE_VISITED = 0x05
 TYPE_UNVISITED_UNPAVED = 0x04
 TYPE_VISITED_UNPAVED = 0x03
 TYPE_BOUNDARY = 0x02
+TYPE_SQUADRAT_BIG = 0x01
+TYPE_SQUADRAT_SMALL = 0x07     # the only type beyond 0x01-0x06: to check on a device
 
 RESOLUTION = 16   # visible at every zoom the device offers for an overlay
 
@@ -17,6 +19,8 @@ wandrer=unvisited [0x{TYPE_UNVISITED:02x} resolution {RESOLUTION}]
 wandrer=visited & surface=unpaved [0x{TYPE_VISITED_UNPAVED:02x} resolution {RESOLUTION}]
 wandrer=visited [0x{TYPE_VISITED:02x} resolution {RESOLUTION}]
 wandrer=boundary [0x{TYPE_BOUNDARY:02x} resolution {RESOLUTION}]
+squadrat=big [0x{TYPE_SQUADRAT_BIG:02x} resolution {RESOLUTION}]
+squadrat=small [0x{TYPE_SQUADRAT_SMALL:02x} resolution {RESOLUTION}]
 """
 
 FILES = {

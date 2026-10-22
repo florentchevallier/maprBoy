@@ -6,7 +6,7 @@ import copy
 import json
 import re
 
-KINDS = ("unvisited", "unvisited_unpaved", "visited", "visited_unpaved", "boundary")
+KINDS = ("unvisited", "unvisited_unpaved", "visited", "visited_unpaved", "boundary", "squadrat_big", "squadrat_small")
 MODES = ("day", "night")
 MIN_WIDTH, MAX_WIDTH = 1, 8
 PATTERN = 32    # a TYP line bitmap is 32 px wide: dash + gap must divide it
@@ -16,9 +16,13 @@ _VISITED = {"color": "#00E1FF", "width": 4, "edge": False, "dash": None}
 _BOUNDARY = {"color": "#B000FF", "width": 2, "edge": False, "dash": None}
 _UNVISITED_UNPAVED = {"color": "#FF0000", "width": 4, "edge": False, "dash": [8, 8]}
 _VISITED_UNPAVED = {"color": "#00E1FF", "width": 4, "edge": False, "dash": [8, 8]}
+# Squadrats: blue, not the red of the Wahoo theme, which would be read as unvisited roads here
+_SQUADRAT_BIG = {"color": "#1E50FF", "width": 2, "edge": False, "dash": None}
+_SQUADRAT_SMALL = {"color": "#1E50FF", "width": 2, "edge": False, "dash": [8, 8]}
 DEFAULT = {mode: {"unvisited": dict(_UNVISITED), "unvisited_unpaved": dict(_UNVISITED_UNPAVED),
                   "visited": dict(_VISITED), "visited_unpaved": dict(_VISITED_UNPAVED),
-                  "boundary": dict(_BOUNDARY)}
+                  "boundary": dict(_BOUNDARY),
+                  "squadrat_big": dict(_SQUADRAT_BIG), "squadrat_small": dict(_SQUADRAT_SMALL)}
            for mode in MODES}
 
 

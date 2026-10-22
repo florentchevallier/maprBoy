@@ -37,25 +37,61 @@ def area_bbox(area):
     return (lon - dlon, lat - dlat, lon + dlon, lat + dlat)
 
 
-def wandrer_osm(exports, osm_path, opts, boundaries=True, area=None, log=print):
-    """Merge the exports (any order, the most recent wins) and write the .osm. Returns the write_osm statistics.
-
-    Visited roads are always written: the Garmin overlay draws them too (cyan by default).
-    `opts` is a process.Options. `area` = (lat, lon, km) keeps only what touches that circle."""
-    from ..kmz import merge_exports, read_export
-    from ..osmxml import write_osm
-    from ..process import process
+def read_exports(paths, log=print):
+    from ..kmz import read_export
     exps = []
-    for p in exports:
+    for p in paths:
         log(f"Reading {p} ...")
         e = read_export(p)
         log(f"  {len(e.segments)} segments, {len(e.boundaries)} boundaries, activity={e.activity or '?'}")
         exps.append(e)
-    if not exps:
-        raise GarminError("no Wandrer export given")
     activities = {e.activity for e in exps if e.activity}
     if len(activities) > 1:
         log(f"WARNING: mixed activities ({', '.join(sorted(activities))}).")
+    return exps
+
+
+def squadrat_lines(kml, bbox, levels=("big", "small"), buffer_cells=3, scope="explored-big", area=None,
+                   log=print):
+    """{"big": [line, ...], "small": [...]}: outlines of the unexplored Squadrats squares in the z8 tiles that
+    touch bbox (W, S, E, N), within buffer_cells of the explored ones (see squadrats.py); with `area`, only the
+    lines that touch that circle."""
+    from ..squadrats import read_squadrats, unexplored_outlines
+    from ..tiles import tiles_for_bbox
+    log(f"Reading Squadrats {kml} ...")
+    explored = read_squadrats(kml)
+    tiles = set(tiles_for_bbox(*bbox))
+    out = {}
+    for level in levels:
+        if level not in explored:
+            log(f"  level {level}: not found in the file, skipped")
+            continue
+        lines = unexplored_outlines(explored[level], level, buffer_cells, tiles,
+                                    parent_explored=explored.get("big"), scope=scope)
+        if area:
+            lines = [l for l in lines if _inside(l, area)]
+        out[level] = lines
+        log(f"  {level}: {len(explored[level])} explored squares -> {len(lines)} outline lines")
+    return out
+
+
+def wandrer_osm(exports, osm_path, opts, boundaries=True, area=None, log=print, squadrats=None):
+    """Merge the exports (paths or read exports, any order, the most recent wins) and write the .osm, with the
+    Squadrats outlines when given. Returns the write_osm statistics.
+
+    Visited roads are always written: the Garmin overlay draws them too (cyan by default).
+    `opts` is a process.Options. `area` = (lat, lon, km) keeps only what touches that circle.
+    No exports: only the Squadrats lines are written."""
+    from ..kmz import merge_exports
+    from ..osmxml import write_osm
+    from ..process import process
+    exps = [e for e in exports if not isinstance(e, str)] + read_exports([e for e in exports if isinstance(e, str)], log)
+    if not exps and not squadrats:
+        raise GarminError("no Wandrer export given")
+    if not exps:
+        stats = write_osm(osm_path, {}, {}, True, squadrats)
+        log(f"Wrote {osm_path}: {stats['ways']} ways, {stats['nodes']} nodes")
+        return stats
     segments, bounds, _ = merge_exports(exps)
     if area:
         before = len(segments)
@@ -64,7 +100,7 @@ def wandrer_osm(exports, osm_path, opts, boundaries=True, area=None, log=print):
         log(f"Area {area[2]:g} km around {area[0]:.5f}, {area[1]:.5f}: {before} -> {len(segments)} segments")
     segments, ps = process(segments, opts, True)
     log(f"Processing: {ps['input']} -> {ps['after_merge']} segments, {ps['nodes_after_simplify']} points")
-    stats = write_osm(osm_path, segments, bounds if boundaries else {}, True)
+    stats = write_osm(osm_path, segments, bounds if boundaries else {}, True, squadrats)
     stats["bbox"] = exports_bbox(exps)
     log(f"Wrote {osm_path}: {stats['ways']} ways, {stats['nodes']} nodes")
     return stats

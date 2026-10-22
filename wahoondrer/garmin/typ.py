@@ -17,6 +17,8 @@ LABELS = {
     style.TYPE_UNVISITED_UNPAVED: "Unvisited (unpaved)",
     style.TYPE_VISITED_UNPAVED: "Visited (unpaved)",
     style.TYPE_BOUNDARY: "Boundary",
+    style.TYPE_SQUADRAT_BIG: "Squadrat",
+    style.TYPE_SQUADRAT_SMALL: "Squadratino",
 }
 
 
@@ -55,7 +57,9 @@ def typ_text(look, family_id=FAMILY_ID, product_id=PRODUCT_ID, points=()):
             (style.TYPE_UNVISITED_UNPAVED, "unvisited_unpaved"),
             (style.TYPE_VISITED, "visited"),
             (style.TYPE_VISITED_UNPAVED, "visited_unpaved"),
-            (style.TYPE_BOUNDARY, "boundary")):
+            (style.TYPE_BOUNDARY, "boundary"),
+            (style.TYPE_SQUADRAT_BIG, "squadrat_big"),
+            (style.TYPE_SQUADRAT_SMALL, "squadrat_small")):
         out += _element(type_, LABELS[type_], look["day"][kind], look["night"][kind])
     out += list(points)
     return "\n".join(out) + "\n"

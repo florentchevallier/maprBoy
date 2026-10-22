@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Build a Garmin overlay map (gmapsupp.img): Wandrer roads from 1..n exports (KMZ/KML) and/or POIs.
+"""Build a Garmin overlay map (gmapsupp.img): Wandrer roads from 1..n exports (KMZ/KML), Squadrats and/or POIs.
 
 Usage:
     python3 scripts/build_garmin.py --mkgmap /path/to/mkgmap.jar -o out/gmapsupp.img export1.kmz [export2.kmz ...]
             [--look look.json] [--radius-m 250] [--unpaved-always] [--paved-always]
             [--simplify-m 1.5] [--no-merge] [--no-boundaries] [--area LAT,LON,KM] [--keep-osm file.osm]
             [--pois --osm region.osm.pbf [--osm other.osm.pbf] [--poi-rules rules.json]] [--no-wandrer]
+            [--squadrats squadrats.kml [--squadrats-levels big,small] [--squadrats-buffer 3]
+             [--squadrats-small-scope explored-big|band|both]]
 
 The map is transparent: it is drawn over the Garmin map already on the device, which stays visible.
 Unvisited roads red 4 px with a white edge, visited roads cyan 4 px, unpaved roads the same colour dashed
@@ -18,7 +20,10 @@ Needs Java and the mkgmap jar (https://www.mkgmap.org.uk/). The exports are merg
 --pois adds the POIs of config/poi-rules.json (or of --poi-rules, e.g. the file the web page writes from
 the user's choices), without names, taken from OSM extracts (--osm, e.g. the Geofabrik files WMC downloaded)
 cut to the area of the exports (or to --area). Needs osmium and cairosvg (both in environment.yml).
---no-wandrer: POIs only (give --area, or exports to set the area).
+--squadrats adds the outlines of the unexplored Squadrats squares (blue by default: big solid, small dashed),
+in a band of --squadrats-buffer squares around the explored ones, as for Wahoo, within the area of the exports
+(or --area).
+--no-wandrer: no Wandrer roads, only POIs and/or Squadrats (give --area, or exports to set the area).
 """
 import argparse
 import os
@@ -29,6 +34,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 from wahoondrer.garmin import build, look, pois as garmin_pois  # noqa: E402
 from wahoondrer.process import Options  # noqa: E402
+from wahoondrer.squadrats import SMALL_SCOPES  # noqa: E402
 
 BBOX_MARGIN = 0.002   # degrees added around the exports for the POIs (about 200 m)
 
@@ -64,31 +70,42 @@ def main():
     ap.add_argument("--osm", action="append", default=[], metavar="PBF",
                     help="OSM extract for the POIs (repeat for several regions)")
     ap.add_argument("--poi-rules", metavar="JSON", help="POI rules (default: config/poi-rules.json)")
-    ap.add_argument("--no-wandrer", action="store_true", help="no Wandrer roads (POIs only)")
+    ap.add_argument("--no-wandrer", action="store_true", help="no Wandrer roads (POIs and/or Squadrats only)")
+    ap.add_argument("--squadrats", metavar="KML", help="Squadrats KML export: outlines of the unexplored squares")
+    ap.add_argument("--squadrats-levels", default="big,small", help="big (z14), small (z17), comma separated")
+    ap.add_argument("--squadrats-buffer", type=int, default=3,
+                    help="band width in squares around the explored ones (default 3)")
+    ap.add_argument("--squadrats-small-scope", choices=SMALL_SCOPES, default="explored-big",
+                    help="small squares: every unexplored one inside an explored big square (default), "
+                         "a band around the explored small squares, or both")
     args = ap.parse_args()
 
     try:
-        if args.no_wandrer and not args.pois:
-            raise ValueError("--no-wandrer leaves nothing to draw: add --pois")
+        if args.no_wandrer and not (args.pois or args.squadrats):
+            raise ValueError("--no-wandrer leaves nothing to draw: add --pois or --squadrats")
         if not args.no_wandrer and not args.kmz:
-            raise ValueError("give at least one Wandrer export (or --no-wandrer --pois)")
+            raise ValueError("give at least one Wandrer export (or --no-wandrer with --pois / --squadrats)")
+        if not args.kmz and not args.area:
+            raise ValueError("give --area, or exports to set the area")
         area = parse_area(args.area) if args.area else None
         chosen = look.load(args.look) if args.look else look.defaults()
         poi_list = garmin_pois.load(args.poi_rules) if args.pois else []
         opts = Options(radius_m=args.radius_m, unpaved_always=args.unpaved_always,
                        paved_always=args.paved_always, simplify_m=args.simplify_m, merge=not args.no_merge)
         with tempfile.TemporaryDirectory(prefix="maprboy-garmin-") as tmp:
-            inputs, bbox = [], build.area_bbox(area) if area else None
-            if not args.no_wandrer:
+            exps = build.read_exports(args.kmz) if args.kmz else []
+            bbox = build.area_bbox(area) if area else build.exports_bbox(exps)
+            squadrats = None
+            if args.squadrats:
+                levels = [l.strip() for l in args.squadrats_levels.split(",") if l.strip()]
+                squadrats = build.squadrat_lines(args.squadrats, bbox, levels, args.squadrats_buffer,
+                                                 args.squadrats_small_scope, area)
+            inputs = []
+            if not args.no_wandrer or squadrats:
                 osm = args.keep_osm or os.path.join(tmp, "wandrer.osm")
-                stats = build.wandrer_osm(args.kmz, osm, opts, boundaries=not args.no_boundaries, area=area)
+                build.wandrer_osm([] if args.no_wandrer else exps, osm, opts, boundaries=not args.no_boundaries,
+                                  area=area, squadrats=squadrats)
                 inputs.append(osm)
-                bbox = bbox or stats["bbox"]
-            elif not bbox:
-                if not args.kmz:
-                    raise ValueError("POIs only: give --area, or exports to set the area")
-                from wahoondrer.kmz import read_export
-                bbox = build.exports_bbox([read_export(p) for p in args.kmz])
             poi_rules, poi_typ = "", []
             if poi_list:
                 w, s, e, n = bbox

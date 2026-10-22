@@ -9,7 +9,7 @@ import tempfile
 from . import look as looks
 from . import style, typ
 
-MIN_RGN_BYTES = 160     # an empty map (nothing matched the style) has an RGN of ~125 bytes; two short roads ~240
+MIN_RGN_BYTES = 130     # an empty map (nothing matched the style) has an RGN of 125 bytes; one POI 143
 DEFAULT_MAPNAME = "12990001"
 
 
@@ -22,6 +22,19 @@ def _inside(coords, area):
     lat0, lon0, km = area
     kx = math.cos(math.radians(lat0)) * 111.32
     return any(((x - lon0) * kx) ** 2 + ((y - lat0) * 111.2) ** 2 <= km * km for x, y in coords)
+
+
+def exports_bbox(exports):
+    """(W, S, E, N) around read exports."""
+    return (min(e.bbox[0] for e in exports), min(e.bbox[1] for e in exports),
+            max(e.bbox[2] for e in exports), max(e.bbox[3] for e in exports))
+
+
+def area_bbox(area):
+    """(W, S, E, N) around area = (lat, lon, km)."""
+    lat, lon, km = area
+    dlat, dlon = km / 111.2, km / (111.32 * math.cos(math.radians(lat)))
+    return (lon - dlon, lat - dlat, lon + dlon, lat + dlat)
 
 
 def wandrer_osm(exports, osm_path, opts, boundaries=True, area=None, log=print):
@@ -52,6 +65,7 @@ def wandrer_osm(exports, osm_path, opts, boundaries=True, area=None, log=print):
     segments, ps = process(segments, opts, True)
     log(f"Processing: {ps['input']} -> {ps['after_merge']} segments, {ps['nodes_after_simplify']} points")
     stats = write_osm(osm_path, segments, bounds if boundaries else {}, True)
+    stats["bbox"] = exports_bbox(exps)
     log(f"Wrote {osm_path}: {stats['ways']} ways, {stats['nodes']} nodes")
     return stats
 
@@ -88,7 +102,7 @@ def check_img(path):
     subs, d = read_img(path)
     rgn = sum(v for k, v in subs.items() if k.endswith(".RGN"))
     if rgn < MIN_RGN_BYTES:
-        raise GarminError(f"the map is empty (RGN {rgn} bytes): no road matched the style")
+        raise GarminError(f"the map is empty (RGN {rgn} bytes): nothing matched the style")
     typs = [v for k, v in subs.items() if k.endswith(".TYP")]
     if not typs:
         raise GarminError("no TYP in the .img: the roads would be drawn in default colours")
@@ -97,9 +111,14 @@ def check_img(path):
     return subs
 
 
+NO_LABEL_TAG = "maprboy:nolabel"   # mkgmap reads labels from this tag only: it never exists, so no names
+
+
 def build_img(osm_path, out_img, mkgmap_jar, look=None, mapname=DEFAULT_MAPNAME, description="maprBoy Wandrer",
-              java="java", keep_dir=None, log=print):
-    """Run mkgmap on `osm_path` and put the checked gmapsupp.img at `out_img`."""
+              java="java", keep_dir=None, log=print, poi_rules="", poi_typ=()):
+    """Run mkgmap on `osm_path` (a path or a list: Wandrer .osm, POI .osm.pbf) and put the checked
+    gmapsupp.img at `out_img`. poi_rules / poi_typ: the points style and the TYP [_point] lines (pois.py)."""
+    inputs = [osm_path] if isinstance(osm_path, str) else list(osm_path)
     if not os.path.isfile(mkgmap_jar):
         raise GarminError(f"mkgmap jar not found: {mkgmap_jar}")
     if shutil.which(java) is None:
@@ -108,16 +127,17 @@ def build_img(osm_path, out_img, mkgmap_jar, look=None, mapname=DEFAULT_MAPNAME,
     work = keep_dir or tempfile.mkdtemp(prefix="maprboy-garmin-")
     try:
         os.makedirs(work, exist_ok=True)
-        style_dir = style.write_style(os.path.join(work, "style"))
+        style_dir = style.write_style(os.path.join(work, "style"), points=poi_rules)
         typ_file = os.path.join(work, "wandrer.txt")      # .txt: required, see typ.py
         with open(typ_file, "w", encoding="utf-8", newline="\n") as f:
-            f.write(typ.typ_text(look))
+            f.write(typ.typ_text(look, points=poi_typ))
         out_dir = os.path.join(work, "out")
         cmd = [java, "-jar", os.path.abspath(mkgmap_jar), f"--style-file={style_dir}",
                f"--family-id={typ.FAMILY_ID}", f"--product-id={typ.PRODUCT_ID}", "--family-name=maprBoy",
                "--gmapsupp", "--latin1", "--transparent", "--draw-priority=10000",
+               "--add-pois-to-areas", f"--name-tag-list={NO_LABEL_TAG}",
                f"--series-name={description}", f"--mapname={mapname}", f"--description={description}",
-               f"--output-dir={out_dir}", typ_file, os.path.abspath(osm_path)]
+               f"--output-dir={out_dir}", typ_file] + [os.path.abspath(p) for p in inputs]
         log("Running mkgmap ...")
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode != 0:

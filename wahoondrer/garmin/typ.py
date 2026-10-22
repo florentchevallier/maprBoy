@@ -47,8 +47,8 @@ def _element(type_, label, day, night):
     return out
 
 
-def typ_text(look, family_id=FAMILY_ID, product_id=PRODUCT_ID):
-    """The TYP text for `look` (a checked look, see look.clean)."""
+def typ_text(look, family_id=FAMILY_ID, product_id=PRODUCT_ID, points=()):
+    """The TYP text for `look` (a checked look, see look.clean); `points` = [_point] lines (see pois.py)."""
     out = ["[_id]", f"FID={family_id}", f"ProductCode={product_id}", "CodePage=1252", "[end]"]
     for type_, kind in (
             (style.TYPE_UNVISITED, "unvisited"),
@@ -57,4 +57,5 @@ def typ_text(look, family_id=FAMILY_ID, product_id=PRODUCT_ID):
             (style.TYPE_VISITED_UNPAVED, "visited_unpaved"),
             (style.TYPE_BOUNDARY, "boundary")):
         out += _element(type_, LABELS[type_], look["day"][kind], look["night"][kind])
+    out += list(points)
     return "\n".join(out) + "\n"

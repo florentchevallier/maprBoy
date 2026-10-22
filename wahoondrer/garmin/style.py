@@ -28,10 +28,10 @@ FILES = {
 }
 
 
-def write_style(directory):
-    """Write the style folder mkgmap reads (--style-file)."""
+def write_style(directory, points=""):
+    """Write the style folder mkgmap reads (--style-file); `points` = the POI rules (see pois.py)."""
     os.makedirs(directory, exist_ok=True)
-    for name, text in FILES.items():
+    for name, text in {**FILES, "points": points}.items():
         with open(os.path.join(directory, name), "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
     return directory

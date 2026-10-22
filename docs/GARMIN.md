@@ -71,8 +71,28 @@ can differ from the day look:
  "night": {"unvisited": {"color": "#FF77CC"}}}
 ```
 The build refuses an empty map, a missing TYP or a TYP left as text. Tests: `MKGMAP_JAR=/path/mkgmap.jar` also runs
-the two tests that call mkgmap (skipped otherwise).
+the tests that call mkgmap (skipped otherwise).
 Seen on the Forerunner 955 (Munich walk export): a 1 px boundary is almost invisible (hence 2 px); 16+16 px
 dashes are drawn but hard to read on the small screen; 6+2 px leave too little gap, 6+10 px dashes are too short:
-half and half works best with long enough dashes (hence 8+8 px). Not checked yet: 8+8 px dashes, 2 px
-boundaries, 4 px line with white edge (3 px was tested), the night colours (4-colour list in the TYP line).
+half and half works best with long enough dashes (hence 8+8 px, accepted, as the 2 px boundaries). Not checked
+yet: the night colours (4-colour list in the TYP line).
+
+## POIs
+```
+python3 scripts/build_garmin.py ... --pois --osm oberbayern-latest.osm.pbf [--osm other.osm.pbf] [--poi-rules FILE]
+python3 scripts/build_garmin.py ... --no-wandrer --pois --osm ... --area 48.136,11.555,5      # POIs only
+```
+Same rules as for Wahoo: `config/poi-rules.json`, or the effective file the web page writes from the user's choices
+(the one passed to `build_tiles.py --poi-rules`). The Geofabrik extracts WMC downloaded are cut with osmium to the
+square around the exports (or `--area`) and filtered to the POI tags; several regions are merged.
+- One Garmin point type per distinct icon (0x6401...0x641f, so at most 31 icons); the icon is our SVG drawn by
+  cairosvg at 24 px x the POI size in %, reduced to 32 colours, in a `[_point]` `DayXpm` of the TYP.
+- Variants come first (`amenity=toilets & fee=yes`), the default icon only where no variant value matches, so a
+  variant switched off is not drawn with the default icon. `only_if` / `hide_if` become `k=v` / `k!=v` terms
+  (in mkgmap, `k!=v` is also true when the tag is missing).
+- Zoom order kept: mkgmap resolution = Wahoo zoom + 7 (13 -> 20, 14 -> 21, 15 -> 22).
+- No names: `--name-tag-list=maprboy:nolabel`, a tag that never exists. A POI drawn as an area (a station building)
+  gets its icon in the middle (`--add-pois-to-areas`).
+- The Wandrer roads and the POIs are two tiles of the same `gmapsupp.img`.
+Needs osmium and cairosvg (both in `environment.yml`). Not checked on a device yet: icon sizes and the zoom levels
+at which they appear.

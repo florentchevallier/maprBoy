@@ -13,6 +13,7 @@ dependencies:
   - shapely=2.0.2
   - geojson=3.3.0
   - requests
+  - cairosvg          # POI icons of the Garmin maps (SVG -> bitmap); brings the Cairo library
   - pip
   - pip:
       - wahoomc==4.4.0

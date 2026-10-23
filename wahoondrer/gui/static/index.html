@@ -136,6 +136,16 @@ td .old{color:var(--bad);white-space:nowrap;cursor:help;position:relative}td .ol
 .old .tip{display:none;position:absolute;right:100%;top:50%;transform:translateY(-50%);margin-right:8px;z-index:20;width:max-content;max-width:260px;white-space:normal;text-align:left;
   background:var(--ink);color:var(--card);font-size:12.5px;line-height:1.35;padding:6px 9px;border-radius:7px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .old:hover .tip,.old:focus .tip{display:block}
+.pole .blk{padding:12px 0 4px;border-top:1px solid var(--line);margin:10px 0 0 22px}   /* indented: its triangle under the title of the pole */
+.pole .blk:first-of-type{border-top:0;margin-top:2px;padding-top:4px}
+.pole .blk > h3{font-size:14px;margin:0 0 6px;display:flex;align-items:center;gap:8px}.pole .blk > h3 .sp{flex:1}
+.card h2 .hsub{font-weight:400;font-size:12.5px;color:var(--mute)}
+.seg.micro{margin-left:auto;border-radius:6px}.seg.micro button{padding:2px 9px;font-size:12px;font-weight:600;color:var(--mute)}
+.seg.micro button.on{background:var(--ink);color:var(--card)}.seg.micro button.on.own{background:var(--accent);color:var(--accent-ink)}
+.pro .simple-only{display:none}
+.pole .blk > h3{cursor:pointer;user-select:none}.pole .blk > h3 > button.fold{margin:0 -4px 0 -6px}
+.pole .blk.folded > .blk-body{display:none}.pole .blk.folded > h3{margin-bottom:0}.pole .blk.folded .fsum{display:inline}
+.pro button.pro-only.inline{display:inline-block}
 .drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--ink)}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(520px,92vw);padding:16px}
 dialog ul{list-style:none;margin:8px 0;padding:0;max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px}
@@ -187,19 +197,34 @@ tr.rgrp.folded .gsum{display:inline}
 <div id="envNote" class="envwarn envnote" hidden></div>
 </div>
 <div id="colLeft">
-<section class="card" data-sec="osm">
-  <h2>Map data from OpenStreetMap <span class="fsum" id="osmSum"></span><span class="sp"></span><button class="icon" id="btnRegReload" title="Refresh this list">🔄</button><select class="secmode" data-secmode="osm" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+<section class="card pole" data-sec="basemap">
+  <h2>Basemap &amp; POIs <span class="hsub">from OpenStreetMap</span><span class="fsum" id="poleSumBase"></span><span class="sp"></span><div class="seg micro" data-pole="basemap" role="group" aria-label="Simple or Pro for this section"><button type="button" data-m="simple">Simple</button><button type="button" data-m="pro">Pro</button></div></h2>
+  <div class="blk" id="blkBase">
+  <h3>Base map <span class="fsum" id="blkSumBase"></span><span class="sp"></span><button class="icon pro-only inline" id="btnRegReload" title="Refresh this list">🔄</button></h3>
+  <p class="note simple-only" id="osmSimple">OpenStreetMap data: <span id="osmSum"></span>. Missing or old regions are downloaded when you make the maps.</p>
+  <div id="regDl" style="display:none"><div class="note" id="regDlText"></div><div class="bar" id="regDlBar"><i></i></div><button class="small" id="regCancel">Cancel download</button></div>
+  <div class="pro-only" id="osmPro">
   <p class="hint">The base maps are built from OpenStreetMap extracts (Geofabrik regions) kept on your computer. WMC downloads missing regions by itself and renews those older than <span id="maxDays">14</span> days; here you can see them and update or add some yourself. Some are big (Austria ≈ 0.8 GB).</p>
   <div id="regions"></div>
-  <div id="regDl" style="display:none"><div class="note" id="regDlText"></div><div class="bar" id="regDlBar"><i></i></div><button class="small" id="regCancel">Cancel download</button></div>
   <div class="actions" style="margin-top:10px"><button id="btnPlan2" title="Lists the tiles and the OSM regions they need">Check which regions my tiles need</button><span class="note" id="planStatus"></span></div>
   <div class="actions" style="margin-top:8px"><span class="note">Add a region:</span><span id="regTree" class="actions" style="gap:6px"></span><button id="regAdd" disabled>Download</button></div>
   <div class="note" id="regInfo"></div>
   <div class="warn" id="regMsg"></div>
   <div><button class="small" id="regRetry" style="display:none">Retry the failed regions</button></div>
-</section>
-<section class="card" data-sec="pois">
-  <h2>Points of interest<select class="secmode" data-secmode="pois" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+  </div>
+  <div id="contourBox" style="margin-top:10px">
+    <label class="chk"><input type="checkbox" data-path="build.contour"><span>Add contour lines (relief) <small>needs <b>pyhgtmap</b> (one-time install); the first run is much longer and the tiles heavier</small></span></label>
+    <p class="note" id="contourStatus"></p>
+    <div class="pro-only">
+    <label class="row" style="grid-template-columns:150px auto 1fr">Contour spacing<select data-path="build.contour_spacing" style="width:auto"><option value="10-50-100">Fine: 10 / 50 / 100 m</option><option value="25-75-150">Medium: 25 / 75 / 150 m (default)</option><option value="30-90-180">Coarse: 30 / 90 / 180 m</option></select><small class="note">thin / medium / thick lines; changing it recomputes the lines</small></label>
+    <label class="chk"><input type="checkbox" data-path="build.contour_per_tile"><span>Choose the contour lines tile by tile <small>one choice per selected tile, in the list, or in the top right corner of the tile on the map below (click a tile to take it out or put it back)</small></span></label>
+    <div id="tileList" style="display:none;margin:4px 0 0 26px"></div>
+    <div id="map2" style="display:none;height:340px;margin:8px 0 0 26px;border-radius:8px"></div>
+    </div>
+  </div>
+  </div>
+  <div class="blk" id="blkPois">
+  <h3>Points of interest <span class="fsum" id="blkSumPois"></span></h3>
   <p class="hint">Choose which places are drawn on the map and from which zoom level. The default style is kept: unticking or changing a line never touches it, and “Back to the defaults” restores it.</p>
   <table class="pois" id="poiTable"></table>
   <div class="pro-only" id="poiCustom">
@@ -216,6 +241,7 @@ tr.rgrp.folded .gsum{display:inline}
   </div>
   <div class="actions" style="margin-top:8px"><button class="small" id="poiReset">Back to the defaults</button><span class="note" id="poiNote"></span></div>
   <p class="note">After a change, the tiles must be rebuilt and the theme copied again to the Bolt (“Make the maps” does both). More places and lower zoom levels make the tiles heavier and the map busier: add them with care.</p>
+  </div>
 </section>
 <section class="card" data-sec="exports">
   <h2>Wandrer exports <span class="sp"></span><button class="icon" id="btnReload" title="Look for new or changed files">🔄</button><select class="secmode" data-secmode="exports" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
@@ -309,14 +335,6 @@ tr.rgrp.folded .gsum{display:inline}
   <h2>Make the maps<select class="secmode" data-secmode="make" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
   <label class="chk pro-only"><input type="checkbox" data-path="build.skip_classic"><span>Only redo the Wandrer part <small>faster: reuses the classic tiles of the last run. Ignored (with a message) if the tiles, POIs, contour lines or OSM data changed since</small></span></label>
   <label class="chk"><input type="checkbox" data-path="build.notify"><span>Notify me when a run ends <small>a system notification when the maps are ready, or when a step failed (useful while you do something else)</small></span></label>
-  <div class="pro-only" id="contourBox" style="margin-top:8px">
-    <label class="chk"><input type="checkbox" data-path="build.contour"><span>Add contour lines (relief) <small>needs <b>pyhgtmap</b> (one-time install); the first run is much longer and the tiles heavier</small></span></label>
-    <label class="row" style="grid-template-columns:150px auto 1fr">Contour spacing<select data-path="build.contour_spacing" style="width:auto"><option value="10-50-100">Fine: 10 / 50 / 100 m</option><option value="25-75-150">Medium: 25 / 75 / 150 m (default)</option><option value="30-90-180">Coarse: 30 / 90 / 180 m</option></select><small class="note">thin / medium / thick lines; changing it recomputes the lines</small></label>
-    <label class="chk"><input type="checkbox" data-path="build.contour_per_tile"><span>Choose the contour lines tile by tile <small>one choice per selected tile, in the list, or in the top right corner of the tile on the map below (click a tile to take it out or put it back)</small></span></label>
-    <div id="tileList" style="display:none;margin:4px 0 0 26px"></div>
-    <div id="map2" style="display:none;height:340px;margin:8px 0 0 26px;border-radius:8px"></div>
-    <p class="note" id="contourStatus"></p>
-  </div>
   <div class="envwarn envnote" id="garminNote" hidden>Garmin maps are made from the command line for now: <span class="path">python3 scripts/build_garmin.py</span> (see docs/GARMIN.md). Making them from this page comes next.</div>
   <div class="runbox">
     <div class="runbtns">
@@ -398,17 +416,36 @@ function scheduleSave(reload) {
 }
 
 // ---------- Simple / Pro (global button, and one choice per section)
-const modeOf = sec => { const m = ((S.ui || {}).sections || {})[sec]; return m === "simple" || m === "pro" ? m : S.mode; };
+const POLE_OF = {osm: "basemap", pois: "basemap", contour: "basemap"};     // parts that now live in a pole follow its choice
+const modeOf = sec => { const m = ((S.ui || {}).sections || {})[POLE_OF[sec] || sec]; return m === "simple" || m === "pro" ? m : S.mode; };
+function dropSameAsGlobal() {        // a pole's own choice equal to the button at the top is no own choice any more
+  const sec = (S.ui || {}).sections || {};
+  for (const pole of new Set(Object.values(POLE_OF))) if (sec[pole] === S.mode) delete sec[pole];
+}
+function renderMicro() {
+  $$(".seg.micro[data-pole]").forEach(g => {
+    const own = ((S.ui || {}).sections || {})[g.dataset.pole], m = modeOf(g.dataset.pole);
+    $$("button", g).forEach(b => { const on = b.dataset.m === m; b.classList.toggle("on", on); b.classList.toggle("own", on && !!own); b.setAttribute("aria-pressed", String(on)); });
+    g.title = own ? "Set for this section only (orange). Click the other choice to follow the button at the top again." : "Follows Simple / Pro at the top";
+  });
+}
+$$(".seg.micro[data-pole] button").forEach(b => b.onclick = e => {
+  e.stopPropagation();
+  const pole = b.closest(".seg").dataset.pole; S.ui = S.ui || {}; S.ui.sections = S.ui.sections || {};
+  if (b.dataset.m === S.mode) delete S.ui.sections[pole]; else S.ui.sections[pole] = b.dataset.m;
+  applyModes(); renderPois(); drawTileMenus(); renderContour(); scheduleSave(false);
+});
 function applyModes() {
   $$("section[data-sec]").forEach(s => s.classList.toggle("pro", modeOf(s.dataset.sec) === "pro"));
   $$("select[data-secmode]").forEach(sel => sel.value = ((S.ui || {}).sections || {})[sel.dataset.secmode] || "");
+  renderMicro();
   applyFolds();
 }
 
 // ---------- fold / unfold (sections, region groups, tile folders). The state is kept in the settings (ui.folded);
 // only what differs from the default is stored. Keys: "sec:osm", "reg:Germany > Bayern", "tile:136", "list:last".
 const TRI = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l6-4.5z"/></svg>';
-const FOLD_DEFAULT = {"sec:osm": true};      // everything is open the first time, except step 7: WMC downloads the regions by itself
+const FOLD_DEFAULT = {};                     // everything is open the first time
 const forceOpen = new Set();                 // a section that must show something (a download) stays open until the user closes it
 const isFolded = key => { const f = (S && S.ui && S.ui.folded) || {}; return key in f ? !!f[key] : !!FOLD_DEFAULT[key]; };
 const secFolded = key => !forceOpen.has(key) && isFolded(key);
@@ -434,7 +471,28 @@ function initFolds() {
     });
   });
 }
+function initBlockFolds() {
+  $$(".pole .blk[id]").forEach(blk => {
+    const h3 = $(":scope > h3", blk); if (!h3) return;
+    const body = document.createElement("div"); body.className = "blk-body"; body.id = "body-" + blk.id;
+    while (h3.nextSibling) body.appendChild(h3.nextSibling);
+    blk.appendChild(body);
+    const b = document.createElement("button"); b.type = "button"; b.className = "fold"; b.innerHTML = TRI;
+    b.setAttribute("aria-controls", body.id);
+    b.setAttribute("aria-label", [...h3.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join("").trim());
+    h3.insertBefore(b, h3.firstChild);
+    h3.addEventListener("click", e => {
+      if (e.target.closest("select, input, label, a, button:not(.fold)")) return;
+      const k = "blk:" + blk.id, was = secFolded(k);
+      forceOpen.delete(k); setFolded(k, !was); applyFolds(true);
+    });
+  });
+}
 function applyFolds(user) {
+  $$(".pole .blk[id]").forEach(blk => {
+    const off = secFolded("blk:" + blk.id), b = $(":scope > h3 > button.fold", blk);
+    blk.classList.toggle("folded", off); if (b) b.setAttribute("aria-expanded", String(!off));
+  });
   $$("section.card[data-sec]").forEach(sec => {
     const off = secFolded("sec:" + sec.dataset.sec), b = $("h2 > button.fold", sec);
     sec.classList.toggle("folded", off); if (b) b.setAttribute("aria-expanded", String(!off));
@@ -447,7 +505,7 @@ function applyFolds(user) {
     if (regColsPending && fixRegCols()) regColsPending = false;     // the regions table could not be measured while folded
   }, 0);
 }
-initFolds();
+initFolds(); initBlockFolds();
 
 // ---------- rendering
 function renderInputs() {
@@ -668,7 +726,7 @@ function drawMenusOn(m, layer) {
 }
 function drawTileMenus() {
   renderTileList();
-  const on = S && S.build && S.build.contour && S.build.contour_per_tile && modeOf("make") === "pro";
+  const on = S && S.build && S.build.contour && S.build.contour_per_tile && modeOf("contour") === "pro";
   if (map && layerMenus) { layerMenus.clearLayers(); if (on) drawMenusOn(map, layerMenus); }
   const box = $("#map2"); if (!box) return;
   box.style.display = on && window.L ? "block" : "none";
@@ -835,7 +893,8 @@ async function renderRegions(fresh) {
   const R = await api("/api/regions"), box = $("#regions");
   $("#maxDays").textContent = R.max_days;
   { const n = R.downloaded.length, old = R.downloaded.filter(r => r.age_days > R.max_days).length;   // shown in the heading while step 7 is folded
-    $("#osmSum").textContent = "· " + (n ? `${n} region${n > 1 ? "s" : ""}, ${mb(R.downloaded.reduce((t, r) => t + r.size, 0))}` + (old ? `, ${old} to renew` : "") : "none downloaded yet"); }
+    const txt = n ? `${n} region${n > 1 ? "s" : ""} downloaded, ${mb(R.downloaded.reduce((t, r) => t + r.size, 0))}` + (old ? `, ${old} to renew` : "") : "no region downloaded yet";
+    $("#osmSum").textContent = txt; $("#poleSumBase").textContent = $("#blkSumBase").textContent = "· " + txt; }
   let h = "";
   if (!R.downloaded.length) h += '<p class="note">No region downloaded yet: WMC will fetch what it needs at the first run.</p>';
   else {
@@ -924,7 +983,7 @@ async function renderRegions(fresh) {
 let dlSeenRunning = false;
 function showDownload(d) {
   const failed = Object.keys(d.failed || {}).length || (d.error && d.error !== "cancelled");
-  if (d.running || (dlSeenRunning && failed)) { forceOpen.add("sec:osm"); applyFolds(); }   // open step 7 while a download runs, or when one that we watched has failed
+  if (d.running || (dlSeenRunning && failed)) { forceOpen.add("sec:basemap"); forceOpen.add("blk:blkBase"); applyFolds(); }   // open the Basemap pole while a download runs, or when one that we watched has failed
   dlSeenRunning = !!d.running;
   $("#regDl").style.display = d.running ? "block" : "none";
   if (d.running) {
@@ -977,11 +1036,11 @@ $("#radiusSel").onchange = e => {
 $$("[data-level]").forEach(el => el.addEventListener("change", () => {
   S.squadrats.levels = $$("[data-level]").filter(c => c.checked).map(c => c.dataset.level); scheduleSave(false);
 }));
-$$("#modeSeg button").forEach(b => b.onclick = () => { S.mode = b.dataset.mode; renderInputs(); renderActivity(); renderExports(); renderPois(); drawTileMenus(); if (modeOf("make") === "pro") renderContour(); scheduleSave(false); });
+$$("#modeSeg button").forEach(b => b.onclick = () => { S.mode = b.dataset.mode; dropSameAsGlobal(); renderInputs(); renderActivity(); renderExports(); renderPois(); drawTileMenus(); renderContour(); scheduleSave(false); });
 $$("select[data-secmode]").forEach(sel => sel.onchange = () => {
   S.ui = S.ui || {sections: {}}; S.ui.sections = S.ui.sections || {};
   if (sel.value) S.ui.sections[sel.dataset.secmode] = sel.value; else delete S.ui.sections[sel.dataset.secmode];
-  applyModes(); renderActivity(); renderExports(); renderPois(); drawTileMenus(); if (modeOf("make") === "pro") renderContour(); scheduleSave(false);
+  applyModes(); renderActivity(); renderExports(); renderPois(); drawTileMenus(); renderContour(); scheduleSave(false);
 });
 $("#tilesText").addEventListener("change", e => { S.tiles = parseTiles(e.target.value); scheduleSave(false); renderDerived(); });
 $("#tilesFromExports").onclick = () => { S.tiles = parseTiles(activeExports().flatMap(e => e.tiles.map(t => t.join("/"))).join(",")); scheduleSave(false); renderDerived(); drawMapLayers(true); };
@@ -1136,7 +1195,7 @@ function renderPois() {
   if (!tb) return;
   if (!POIC) { tb.innerHTML = '<tr><td class="note">Loading…</td></tr>'; return; }
   S.pois = S.pois || {overrides: {}, custom: []};
-  const pro = modeOf("pois") === "pro", ov = S.pois.overrides || {};
+  const pro = modeOf("basemap") === "pro", ov = S.pois.overrides || {};
   let h = `<tr><th></th><th>Place</th><th>From zoom</th><th>Icon</th>${pro ? '<th class="pro-only">Size %</th><th class="pro-only"></th>' : ""}</tr>`;
   const groups = {}, rows = [];
   POIC.pois.forEach(p => {
@@ -1171,6 +1230,7 @@ function renderPois() {
   const nOn = POIC.pois.filter(p => (ov[p.id] || {}).enabled ?? p.enabled).length + (S.pois.custom || []).filter(c => c.enabled !== false).length;
   const changed = Object.keys(ov).length + (S.pois.custom || []).length;
   $("#poiNote").textContent = nOn + " type" + (nOn === 1 ? "" : "s") + " of places on the map" + (changed ? " · your choices differ from the defaults" : " · default style");
+  $("#blkSumPois").textContent = "· " + nOn + " type" + (nOn === 1 ? "" : "s") + " on the map" + (changed ? ", your choices" : "");
   $("#poiReset").disabled = !changed;
   tb.querySelectorAll("input[data-ind]").forEach(i => { i.indeterminate = true; });
 }
@@ -1331,7 +1391,7 @@ async function refresh(keepMap) {
   const fresh = await api("/api/state"); ST = fresh;
   if (!unsaved) S = fresh.settings; else ST.settings = S;
   renderInputs(); renderDevice(); renderActivity(); renderExports(); renderDerived(); renderEnv();
-  if (!keepMap) { renderOsm().catch(() => {}); if (modeOf("make") === "pro") renderContour(); }
+  if (!keepMap) { renderOsm().catch(() => {}); renderContour(); }
   renderPois();
 }
 (async () => {

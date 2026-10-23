@@ -11,10 +11,10 @@ MODES = ("day", "night")
 MIN_WIDTH, MAX_WIDTH = 1, 8
 PATTERN = 32    # a TYP line bitmap is 32 px wide: dash + gap must divide it
 
-_UNVISITED = {"color": "#FF0000", "width": 4, "edge": True, "dash": None}
+_UNVISITED = {"color": "#FF00FF", "width": 4, "edge": True, "dash": None}
 _VISITED = {"color": "#00E1FF", "width": 4, "edge": False, "dash": None}
-_BOUNDARY = {"color": "#B000FF", "width": 2, "edge": False, "dash": None}
-_UNVISITED_UNPAVED = {"color": "#FF0000", "width": 4, "edge": False, "dash": [8, 8]}
+_BOUNDARY = {"color": "#B000FF", "width": 8, "edge": False, "dash": None}
+_UNVISITED_UNPAVED = {"color": "#FF00FF", "width": 4, "edge": False, "dash": [8, 8]}
 _VISITED_UNPAVED = {"color": "#00E1FF", "width": 4, "edge": False, "dash": [8, 8]}
 # Squadrats: blue, not the red of the Wahoo theme, which would be read as unvisited roads here
 _SQUADRAT_BIG = {"color": "#1E50FF", "width": 2, "edge": False, "dash": None}

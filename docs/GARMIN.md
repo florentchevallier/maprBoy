@@ -46,12 +46,14 @@ Everything below was needed, each point cost an experiment:
 ## Display notes (Forerunner 955)
 - Use the "Classic" map theme; the "high contrast" theme does not show these overlays.
 - Map > Information: enable the overlay next to the Garmin map; one `gmapsupp.img` at a time.
-- Orange (the Wahoo default) is hard to tell from the Garmin base map's own orange roads; red or magenta with a
-  white edge stands out. Widths are whole pixels.
+- Orange (the Wahoo default) is hard to tell from the Garmin base map's own orange roads, and red from the track
+  the watch draws during an activity: magenta with a white edge stands out. Widths are whole pixels.
+- Draw order: a lower line type is drawn OVER a higher one (as major roads over minor ones). The boundaries, a wide
+  band meant to show around the roads, therefore have the highest type (0x07); with 0x02 they covered the roads.
 
 ## To test later
-Dashed pattern for unpaved roads, a full OSM base map instead of the overlay, Squadrats lines, contour lines,
-other family ids, other devices (Edge).
+A full OSM base map instead of the overlay, contour lines, other family ids, other devices. On an Edge (bigger
+screen) the widths will probably need doubling: the lines are thin but right on the watch.
 
 ## Command line
 ```
@@ -60,8 +62,8 @@ python3 scripts/build_garmin.py --mkgmap /path/to/mkgmap.jar -o out/gmapsupp.img
 Same options as `kmz_to_osm.py` for the exports (`--radius-m`, `--unpaved-always`, `--paved-always`, `--simplify-m`,
 `--no-merge`), `--no-boundaries`, `--area LAT,LON,KM` (only the roads within KM km of a point, e.g.
 `48.136,11.555,5`) and `--keep-osm FILE`. Visited roads are always drawn.
-Default look: unvisited red 4 px with white edge, visited cyan 4 px, unpaved roads the same colour dashed (8 px
-drawn, 8 px empty), boundaries purple (#B000FF) 2 px. Unpaved roads have their own entries in the look
+Default look: unvisited magenta (#FF00FF) 4 px with white edge, visited cyan 4 px, unpaved roads the same colour
+dashed (8 px drawn, 8 px empty), boundaries a purple (#B000FF) 8 px band under the roads. Unpaved roads have their own entries in the look
 (`unvisited_unpaved`, `visited_unpaved`); `"dash": [drawn, empty]` must add up to a divisor of 32 px, and
 `"dash": null` gives a solid line instead (for instance thinner, for a small watch screen).
 `--look look.json` changes it; only what differs is needed, widths are whole pixels, and at night only the colour
@@ -74,8 +76,9 @@ The build refuses an empty map, a missing TYP or a TYP left as text. Tests: `MKG
 the tests that call mkgmap (skipped otherwise).
 Seen on the Forerunner 955 (Munich walk export): a 1 px boundary is almost invisible (hence 2 px); 16+16 px
 dashes are drawn but hard to read on the small screen; 6+2 px leave too little gap, 6+10 px dashes are too short:
-half and half works best with long enough dashes (hence 8+8 px, accepted, as the 2 px boundaries). Not checked
-yet: the night colours (4-colour list in the TYP line).
+half and half works best with long enough dashes (hence 8+8 px, accepted). A 2 px boundary drawn over a road hides
+in it: an 8 px band under the roads shows on both sides (accepted). Not checked yet: the night colours (4-colour
+list in the TYP line).
 
 ## POIs
 ```
@@ -104,7 +107,6 @@ python3 scripts/build_garmin.py ... --no-wandrer --squadrats squadrats.kml --are
 ```
 Same outlines as for Wahoo (`squadrats.py`): unexplored squares in a band around the explored ones, in the z8 tiles
 that touch the area of the exports (or `--area`; then only the lines that touch the circle). They are written into the
-same `.osm` as the Wandrer roads (`squadrat=big|small`) and drawn as line types 0x01 (big) and 0x07 (small, the
-first type beyond 0x01-0x06). Default look: blue #1E50FF 2 px, big solid, small dashed 8+8 px (`squadrat_big`,
-`squadrat_small` in the look); the red of the Wahoo theme would be read as unvisited roads. Not checked on a device
-yet: line type 0x07, the colours.
+same `.osm` as the Wandrer roads (`squadrat=big|small`) and drawn as line types 0x01 (big) and 0x02 (small), over
+the roads. Default look: blue #1E50FF 2 px, big solid, small dashed 8+8 px (`squadrat_big`, `squadrat_small` in the
+look); the red of the Wahoo theme would be read as unvisited roads. Checked on the Forerunner 955.

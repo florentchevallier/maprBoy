@@ -144,6 +144,12 @@ td .old{color:var(--bad);white-space:nowrap;cursor:help;position:relative}td .ol
 .seg.micro{margin-left:auto;border-radius:6px}.seg.micro button{padding:2px 9px;font-size:12px;font-weight:600;color:var(--mute)}
 .seg.micro button.on{background:var(--ink);color:var(--card)}.seg.micro button.on.own{background:var(--accent);color:var(--accent-ink)}
 .pro .simple-only{display:none}
+.maptools{display:flex;gap:10px 12px;align-items:center;flex-wrap:wrap;margin:2px 0 6px}.maptools .sp{flex:1}
+.maptools.mt2{font-size:13px}.maptools label{display:inline-flex;align-items:center;gap:6px}
+.areaseg button{padding:4px 10px;font-size:13px;display:inline-flex;align-items:center;gap:5px}.areaseg button.on{background:var(--ink);color:var(--card)}
+.areaseg .kmbox{display:none;align-items:center;gap:4px;padding:0 8px 0 0;background:var(--ink);color:var(--card);font-size:13px}
+.areaseg.km .kmbox{display:inline-flex}.areaseg.km button[data-area=exports_km]{padding-right:6px}
+.areaseg #areaKm{width:52px;padding:1px 4px;font-size:13px;border:0;border-radius:5px;background:var(--card);color:var(--ink)}
 table.exlist td{vertical-align:top}table.exlist .exname{overflow-wrap:anywhere}table.exlist td.tags{white-space:normal;width:1%}
 table.exlist .tag{width:auto;padding:1px 8px;margin:1px 3px 2px 0;white-space:nowrap}
 .sw{display:inline-block;width:20px;height:12px;border-radius:3px;border:1px solid #0003;vertical-align:-1px}.pro-hint{color:var(--mute)}
@@ -195,7 +201,7 @@ tr.rgrp.folded .gsum{display:inline}
 <header>
   <div class="tag"><span class="txt">custom OSM maps with POIs,<br>Wandrer &amp; Squadrats</span></div>
   <div class="seg devseg" id="devSeg" role="group" aria-label="Device"><button type="button" data-device="wahoo">Wahoo</button><button type="button" data-device="garmin">Garmin</button></div>
-  <nav class="steps" aria-label="Steps"><button type="button" class="step" data-step="1"><span class="num">1</span>Prepare</button><span class="arrow" aria-hidden="true">→</span><button type="button" class="step" data-step="2"><span class="num">2</span><span id="step2Label">Copy to the Bolt</span></button></nav>
+  <nav class="steps" aria-label="Steps"><button type="button" class="step" data-step="1"><span class="num">1</span>Prepare</button><span class="arrow" aria-hidden="true">→</span><button type="button" class="step" data-step="2"><span class="num">2</span><span id="step2Label">Copy to the Wahoo</span></button></nav>
   <div class="seg" id="modeSeg" title="Pro shows more options. Each section can also be set to Simple or Pro on its own.">
     <button data-mode="simple">Simple</button><button data-mode="pro">Pro</button>
   </div>
@@ -352,14 +358,22 @@ tr.rgrp.folded .gsum{display:inline}
 </div>
 <div id="colMap">
 <section class="card" data-sec="tiles">
-  <h2>Tiles<select class="secmode" data-secmode="tiles" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
-  <p class="hint">Wahoo maps are made of zoom-8 tiles (about 100 × 70 km). Click the map to add or remove a tile. <span style="color:var(--accent)">Orange</span> = to build, coloured rectangles = area covered by an export, one colour per type (hover a row above to find it).</p>
-  <div class="tilebar">
-    <input type="text" id="tilesText" placeholder="e.g. 135/88, 136/88">
-    <button id="tilesFromExports">Use the tiles of my exports</button>
+  <h2>Tiles to generate<select class="secmode" data-secmode="tiles" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+  <div class="maptools">
+    <span class="seg areaseg" id="areaSeg" role="group" aria-label="How to choose the tiles">
+      <button type="button" data-area="manual">Manual</button><button type="button" data-area="exports">From Wandrer exports</button><button type="button" data-area="exports_km">Exports +</button><span class="kmbox"><input type="number" id="areaKm" min="0" max="200" step="1" aria-label="Margin around the exports in km">km</span><button type="button" data-area="regions" disabled title="Next step">Regions</button>
+    </span>
+    <span class="sp"></span><button type="button" class="small" id="mapFit">🔍 Zoom to my data</button><button type="button" class="small" id="mapLocate">📍 My location</button>
+  </div>
+  <div class="maptools mt2">
+    <label><input type="checkbox" id="layExp" checked> Wandrer coverage</label><label><input type="checkbox" id="layTiles" checked> Selected tiles</label>
+    <span class="sp"></span><span class="note" id="areaHint"></span>
+  </div>
+  <div class="tilebar pro-only" style="margin:6px 0 0">
+    <input type="text" id="tilesText" placeholder="e.g. 135/88, 136/88" aria-label="Tiles">
     <button id="tilesClear">Clear</button>
   </div>
-  <div class="tilebar" style="margin-top:8px"><button id="mapFit">🔍 Zoom to my data</button><button id="mapLocate">📍 My location</button><span class="note" id="locNote"></span></div>
+  <span class="note" id="locNote"></span>
   <div id="map"></div>
   <div class="note" id="mapNote"></div>
   <div class="note" id="mapLegend"></div>
@@ -388,7 +402,7 @@ tr.rgrp.folded .gsum{display:inline}
 </div>
 <div id="colFiles">
 <section class="card files">
-  <h2 id="filesTitle">Copy to the Bolt</h2>
+  <h2 id="filesTitle">Copy to the Wahoo</h2>
   <p class="note" id="doneNote"></p>
   <div id="results"><p class="note">Nothing built yet.</p></div>
   <div class="actions" style="margin-top:12px"><button type="button" data-step="1">← Back to step 1</button></div>
@@ -626,8 +640,48 @@ function renderSquadratsSums() {
   $("#poleSumSq").textContent = "· " + (S.squadrats.enabled ? (ST.squadrats_used || "no file") : "off");
   $("#blkSumSqFile").textContent = "· " + (ST.squadrats_used || "none");
 }
+// ---------- area: how the tiles are chosen. A mode fills S.tiles; a click or a typed list switches to Manual.
+const AREA_HINT = {manual: "Click the map to add or remove a tile (zoom-8 tiles, about 100 × 70 km).",
+  exports: "The tiles touched by the exports in use; click a tile to adjust (switches to Manual).",
+  exports_km: "The tiles within this margin of the exports in use; click a tile to adjust (switches to Manual)."};
+const area = () => (S.area = S.area || {mode: "manual", km: 10});
+function toManual() { if (area().mode !== "manual") { area().mode = "manual"; renderArea(); } }
+function tilesInBox(w, s, e, n) {
+  const [x0, y0] = tileOf(w, n), [x1, y1] = tileOf(e, s), out = [];
+  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) out.push(x + "/" + y);
+  return out;
+}
+function areaTiles() {
+  const a = area(), ex = activeExports().filter(e => e.bbox);
+  if (a.mode === "exports") return parseTiles(ex.flatMap(e => (e.tiles || []).map(t => t.join("/"))).join(","));
+  if (a.mode === "exports_km") {
+    const km = Math.max(0, +a.km || 0);
+    return parseTiles(ex.flatMap(e => { const [w, s, ea, n] = e.bbox, lat = (s + n) / 2, dy = km / 111.2, dx = km / (111.32 * Math.cos(lat * Math.PI / 180));
+      return tilesInBox(w - dx, s - dy, ea + dx, n + dy); }).join(","));
+  }
+  return null;                                    // manual: the tiles stay as they are
+}
+function applyArea() {                            // recompute the tiles of a mode (after a mode, margin or export change)
+  const t = areaTiles();
+  if (t && t.join(",") !== S.tiles.join(",")) { S.tiles = t; scheduleSave(false); drawMapLayers(); }
+}
+function renderArea() {
+  const a = area();
+  $$("#areaSeg button").forEach(b => { const on = b.dataset.area === a.mode; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
+  $("#areaSeg").classList.toggle("km", a.mode === "exports_km");
+  if (document.activeElement !== $("#areaKm")) $("#areaKm").value = a.km;
+  $("#areaHint").textContent = AREA_HINT[a.mode] || "";
+}
+$$("#areaSeg button").forEach(b => b.onclick = e => {
+  if (b.disabled) return;
+  area().mode = b.dataset.area; renderArea(); applyArea(); scheduleSave(false); drawMapLayers(true);
+});
+$("#areaKm").addEventListener("change", e => { area().km = Math.max(0, Math.min(200, Math.round(+e.target.value || 0))); renderArea(); applyArea(); scheduleSave(false); drawMapLayers(true); });
+$("#layExp").onchange = e => { if (map) { if (e.target.checked) layerExp.addTo(map); else map.removeLayer(layerExp); } };
+$("#layTiles").onchange = e => { if (map) { if (e.target.checked) layerTiles.addTo(map); else map.removeLayer(layerTiles); } };
+
 function renderDerived() {
-  renderWandrerSums(); renderSquadratsSums();
+  renderWandrerSums(); renderSquadratsSums(); renderArea(); applyArea();
   const ch = activeExports();
   const hasB = ch.some(e => e.boundaries > 0), cb = $("#optBoundaries");
   cb.disabled = !hasB;
@@ -684,6 +738,7 @@ async function initMap() {
   layerExp = L.layerGroup().addTo(map); layerTiles = L.layerGroup().addTo(map); layerGrid = L.layerGroup().addTo(map);
   layerMenus = L.layerGroup().addTo(map);
   map.on("click", e => {
+    toManual();                                   // a click adjusts the tiles a mode chose: the selection is kept, as Manual
     const [x, y] = tileOf(e.latlng.lng, e.latlng.lat), k = x + "/" + y, i = S.tiles.indexOf(k);
     if (i >= 0) S.tiles.splice(i, 1); else S.tiles.push(k);
     S.tiles = parseTiles(S.tiles.join(","));
@@ -1109,9 +1164,8 @@ $$("select[data-secmode]").forEach(sel => sel.onchange = () => {
   if (sel.value) S.ui.sections[sel.dataset.secmode] = sel.value; else delete S.ui.sections[sel.dataset.secmode];
   applyModes(); renderActivity(); renderExports(); renderPois(); drawTileMenus(); renderContour(); scheduleSave(false);
 });
-$("#tilesText").addEventListener("change", e => { S.tiles = parseTiles(e.target.value); scheduleSave(false); renderDerived(); });
-$("#tilesFromExports").onclick = () => { S.tiles = parseTiles(activeExports().flatMap(e => e.tiles.map(t => t.join("/"))).join(",")); scheduleSave(false); renderDerived(); drawMapLayers(true); };
-$("#tilesClear").onclick = () => { S.tiles = []; scheduleSave(false); renderDerived(); };
+$("#tilesText").addEventListener("change", e => { toManual(); S.tiles = parseTiles(e.target.value); scheduleSave(false); renderDerived(); });
+$("#tilesClear").onclick = () => { toManual(); S.tiles = []; scheduleSave(false); renderDerived(); };
 $("#mapFit").onclick = () => { const b = dataBounds(); if (b && map) map.fitBounds(b, {maxZoom: 9, padding: [20, 20]}); };
 $("#mapLocate").onclick = () => {
   const note = $("#locNote");
@@ -1373,8 +1427,9 @@ async function loadPois() {
 const fileUrl = rel => "/api/file?rel=" + encodeURIComponent(rel);
 const fileRow = (f, extra, newTile, plain, newTheme) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${plain ? '<span class="plaintile" title="No Wandrer data in this tile: plain map, no Wandrer or Squadrats lines">plain tile</span> ' : ""}${newTile ? '<span class="newtile">🌟 New tile!</span>' : ""}${newTheme ? '<span class="newtheme">🚨 NEW THEME: update the file on Bolt 🚨</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
 const NOTHING_YET = '<p class="note">Nothing built yet: make the maps in step 1, then come back here.</p>';
-const GARMIN_COPY = '<p>Copy the <b>gmapsupp.img</b> made by <span class="path">scripts/build_garmin.py</span> to the watch as ' +
-  '<b>Garmin/gmapsupp.img</b> (one such file at a time), enable it under Map › Information, and use the <b>Classic</b> map theme.</p>' +
+const GARMIN_COPY = '<p>Copy the <b>gmapsupp.img</b> made by <span class="path">scripts/build_garmin.py</span> to the device (Edge or watch) as ' +
+  '<b>Garmin/gmapsupp.img</b>, one such file at a time, then enable it in the map settings (on a Forerunner 955: Map › Information, ' +
+  'with the <b>Classic</b> map theme).</p>' +
   '<p class="note">Making it from this page, and the list of files here, come next.</p>';
 async function renderResults() {
   const box = $("#results");
@@ -1430,7 +1485,7 @@ $("#results").addEventListener("click", async e => {
 const isGarmin = () => !!(S && S.device === "garmin");
 function renderDevice() {
   $$("#devSeg button").forEach(b => { const on = b.dataset.device === S.device; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
-  const what = isGarmin() ? "watch" : "Bolt";
+  const what = isGarmin() ? "Garmin" : "Wahoo";
   $("#step2Label").textContent = $("#filesTitle").textContent = "Copy to the " + what;
   $("#garminNote").hidden = !isGarmin();
   document.body.classList.toggle("garmin", isGarmin());

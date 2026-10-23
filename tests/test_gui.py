@@ -167,6 +167,16 @@ class DeviceSettingsTests(unittest.TestCase):
             g["device"] = "wahoo"; w = settings.save(g, p)
             self.assertEqual((w["activity"], w["tiles"]), ("bike", ["136/88"]))
 
+    def test_the_area_mode_is_kept_per_device(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            s = settings.load(p)
+            self.assertEqual(s["area"], {"mode": "manual", "km": 10})
+            s["area"] = {"mode": "exports_km", "km": 25}; s = settings.save(s, p)
+            s["device"] = "garmin"; g = settings.save(s, p)
+            self.assertEqual(g["area"]["mode"], "manual")
+            g["device"] = "wahoo"; self.assertEqual(settings.save(g, p)["area"], {"mode": "exports_km", "km": 25})
+
     def test_the_squadrats_file_is_shared(self):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "s.json")

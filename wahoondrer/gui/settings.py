@@ -31,6 +31,8 @@ DEFAULTS = {
     "geocode": True,                 # look up the main place name of each export online
     "excluded_exports": [],          # export file names the user unticked
     "tiles": [],                     # ["136/88", ...]
+    "area": {"mode": "manual",       # how the tiles are chosen: "manual" | "exports" | "exports_km" | "regions"
+             "km": 10},              # margin around the exports for "exports_km"
     "wandrer": {
         "enabled": True,
         "boundaries": True,
@@ -74,7 +76,7 @@ def _merge(base, new):
 
 
 # kept apart for each device; every other key of DEFAULTS is shared (the Squadrats file too, see below)
-DEVICE_KEYS = ("activity", "excluded_exports", "tiles", "wandrer", "squadrats", "build", "pois")
+DEVICE_KEYS = ("activity", "excluded_exports", "tiles", "area", "wandrer", "squadrats", "build", "pois")
 
 
 def _read(path):

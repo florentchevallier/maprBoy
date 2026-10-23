@@ -16,15 +16,39 @@
 .banner h1{position:absolute;left:1.4%;bottom:5%;margin:0;line-height:1;white-space:nowrap;color:#fff;font:400 3.5cqw "Titan One",system-ui,sans-serif;
   writing-mode:vertical-rl;transform:rotate(180deg);-webkit-text-stroke:.14em #080c32;paint-order:stroke fill;stroke-linejoin:round;
   text-shadow:0 .05em 0 #080c32,0 .09em .05em rgba(0,0,0,.35)}
-header .for{display:inline-block;padding:6px 16px;border-radius:99px;font-size:15px;font-weight:600;white-space:nowrap}
-header .for.wahoo{background:#19a6df;color:#06223a}
-header .tag{display:flex;align-items:center;gap:14px;line-height:1.5;text-align:left;font-size:13px;color:var(--mute);flex:1}
+header .tag{display:flex;align-items:center;gap:14px;line-height:1.35;text-align:left;font-size:13px;color:var(--mute);width:auto;padding:0;border-radius:0;margin:0}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
-header{display:flex;align-items:center;gap:16px;padding:14px max(16px,calc((100% - 1040px)/2 + 16px));border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:1000}
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px max(20px,calc((100% - var(--pagew))/2));border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:1000}
 header h1{font-size:18px;margin:0;flex:1}
 header h1 small{color:var(--mute);font-weight:400;margin-left:8px;font-size:13px}
-main{max-width:1040px;margin:0 auto;padding:16px 16px 60px;display:grid;gap:16px}
+:root{--colL:640px;--colLmax:800px;--colRmax:1100px;--pagew:calc(var(--colLmax) + 16px + var(--colRmax))}
+main{margin:0 auto;padding:16px 20px 40px;display:grid;gap:16px;max-width:calc(var(--pagew) + 40px)}
+/* two columns: options on the left (they scroll), map and "Make" on the right (they stay); step 2: map + files */
+.layout{grid-template-columns:clamp(var(--colL),100% - var(--colRmax) - 16px,var(--colLmax)) minmax(0,1fr);align-items:start}
+.layout .envs{grid-column:1/-1;display:grid;gap:10px}.layout .envs:not(:has(> :not([hidden]))){display:none}
+#colLeft,#colMap,#colFiles{display:grid;gap:16px;min-width:0}
+#colLeft > section,#colMap > section{min-width:0;overflow-x:auto}
+#colMap{position:sticky;top:var(--headh,64px);max-height:calc(100vh - var(--headh,64px) - 16px);overflow:auto;grid-template-rows:minmax(0,1fr) auto}
+#colMap section[data-sec=tiles]{display:flex;flex-direction:column;min-height:420px}
+#colMap section[data-sec=tiles] > .fold-body{display:flex;flex-direction:column;flex:1;min-height:0}
+#colMap #map{flex:1;min-height:320px;height:auto}
+#colFiles{display:none}
+body.step2 #colLeft,body.step2 section[data-sec=make]{display:none}
+body.step2 #colFiles{display:grid}
+body.step2 .layout{grid-template-columns:minmax(0,var(--colRmax)) clamp(380px,100% - var(--colRmax) - 16px,var(--colLmax))}
+@media (max-width:1000px){.layout,body.step2 .layout{grid-template-columns:1fr}#colMap{position:static;max-height:none}#colMap #map{height:400px;flex:none}}
+#devSeg button[data-device=wahoo].on{background:#19a6df;color:#06223a}#devSeg button[data-device=garmin].on{background:#2b6fb3;color:#fff}
+.steps{display:inline-flex;align-items:center;gap:6px;margin:0 auto}
+.step{font-weight:600;padding:6px 14px;border-radius:99px;display:inline-flex;align-items:center;gap:8px;color:var(--mute)}
+.step .num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--line);color:var(--ink);font-size:12px;font-weight:800}
+.step.on{background:var(--ink);color:var(--card);border-color:var(--ink)}.step.on .num{background:var(--accent);color:#fff}
+.steps .arrow{color:var(--mute)}
+.gear{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border-radius:10px}
+#setDlg{width:min(720px,94vw);padding:18px 20px}
+#setDlg::backdrop{background:rgba(0,0,0,.38)}
+.dlghead{display:flex;align-items:center;gap:10px;margin-bottom:6px}.dlghead h2{margin:0;font-size:18px}.dlghead .sp{flex:1}
+.setsub{font-size:14px;margin:16px 0 4px;padding-top:12px;border-top:1px solid var(--line)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
 .card h2{font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
 .card h2 .n{display:inline-block;background:var(--accent);color:var(--accent-ink);border-radius:50%;width:22px;height:22px;text-align:center;line-height:22px;font-size:12px}
@@ -91,11 +115,11 @@ details.var div{margin:3px 0 0 4px;color:var(--ink)}
 @media (max-width:760px){.opts{grid-template-columns:1fr}label.row{grid-template-columns:1fr}}
 #stepWrap[hidden]{display:none}#stepWrap{display:flex;flex-direction:column;gap:4px;margin:2px 0 0;font-size:12.5px;line-height:1.3}#stepWrap progress{width:100%;height:12px;accent-color:var(--accent,#2f6fdb)}#dlBar{background:var(--code);color:var(--codeink);font:12.5px/1.4 ui-monospace,Menlo,monospace;margin:0;padding:0 12px 12px;border-radius:0 0 10px 10px;white-space:pre;overflow:auto}#dlBar[hidden]{display:none}pre#log:has(+ #dlBar:not([hidden])){border-radius:10px 10px 0 0;padding-bottom:6px}
 .runbox{display:grid;grid-template-columns:176px minmax(0,1fr);gap:14px;align-items:start;margin-top:8px}
-.runbtns{display:flex;flex-direction:column;gap:8px;height:400px}
+.runbtns{display:flex;flex-direction:column;gap:8px;height:240px}
 #runMsg{flex:1;min-height:0;overflow:auto;margin:2px 0 0;font-size:12px;line-height:1.3}.runbtns button{width:100%;margin:0;padding:8px 12px}
 .runout{min-width:0}.runstat{display:flex;flex-direction:column;gap:3px}#elapsed{text-align:center;margin:0;min-height:1.3em}.runstat .pill{display:block;width:100%;box-sizing:border-box;padding:8px 12px;border-radius:8px;text-align:center;font-size:14px;line-height:1.25;white-space:normal;overflow-wrap:anywhere}
 @media (max-width:700px){.runbox{grid-template-columns:1fr}.runbtns{flex-direction:row;flex-wrap:wrap;align-items:center;height:auto}.runbtns button{width:auto}.runstat,.runbtns #stepWrap,#runMsg,#elapsed{flex:0 0 100%}#runMsg{overflow:visible}}
-pre#log{background:var(--code);color:var(--codeink);border-radius:10px;padding:12px;height:400px;overflow:auto;font:12.5px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:0}
+pre#log{background:var(--code);color:var(--codeink);border-radius:10px;padding:12px;height:240px;overflow:auto;font:12.5px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:0}
 .pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12.5px;background:var(--line)}
 .pill.running{background:var(--accent);color:#fff}.pill.done{background:var(--ok);color:#fff}.pill.failed{background:var(--bad);color:#fff}
 .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -108,6 +132,10 @@ pre#log{background:var(--code);color:var(--codeink);border-radius:10px;padding:1
 .dropmsg.ok{background:#e9f6ec;border-color:#9fd3ab;color:#14612b}
 .dropmsg.dup{background:#fff6dc;border-color:#e8cc6b;color:#5c4500}
 .dropmsg.bad{background:#fdecea;border-color:#efaaa3;color:#8f1d1d}
+td .old{color:var(--bad);white-space:nowrap;cursor:help;position:relative}td .old sup{font-size:11px;margin-left:2px}
+.old .tip{display:none;position:absolute;right:100%;top:50%;transform:translateY(-50%);margin-right:8px;z-index:20;width:max-content;max-width:260px;white-space:normal;text-align:left;
+  background:var(--ink);color:var(--card);font-size:12.5px;line-height:1.35;padding:6px 9px;border-radius:7px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.old:hover .tip,.old:focus .tip{display:block}
 .drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--ink)}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(520px,92vw);padding:16px}
 dialog ul{list-style:none;margin:8px 0;padding:0;max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px}
@@ -145,29 +173,52 @@ tr.rgrp.folded .gsum{display:inline}
 <body>
 <div class="banner"><img src="banner.jpg" alt="" width="1600" height="457"><h1>maprBoy</h1></div>
 <header>
-  <div class="tag"><span class="txt">custom OSM maps with POIs,<br>Wandrer &amp; Squadrats</span><span class="for wahoo">for Wahoo</span></div>
+  <div class="tag"><span class="txt">custom OSM maps with POIs,<br>Wandrer &amp; Squadrats</span></div>
+  <div class="seg devseg" id="devSeg" role="group" aria-label="Device"><button type="button" data-device="wahoo">Wahoo</button><button type="button" data-device="garmin">Garmin</button></div>
+  <nav class="steps" aria-label="Steps"><button type="button" class="step" data-step="1"><span class="num">1</span>Prepare</button><span class="arrow" aria-hidden="true">→</span><button type="button" class="step" data-step="2"><span class="num">2</span><span id="step2Label">Copy to the Bolt</span></button></nav>
   <div class="seg" id="modeSeg" title="Pro shows more options. Each section can also be set to Simple or Pro on its own.">
     <button data-mode="simple">Simple</button><button data-mode="pro">Pro</button>
   </div>
+  <button type="button" class="gear" id="btnGear" aria-label="Folders and settings" title="Folders and settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
 </header>
-<main>
+<main class="layout">
+<div class="envs">
 <div id="envWarn" class="envwarn" role="alert" hidden></div>
 <div id="envNote" class="envwarn envnote" hidden></div>
-
-<section class="card" data-sec="folders">
-  <h2><span class="n">1</span>Folders<select class="secmode" data-secmode="folders" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
-  <p class="hint">Easiest: press <b>Set up my folders</b> and choose where they should live. The page creates the folders there, plus one for the OpenStreetMap map data; then drop your Wandrer and Squadrats files into them (here below, or in your file manager with "Open"). Choices are remembered.</p>
-  <div class="actions" style="margin-bottom:8px"><button id="btnSetup" class="primary">Set up my folders…</button><span class="note" id="dataNote"></span></div>
-  <label class="row">Wandrer exports<input type="text" data-path="folders.wandrer"><button data-browse="folders.wandrer">Choose…</button><button data-open="folders.wandrer">Open</button></label>
-  <label class="row">Squadrats exports<input type="text" data-path="folders.squadrats"><button data-browse="folders.squadrats">Choose…</button><button data-open="folders.squadrats">Open</button></label>
-  <label class="row">Output<input type="text" data-path="folders.out"><button data-browse="folders.out">Choose…</button><button data-open="folders.out">Open</button></label>
-  <label class="row">Work files<input type="text" data-path="folders.work"><button data-browse="folders.work">Choose…</button><button data-open="folders.work">Open</button></label>
-  <p class="note">Output: the maps are written to <b>wmc_classic</b> and <b>wahoondrer_maps</b> inside it (one tile per coordinates: a new run replaces only the tiles it rebuilds and keeps the others; to keep several versions of a tile, copy it elsewhere yourself).<span> Work files: temporary files made while building; you can ignore this folder.</span><span class="pro-only inline"> It holds the merged Wandrer data (<b>wandrer.osm</b>) handed to WMC.</span></p>
-  <div id="osmRow" class="note" style="margin-top:8px"></div>
+</div>
+<div id="colLeft">
+<section class="card" data-sec="osm">
+  <h2>Map data from OpenStreetMap <span class="fsum" id="osmSum"></span><span class="sp"></span><button class="icon" id="btnRegReload" title="Refresh this list">🔄</button><select class="secmode" data-secmode="osm" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+  <p class="hint">The base maps are built from OpenStreetMap extracts (Geofabrik regions) kept on your computer. WMC downloads missing regions by itself and renews those older than <span id="maxDays">14</span> days; here you can see them and update or add some yourself. Some are big (Austria ≈ 0.8 GB).</p>
+  <div id="regions"></div>
+  <div id="regDl" style="display:none"><div class="note" id="regDlText"></div><div class="bar" id="regDlBar"><i></i></div><button class="small" id="regCancel">Cancel download</button></div>
+  <div class="actions" style="margin-top:10px"><button id="btnPlan2" title="Lists the tiles and the OSM regions they need">Check which regions my tiles need</button><span class="note" id="planStatus"></span></div>
+  <div class="actions" style="margin-top:8px"><span class="note">Add a region:</span><span id="regTree" class="actions" style="gap:6px"></span><button id="regAdd" disabled>Download</button></div>
+  <div class="note" id="regInfo"></div>
+  <div class="warn" id="regMsg"></div>
+  <div><button class="small" id="regRetry" style="display:none">Retry the failed regions</button></div>
 </section>
-
+<section class="card" data-sec="pois">
+  <h2>Points of interest<select class="secmode" data-secmode="pois" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+  <p class="hint">Choose which places are drawn on the map and from which zoom level. The default style is kept: unticking or changing a line never touches it, and “Back to the defaults” restores it.</p>
+  <table class="pois" id="poiTable"></table>
+  <div class="pro-only" id="poiCustom">
+    <p class="note" style="margin:10px 0 0">Add your own type of place, by its OpenStreetMap tag (find tags on <a href="https://taginfo.openstreetmap.org" target="_blank" rel="noopener">taginfo</a>, check the data on <a href="https://overpass-turbo.eu" target="_blank" rel="noopener">overpass-turbo</a>).</p>
+    <div class="customform">
+      <input type="text" id="cuLabel" placeholder="Name (e.g. Bench)">
+      <input type="text" id="cuKey" placeholder="key (amenity)">
+      <input type="text" id="cuValue" placeholder="value (bench)">
+      <select id="cuZoom"></select>
+      <select id="cuIcon"></select>
+      <button id="cuAdd">Add</button>
+    </div>
+    <div class="warn" id="cuMsg"></div>
+  </div>
+  <div class="actions" style="margin-top:8px"><button class="small" id="poiReset">Back to the defaults</button><span class="note" id="poiNote"></span></div>
+  <p class="note">After a change, the tiles must be rebuilt and the theme copied again to the Bolt (“Make the maps” does both). More places and lower zoom levels make the tiles heavier and the map busier: add them with care.</p>
+</section>
 <section class="card" data-sec="exports">
-  <h2><span class="n">2</span>Wandrer exports <span class="sp"></span><button class="icon" id="btnReload" title="Look for new or changed files">🔄</button><select class="secmode" data-secmode="exports" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+  <h2>Wandrer exports <span class="sp"></span><button class="icon" id="btnReload" title="Look for new or changed files">🔄</button><select class="secmode" data-secmode="exports" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
   <p class="hint">Ticked exports are merged; where they overlap, the most recent one wins. "Near" is the town where you ride most in that export.</p>
   <div id="scanBox" style="display:none"><div class="note" id="scanText"></div><div class="bar" id="scanBar"><i></i></div></div>
   <div class="actions" id="actBox" style="margin:4px 0 8px"><span class="note">Which exports to use:</span>
@@ -176,25 +227,9 @@ tr.rgrp.folded .gsum{display:inline}
   <p class="note" style="margin:0 0 8px">Wandrer gives three kinds of export: <b>bike</b>, <b>foot</b> and <b>combined</b>. The map is made from one kind.<span class="pro-only inline"> Pro: “all types” mixes them.</span> Until you choose, the type of your newest export is used.</p>
   <div id="exports"></div>
   <div class="drop" id="dropWandrer">Drop your Wandrer <b>.kmz</b> files here (or click to choose them): they are copied into your Wandrer folder, named by date, town and type, never replacing a file</div>
-  <label class="chk" style="margin-top:10px"><input type="checkbox" data-path="geocode"><span>Look up the town name online <small>sends the approximate centre of each export to OpenStreetMap (Nominatim); nothing else</small></span></label>
 </section>
-
-<section class="card" data-sec="tiles">
-  <h2><span class="n">3</span>Tiles<select class="secmode" data-secmode="tiles" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
-  <p class="hint">Wahoo maps are made of zoom-8 tiles (about 100 × 70 km). Click the map to add or remove a tile. <span style="color:var(--accent)">Orange</span> = to build, coloured rectangles = area covered by an export, one colour per type (hover a row above to find it).</p>
-  <div class="tilebar">
-    <input type="text" id="tilesText" placeholder="e.g. 135/88, 136/88">
-    <button id="tilesFromExports">Use the tiles of my exports</button>
-    <button id="tilesClear">Clear</button>
-  </div>
-  <div class="tilebar" style="margin-top:8px"><button id="mapFit">🔍 Zoom to my data</button><button id="mapLocate">📍 My location</button><span class="note" id="locNote"></span></div>
-  <div id="map"></div>
-  <div class="note" id="mapNote"></div>
-  <div class="note" id="mapLegend"></div>
-</section>
-
 <section class="card" data-sec="wandrer">
-  <h2><span class="n">4</span>Wandrer layer<select class="secmode" data-secmode="wandrer" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+  <h2>Wandrer layer<select class="secmode" data-secmode="wandrer" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
   <label class="chk"><input type="checkbox" data-path="wandrer.enabled"><span>Add the Wandrer layer <small>unvisited roads in orange (dashed when unpaved)</small></span></label>
   <div class="opts">
     <div>
@@ -232,9 +267,8 @@ tr.rgrp.folded .gsum{display:inline}
     </div>
   </div>
 </section>
-
 <section class="card" data-sec="squadrats">
-  <h2><span class="n">5</span>Squadrats layer <span class="sp"></span><button class="icon" id="btnReload2" title="Look for a newer file">🔄</button><select class="secmode" data-secmode="squadrats" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+  <h2>Squadrats layer <span class="sp"></span><button class="icon" id="btnReload2" title="Look for a newer file">🔄</button><select class="secmode" data-secmode="squadrats" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
   <label class="chk"><input type="checkbox" data-path="squadrats.enabled"><span>Outline the squares I have not explored yet <small id="sqFile"></small></span></label>
   <label class="row pro-only" style="grid-template-columns:150px 1fr">File to use<select id="sqSel" data-path="squadrats.file"></select></label>
   <div class="opts">
@@ -256,41 +290,23 @@ tr.rgrp.folded .gsum{display:inline}
   <div class="drop" id="dropSquadrats">Drop a new Squadrats <b>.kml</b> file here (the most recent one is used)</div>
   <p class="note">Squadrats work with or without Wandrer: the outlines are drawn on every tile you chose.</p>
 </section>
-
-<section class="card" data-sec="pois">
-  <h2><span class="n">6</span>Points of interest<select class="secmode" data-secmode="pois" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
-  <p class="hint">Choose which places are drawn on the map and from which zoom level. The default style is kept: unticking or changing a line never touches it, and “Back to the defaults” restores it.</p>
-  <table class="pois" id="poiTable"></table>
-  <div class="pro-only" id="poiCustom">
-    <p class="note" style="margin:10px 0 0">Add your own type of place, by its OpenStreetMap tag (find tags on <a href="https://taginfo.openstreetmap.org" target="_blank" rel="noopener">taginfo</a>, check the data on <a href="https://overpass-turbo.eu" target="_blank" rel="noopener">overpass-turbo</a>).</p>
-    <div class="customform">
-      <input type="text" id="cuLabel" placeholder="Name (e.g. Bench)">
-      <input type="text" id="cuKey" placeholder="key (amenity)">
-      <input type="text" id="cuValue" placeholder="value (bench)">
-      <select id="cuZoom"></select>
-      <select id="cuIcon"></select>
-      <button id="cuAdd">Add</button>
-    </div>
-    <div class="warn" id="cuMsg"></div>
+</div>
+<div id="colMap">
+<section class="card" data-sec="tiles">
+  <h2>Tiles<select class="secmode" data-secmode="tiles" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+  <p class="hint">Wahoo maps are made of zoom-8 tiles (about 100 × 70 km). Click the map to add or remove a tile. <span style="color:var(--accent)">Orange</span> = to build, coloured rectangles = area covered by an export, one colour per type (hover a row above to find it).</p>
+  <div class="tilebar">
+    <input type="text" id="tilesText" placeholder="e.g. 135/88, 136/88">
+    <button id="tilesFromExports">Use the tiles of my exports</button>
+    <button id="tilesClear">Clear</button>
   </div>
-  <div class="actions" style="margin-top:8px"><button class="small" id="poiReset">Back to the defaults</button><span class="note" id="poiNote"></span></div>
-  <p class="note">After a change, the tiles must be rebuilt and the theme copied again to the Bolt (step 8 does both). More places and lower zoom levels make the tiles heavier and the map busier: add them with care.</p>
+  <div class="tilebar" style="margin-top:8px"><button id="mapFit">🔍 Zoom to my data</button><button id="mapLocate">📍 My location</button><span class="note" id="locNote"></span></div>
+  <div id="map"></div>
+  <div class="note" id="mapNote"></div>
+  <div class="note" id="mapLegend"></div>
 </section>
-
-<section class="card" data-sec="osm">
-  <h2><span class="n">7</span>Map data from OpenStreetMap <span class="fsum" id="osmSum"></span><span class="sp"></span><button class="icon" id="btnRegReload" title="Refresh this list">🔄</button><select class="secmode" data-secmode="osm" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
-  <p class="hint">The base maps are built from OpenStreetMap extracts (Geofabrik regions) kept on your computer. WMC downloads missing regions by itself and renews those older than <span id="maxDays">14</span> days; here you can see them and update or add some yourself. Some are big (Austria ≈ 0.8 GB).</p>
-  <div id="regions"></div>
-  <div id="regDl" style="display:none"><div class="note" id="regDlText"></div><div class="bar" id="regDlBar"><i></i></div><button class="small" id="regCancel">Cancel download</button></div>
-  <div class="actions" style="margin-top:10px"><button id="btnPlan2" title="Lists the tiles and the OSM regions they need">Check which regions my tiles need</button><span class="note" id="planStatus"></span></div>
-  <div class="actions" style="margin-top:8px"><span class="note">Add a region:</span><span id="regTree" class="actions" style="gap:6px"></span><button id="regAdd" disabled>Download</button></div>
-  <div class="note" id="regInfo"></div>
-  <div class="warn" id="regMsg"></div>
-  <div><button class="small" id="regRetry" style="display:none">Retry the failed regions</button></div>
-</section>
-
 <section class="card" data-sec="make">
-  <h2><span class="n">8</span>Make the maps<select class="secmode" data-secmode="make" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+  <h2>Make the maps<select class="secmode" data-secmode="make" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
   <label class="chk pro-only"><input type="checkbox" data-path="build.skip_classic"><span>Only redo the Wandrer part <small>faster: reuses the classic tiles of the last run. Ignored (with a message) if the tiles, POIs, contour lines or OSM data changed since</small></span></label>
   <label class="chk"><input type="checkbox" data-path="build.notify"><span>Notify me when a run ends <small>a system notification when the maps are ready, or when a step failed (useful while you do something else)</small></span></label>
   <div class="pro-only" id="contourBox" style="margin-top:8px">
@@ -301,6 +317,7 @@ tr.rgrp.folded .gsum{display:inline}
     <div id="map2" style="display:none;height:340px;margin:8px 0 0 26px;border-radius:8px"></div>
     <p class="note" id="contourStatus"></p>
   </div>
+  <div class="envwarn envnote" id="garminNote" hidden>Garmin maps are made from the command line for now: <span class="path">python3 scripts/build_garmin.py</span> (see docs/GARMIN.md). Making them from this page comes next.</div>
   <div class="runbox">
     <div class="runbtns">
       <button id="btnPlan">Check the plan</button>
@@ -316,10 +333,36 @@ tr.rgrp.folded .gsum{display:inline}
       <div id="dlBar" hidden></div>
     </div>
   </div>
-  <p class="note" id="doneNote"></p>
-  <div id="results"></div>
 </section>
+</div>
+<div id="colFiles">
+<section class="card files">
+  <h2 id="filesTitle">Copy to the Bolt</h2>
+  <p class="note" id="doneNote"></p>
+  <div id="results"><p class="note">Nothing built yet.</p></div>
+  <div class="actions" style="margin-top:12px"><button type="button" data-step="1">← Back to step 1</button></div>
+</section>
+</div>
 </main>
+
+<dialog id="setDlg" aria-labelledby="setTitle">
+  <div class="dlghead"><h2 id="setTitle">Folders and settings</h2><span class="sp"></span><button type="button" class="icon" id="setClose" aria-label="Close">✕</button></div>
+<section data-sec="folders" class="setsec">
+  <p class="hint">Easiest: press <b>Set up my folders</b> and choose where they should live. The page creates the folders there, plus one for the OpenStreetMap map data; then drop your Wandrer and Squadrats files into them (here below, or in your file manager with "Open"). Choices are remembered.</p>
+  <div class="actions" style="margin-bottom:8px"><button id="btnSetup" class="primary">Set up my folders…</button><span class="note" id="dataNote"></span></div>
+  <label class="row">Wandrer exports<input type="text" data-path="folders.wandrer"><button data-browse="folders.wandrer">Choose…</button><button data-open="folders.wandrer">Open</button></label>
+  <label class="row">Squadrats exports<input type="text" data-path="folders.squadrats"><button data-browse="folders.squadrats">Choose…</button><button data-open="folders.squadrats">Open</button></label>
+  <label class="row">Output<input type="text" data-path="folders.out"><button data-browse="folders.out">Choose…</button><button data-open="folders.out">Open</button></label>
+  <label class="row">Work files<input type="text" data-path="folders.work"><button data-browse="folders.work">Choose…</button><button data-open="folders.work">Open</button></label>
+  <p class="note">Output: the maps are written to <b>wmc_classic</b> and <b>wahoondrer_maps</b> inside it (one tile per coordinates: a new run replaces only the tiles it rebuilds and keeps the others; to keep several versions of a tile, copy it elsewhere yourself).<span> Work files: temporary files made while building; you can ignore this folder.</span><span class="pro-only inline"> It holds the merged Wandrer data (<b>wandrer.osm</b>) handed to WMC.</span></p>
+  <div id="osmRow" class="note" style="margin-top:8px"></div>
+</section>
+  <h3 class="setsub">Privacy</h3>
+  <label class="chk" style="margin-top:10px"><input type="checkbox" data-path="geocode"><span>Look up the town name online <small>sends the approximate centre of each export to OpenStreetMap (Nominatim); nothing else</small></span></label>
+  <h3 class="setsub">Tools</h3>
+  <label class="row" style="grid-template-columns:150px 1fr">mkgmap (Garmin)<input type="text" data-path="tools.mkgmap" placeholder="/path/to/mkgmap.jar"></label>
+  <p class="note">Needed for Garmin maps only: the mkgmap.jar from mkgmap.org.uk (its lib folder next to it).</p>
+</dialog>
 
 <dialog id="dlg"><b>Choose a folder</b><div class="path" id="dlgPath"></div><ul id="dlgList"></ul>
   <div class="actions"><button id="dlgUp">Up</button><span style="flex:1"></span><button id="dlgCancel">Cancel</button><button id="dlgOk" class="primary">Use this folder</button></div></dialog>
@@ -425,7 +468,7 @@ function renderInputs() {
 
 function renderExports() {
   const ex = ST.exports, box = $("#exports");
-  if (!S.folders.wandrer) { box.innerHTML = '<p class="note">Set up your folders (step 1), then drop your Wandrer files here.</p>'; return; }
+  if (!S.folders.wandrer) { box.innerHTML = '<p class="note">Set up your folders (⚙ at the top), then drop your Wandrer files here.</p>'; return; }
   if (!ex.length) { box.innerHTML = '<p class="note">No KMZ/KML file in this folder yet.</p>'; return; }
   const acts = new Set(ex.filter(e => e.active).map(e => e.activity).filter(Boolean));
   const flag = (on, label, n, cls) => `<span class="tag ${on ? cls : "no"}" title="${on ? num(n) + " " + label : "no " + label}">${label}${on && modeOf("exports") === "pro" ? " " + num(n) : ""}</span>`;
@@ -636,7 +679,7 @@ function drawTileMenus() {
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 12, attribution: "© OpenStreetMap"}).addTo(map2);
     layerRect2 = L.layerGroup().addTo(map2); layerMenus2 = L.layerGroup().addTo(map2);
     map2.on("zoomend", () => drawTileMenus());
-    map2.on("click", e => {                              // click a tile to take it out or put it back, as on the map of step 3
+    map2.on("click", e => {                              // click a tile to take it out or put it back, as on the big map
       const [x, y] = tileOf(e.latlng.lng, e.latlng.lat), k = x + "/" + y, i = S.tiles.indexOf(k);
       if (i >= 0) { S.tiles.splice(i, 1); dropped.add(k); } else S.tiles.push(k);
       S.tiles = parseTiles(S.tiles.join(","));
@@ -703,7 +746,7 @@ async function onFolderChanged(key) {
 function setupDrop(el, kind) {
   const pick = $("#filePick");
   const send = async files => {
-    if (!S.folders[kind === "wandrer" ? "wandrer" : "squadrats"]) { $("#runMsg").textContent = "Set up your folders first (step 1)."; return; }
+    if (!S.folders[kind === "wandrer" ? "wandrer" : "squadrats"]) { $("#runMsg").textContent = "Set up your folders first (⚙ at the top)."; return; }
     let n = 0; const done = [];
     for (const f of files) {
       el.textContent = `Sending ${++n}/${files.length}: ${f.name}…`;
@@ -822,7 +865,7 @@ async function renderRegions(fresh) {
       if (parent) h += grpRow(p, p.length - 1);
       prev = p;
       const lanc = ancOf(p, p.length - 1 + (parent ? 1 : 0));
-      h += `<tr data-anc="${esc(lanc)}"${hidAttr(lanc)}><td><input type="checkbox" data-sel="${esc(r.key)}" data-size="${r.size}" data-p="${esc(p.join("\u0001"))}"></td><td style="padding-left:${8 + (p.length - 1 + (parent ? 1 : 0)) * 20}px">${p.length > 1 || parent ? "⌞ " : ""}${esc(p[p.length - 1])}${parent ? " <small>(the whole region)</small>" : ""}</td>` + `<td class="n">${mb(r.size)}</td><td>${r.date}</td><td class="n">${r.age_days} d${r.age_days > R.max_days ? ' <span class="warn" style="display:inline">(WMC will renew it)</span>' : ""}</td>
+      h += `<tr data-anc="${esc(lanc)}"${hidAttr(lanc)}><td><input type="checkbox" data-sel="${esc(r.key)}" data-size="${r.size}" data-p="${esc(p.join("\u0001"))}"></td><td style="padding-left:${8 + (p.length - 1 + (parent ? 1 : 0)) * 20}px">${p.length > 1 || parent ? "⌞ " : ""}${esc(p[p.length - 1])}${parent ? " <small>(the whole region)</small>" : ""}</td>` + `<td class="n">${mb(r.size)}</td><td>${r.date}</td><td class="n">${r.age_days > R.max_days ? `<span class="old" tabindex="0">${r.age_days}&nbsp;d<sup aria-hidden="true">ⓘ</sup><span class="tip" role="tooltip">Older than ${R.max_days} days: WMC will renew it at the next run</span></span>` : r.age_days + "&nbsp;d"}</td>
       <td>${R.plan_done ? (r.needed ? "✓" : "–") : "?"}</td><td style="white-space:nowrap"><button class="small" data-upd="${esc(r.key)}" ${R.catalog_ready ? "" : "disabled"}>Update</button> <button class="small danger" data-del="${esc(r.key)}" data-name="${esc(r.name)}" data-size="${r.size}" title="Delete this file from your disk">Delete</button></td></tr>`;
     }
     h += "</table>";
@@ -972,12 +1015,14 @@ function renderEnv() {
   const note = $("#envNote"), text = ST && ST.env && ST.env.notice;
   note.hidden = !text;
   note.textContent = text || "";
-  $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = bad || (ST.job && ST.job.status === "running");
+  $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = bad || isGarmin() || (ST.job && ST.job.status === "running");
 }
 
 // ---------- running
 let since = 0, poll = null, warnLines = [];
+let watchingRun = false;   // a run started from this page: step 2 opens by itself when it ends well
 async function start(kind) {
+  watchingRun = kind === "run";
   $("#runMsg").textContent = ""; $("#doneNote").textContent = "";
   try { await api("/api/settings", S); await api("/api/" + kind, S); since = 0; warnLines = []; $("#log").textContent = ""; $("#dlBar").hidden = true; $("#stepWrap").hidden = true; $("#runMsg").textContent = ""; startPolling(); }
   catch (e) { $("#runMsg").textContent = e.message; }
@@ -1008,11 +1053,13 @@ async function tick() {
   const st = $("#status"); st.textContent = j.status === "running" ? j.title : j.status; st.className = "pill " + j.status; st.title = st.textContent;
   $("#elapsed").textContent = j.seconds ? (j.status === "running" ? "" : "took ") + (j.seconds >= 3600 ? Math.floor(j.seconds / 3600) + " h " + String(Math.floor(j.seconds % 3600 / 60)).padStart(2, "0") + " min" : j.seconds >= 60 ? Math.floor(j.seconds / 60) + " min " + String(j.seconds % 60).padStart(2, "0") + " s" : j.seconds + " s") : "";
   const running = j.status === "running";
-  $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = running || envBad();
-  $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, step 8)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log in step 8." : ""); $("#btnCancel").disabled = !running;
+  $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = running || envBad() || isGarmin();
+  $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, under the map)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log under the map." : ""); $("#btnCancel").disabled = !running;
   if (!running) { clearInterval(poll); poll = null; $("#dlBar").hidden = true; renderRegions();
     if (warnLines.length && j.status === "done") { $("#runMsg").style.whiteSpace = "pre-line"; $("#runMsg").textContent = "To know:\n" + warnLines.map(l => "• " + l.slice(2)).join("\n"); }
-    if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to the Bolt (one by one, after a backup), or use the list below.`; renderResults(); }
+    if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to the Bolt (one by one, after a backup), or use the list below.`; renderResults();
+    if (watchingRun && j.status === "done" && j.kind === "run") setStep(2);
+    watchingRun = false; }
 }
 $("#btnRun").onclick = () => start("run"); $("#btnPlan").onclick = () => start("plan");
 $("#btnCancel").onclick = () => { if (confirm("Stop now? The files being built are unfinished and will be redone at the next run.")) api("/api/cancel", {}); };
@@ -1198,12 +1245,17 @@ async function loadPois() {
 // ---------- result files (what to copy to the Bolt)
 const fileUrl = rel => "/api/file?rel=" + encodeURIComponent(rel);
 const fileRow = (f, extra, newTile, plain, newTheme) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${plain ? '<span class="plaintile" title="No Wandrer data in this tile: plain map, no Wandrer or Squadrats lines">plain tile</span> ' : ""}${newTile ? '<span class="newtile">🌟 New tile!</span>' : ""}${newTheme ? '<span class="newtheme">🚨 NEW THEME: update the file on Bolt 🚨</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
+const NOTHING_YET = '<p class="note">Nothing built yet: make the maps in step 1, then come back here.</p>';
+const GARMIN_COPY = '<p>Copy the <b>gmapsupp.img</b> made by <span class="path">scripts/build_garmin.py</span> to the watch as ' +
+  '<b>Garmin/gmapsupp.img</b> (one such file at a time), enable it under Map › Information, and use the <b>Classic</b> map theme.</p>' +
+  '<p class="note">Making it from this page, and the list of files here, come next.</p>';
 async function renderResults() {
   const box = $("#results");
-  if (!S.folders.out) { box.innerHTML = ""; return; }
+  if (isGarmin()) { box.innerHTML = GARMIN_COPY; return; }
+  if (!S.folders.out) { box.innerHTML = NOTHING_YET; return; }
   let r;
-  try { r = await api("/api/results"); } catch (e) { box.innerHTML = ""; return; }
-  if (!r.theme && !r.tiles.length) { box.innerHTML = ""; return; }
+  try { r = await api("/api/results"); } catch (e) { box.innerHTML = NOTHING_YET; return; }
+  if (!r.theme && !r.tiles.length) { box.innerHTML = NOTHING_YET; return; }
   let h = '<h3>Files for the Bolt</h3><p class="note">Copy them <b>one by one</b>, after a backup. Easiest: “Open folder”, then copy in your file manager (or Android File Transfer). In Chrome or Edge you can also drag a file from here to the Bolt window; a folder cannot be dragged from a web page. Click a name to download it.</p>';
   if (r.theme) {
     h += `<div class="rdir">1. Theme <span class="note">→ Bolt: maps/vtm-elemnt/</span><span style="flex:1"></span><button class="small" data-opendir="${esc(r.theme.dir)}">Open folder</button></div><div class="rin">`;
@@ -1247,16 +1299,44 @@ $("#results").addEventListener("click", async e => {
   try { await api("/api/open_folder", {path: b.dataset.opendir}); } catch (err) { $("#runMsg").textContent = "Cannot open this folder: " + err.message; }
 });
 
+// ---------- device (Wahoo / Garmin), steps (1 prepare, 2 copy), folders and settings panel
+const isGarmin = () => !!(S && S.device === "garmin");
+function renderDevice() {
+  $$("#devSeg button").forEach(b => { const on = b.dataset.device === S.device; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
+  const what = isGarmin() ? "watch" : "Bolt";
+  $("#step2Label").textContent = $("#filesTitle").textContent = "Copy to the " + what;
+  $("#garminNote").hidden = !isGarmin();
+}
+$$("#devSeg button").forEach(b => b.onclick = async () => {
+  if (b.dataset.device === S.device) return;
+  clearTimeout(saveTimer); unsaved = false;
+  try { S.device = b.dataset.device; await api("/api/settings", S); await refresh(); drawMapLayers(true); }
+  catch (e) { $("#runMsg").textContent = e.message; }
+});
+function setStep(n) {
+  document.body.classList.toggle("step2", n === 2);
+  $$(".steps .step").forEach(b => { const on = +b.dataset.step === n; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current"); });
+  if (n === 2) renderResults();
+  setTimeout(() => { if (map) map.invalidateSize(); }, 0);
+  window.scrollTo({top: 0});
+}
+$$("[data-step]").forEach(b => b.onclick = () => setStep(+b.dataset.step));
+$("#btnGear").onclick = () => $("#setDlg").showModal();
+$("#setClose").onclick = () => $("#setDlg").close();
+function fitHeader() { document.documentElement.style.setProperty("--headh", $("header").offsetHeight + "px"); }
+window.addEventListener("resize", fitHeader);
+
 // ---------- start
 async function refresh(keepMap) {
   const fresh = await api("/api/state"); ST = fresh;
   if (!unsaved) S = fresh.settings; else ST.settings = S;
-  renderInputs(); renderActivity(); renderExports(); renderDerived(); renderEnv();
+  renderInputs(); renderDevice(); renderActivity(); renderExports(); renderDerived(); renderEnv();
   if (!keepMap) { renderOsm().catch(() => {}); if (modeOf("make") === "pro") renderContour(); }
   renderPois();
 }
 (async () => {
-  await refresh();
+  await refresh(); setStep(1); fitHeader();
+  if (!S.folders.wandrer && !S.folders.out) $("#setDlg").showModal();     // first start: choose the folders first
   if (ST.job.status !== "idle") { const shown = feedLog(ST.job.lines); $("#log").textContent = shown.join("\n"); warnLines = shown.filter(l => l.startsWith("! ")); since = ST.job.next; startPolling(); }
   loadPois(); renderResults();
   await initMap();

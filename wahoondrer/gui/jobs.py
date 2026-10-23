@@ -122,10 +122,10 @@ HINTS = (
     (re.compile(r"XY coordinate '(\d+/\d+)' consists of no countries"),
      "Tile {0} has no land: no OpenStreetMap region covers it.",
      "Hint: tile {0} is in the open sea, no OpenStreetMap region covers it, so there is nothing to build. "
-     "Take it out of the tiles (step 3) or choose a tile that touches land."),
+     "Take it out of the tiles (on the map) or choose a tile that touches land."),
     (re.compile(r"No space left on device|not enough space on the disk", re.I),
      "The disk is full.",
-     "Hint: the disk is full. Delete OSM regions in step 7 or old tiles, then run again: the finished steps are not redone."),
+     "Hint: the disk is full. Delete OSM regions (Map data section) or old tiles, then run again: the finished steps are not redone."),
 )
 
 
@@ -235,7 +235,7 @@ def build_commands(s, exports, squadrats_file, plan=False):
         cmds.append(("No Squadrats file: the layer is left out",
                      [sys.executable, "-c",
                       "print('! Squadrats: no KML file found in the Squadrats folder, so this layer is left out. '"
-                      "'Put your Squadrats export there (step 5) or untick the layer.')"]))
+                      "'Put your Squadrats export there (Squadrats section) or untick the layer.')"]))
     if use_wandrer and not plan and not _wandrer_covers(exports, tiles):
         use_wandrer = False             # nothing to convert: no export touches the chosen tiles
         if not use_squadrats:

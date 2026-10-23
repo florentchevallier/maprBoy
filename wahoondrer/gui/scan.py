@@ -209,6 +209,56 @@ class Scanner:
             self._set(running=False, phase="")
 
 
+# ------------------------------------------------------ dropped files
+def slug(text):
+    """Letters, digits and '-' only (no spaces or accents), as the tile label files: 'München' -> 'Munchen'."""
+    import unicodedata
+    ascii_text = unicodedata.normalize("NFKD", str(text or "")).encode("ascii", "ignore").decode()
+    return re.sub(r"[^A-Za-z0-9]+", "-", ascii_text).strip("-")[:40]
+
+
+def export_file_name(timestamp, place, activity, ext):
+    """'wandrer-2026-10-21-Munchen-foot.kmz' from the date written in the export (YYYYMMDD-...), the town and the
+    type; a missing part is left out."""
+    ts = timestamp or ""
+    date = f"{ts[:4]}-{ts[4:6]}-{ts[6:8]}" if re.match(r"\d{8}", ts) else time.strftime("%Y-%m-%d")
+    parts = ["wandrer", date, slug(place), slug(activity)]
+    return "-".join(p for p in parts if p) + ext.lower()
+
+
+def free_name(folder, name):
+    """name, or name-2, name-3... so that no file of the folder is ever replaced."""
+    stem, ext = os.path.splitext(name)
+    candidate, n = name, 2
+    while os.path.exists(os.path.join(folder, candidate)):
+        candidate, n = f"{stem}-{n}{ext}", n + 1
+    return candidate
+
+
+def same_file_in(folder, path, exts):
+    """Name of a file of the folder with exactly the same content as path, else None."""
+    import filecmp
+    size = os.path.getsize(path)
+    for other in _files(folder, exts):
+        if os.path.abspath(other) != os.path.abspath(path) and os.path.getsize(other) == size \
+                and filecmp.cmp(other, path, shallow=False):
+            return os.path.basename(other)
+    return None
+
+
+def name_dropped_export(path, geocode):
+    """The name a dropped Wandrer export gets (see export_file_name); its original name when it cannot be read."""
+    try:
+        exp = read_export(path)
+    except Exception:
+        return None
+    place = ""
+    hub = _hub(exp) if exp.segments else None
+    if hub and geocode:
+        place = lookup_place(*hub) or ""
+    return export_file_name(exp.timestamp, place, exp.activity, os.path.splitext(path)[1])
+
+
 # --------------------------------------------------------------- others
 def squadrats_files(folder):
     """Squadrats KML files, most recent first (date in the name, else file date)."""

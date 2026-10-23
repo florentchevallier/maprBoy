@@ -55,9 +55,12 @@ with the command to fix it; a newer WMC only shows a note (it may work, it was n
    offers to move the existing data, never without asking).
 2. **Exports**: each export is listed with its date, type (bike, foot, combined), the town where you ride
    most in it (looked up online, can be switched off), what it contains (coloured tags) and its tiles. "Untick all" / "Tick all" switch every export at once.
-   "Which exports to use" picks one type: bike (default), foot or combined. Pro mode adds "all types" (mix)
-   and "latest" (type of the newest export). Reading big files takes a while the first time
-   (a progress bar is shown); results are cached.
+   "Which exports to use" picks one type: bike, foot or combined; until you choose, the type of your newest
+   export is used. The choice is kept for each device (e.g. bike for the Wahoo, foot for a Garmin watch).
+   Pro mode adds "all types" (mix). Reading big files takes a while the first time
+   (a progress bar is shown); results are cached. Files dropped on the page are copied into your Wandrer folder
+   and named `wandrer-<date>-<town>-<type>.kmz` (date and type read inside the file; `-2`, `-3`... rather than
+   replacing a file; a file already there is not copied again).
 3. **Tiles**: click the map (zoom-8 tiles), or use the tiles of your exports. Buttons: zoom to your data, my location.
 4. **Wandrer layer** / 5. **Squadrats layer**: options. The **Simple / Pro** switch (top right) shows more
    options and the numbers inside each export. Each section also has its own small selector (Follow the button /
@@ -94,7 +97,8 @@ with the command to fix it; a newer WMC only shows a note (it may work, it was n
    folder is the complete set for the Bolt. Below the log, "Files for the Bolt" lists the theme, the tiles of
    the last run, then the other tiles (see "Output folder" below).
 
-Settings are remembered in `~/.wahoondrer/settings.json` and a reading cache in `~/.wahoondrer/cache.json`
+Settings are remembered in `~/.wahoondrer/settings.json`, one set per device (Wahoo, Garmin) plus the shared ones
+(folders, Simple/Pro, online town lookup, Squadrats file), and a reading cache in `~/.wahoondrer/cache.json`
 (outside the repository). The page only listens on your own computer (127.0.0.1). The map background needs
 an internet connection; without it, type the tiles in the box. Copying to the Bolt is still manual: see
 `README.txt` in the output folder.

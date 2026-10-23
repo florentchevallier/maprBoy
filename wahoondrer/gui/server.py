@@ -19,17 +19,17 @@ MAX_UPLOAD = 1 << 30      # 1 GB
 
 
 def effective_activity(s, infos):
-    """bike / foot / combined to use. Simple mode: always one type. Pro mode: also
-    'any' (all types mixed) and 'latest' (type of the newest export)."""
+    """bike / foot / combined to use: the type chosen for this device, else the type of the newest export.
+    'any' (all types mixed) is Pro only; it returns ''."""
     act = s["activity"]
-    if s["mode"] != "pro" and act not in ("bike", "foot", "combined"):
-        act = "bike"
-    if act == "latest":
-        for i in infos:                      # infos are sorted newest first
-            if i.get("activity"):
-                return i["activity"]
+    if act == "any" and s["mode"] == "pro":
         return ""
-    return "" if act == "any" else act
+    if act in settings.ACTIVITIES:
+        return act
+    for i in infos:                          # infos are sorted newest first
+        if i.get("activity") in settings.ACTIVITIES:
+            return i["activity"]
+    return "bike"
 
 
 def annotate(s, infos):
@@ -389,19 +389,30 @@ class Handler(BaseHTTPRequestHandler):
         if size <= 0 or size > MAX_UPLOAD:
             raise ValueError("Empty or too large file.")
         os.makedirs(folder, exist_ok=True)
-        target, part, left = os.path.join(folder, name), os.path.join(folder, name + ".part"), size
-        with open(part, "wb") as f:
-            while left > 0:
-                chunk = self.rfile.read(min(1 << 20, left))
-                if not chunk:
-                    break
-                f.write(chunk)
-                left -= len(chunk)
-        if left:
-            os.remove(part)
-            raise ValueError("Upload interrupted.")
-        os.replace(part, target)
-        return self._send(200, {"saved": name})
+        # received under a hidden name (never listed), then named and moved: an existing file is never replaced
+        ext = os.path.splitext(name)[1].lower()
+        part, left = os.path.join(folder, f".upload-{os.getpid()}-{threading.get_ident()}{ext}"), size
+        try:
+            with open(part, "wb") as f:
+                while left > 0:
+                    chunk = self.rfile.read(min(1 << 20, left))
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    left -= len(chunk)
+            if left:
+                raise ValueError("Upload interrupted.")
+            same = scan.same_file_in(folder, part, ok_ext)
+            if same:
+                return self._send(200, {"saved": same, "already": True})
+            if kind == "wandrer":
+                name = scan.name_dropped_export(part, s["geocode"]) or name
+            name = scan.free_name(folder, name)
+            os.replace(part, os.path.join(folder, name))
+        finally:
+            if os.path.exists(part):
+                os.remove(part)
+        return self._send(200, {"saved": name, "already": False})
 
 
 def serve(port=8765, open_browser=True):

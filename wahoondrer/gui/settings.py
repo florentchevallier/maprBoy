@@ -1,4 +1,11 @@
-"""User settings, stored in ~/.wahoondrer/settings.json (never in the repository)."""
+"""User settings, stored in ~/.wahoondrer/settings.json (never in the repository).
+
+One set of settings per device (Wahoo, Garmin) plus settings shared by both. The file holds
+    {"version": 2, "device": "wahoo", <shared keys>, "squadrats_file": "...",
+     "devices": {"wahoo": {<device keys>}, "garmin": {<device keys>}}}
+load() returns a flat view: the shared keys plus the keys of the current device (so the rest of the
+code reads s["tiles"], s["wandrer"]... as before); save() writes the device keys back to that device only.
+A file of the first version (no "devices") becomes the Wahoo settings."""
 import copy
 import json
 import os
@@ -7,7 +14,11 @@ from .. import theme_style
 
 SETTINGS_PATH = os.path.join(os.path.expanduser("~"), ".wahoondrer", "settings.json")
 
+DEVICES = ("wahoo", "garmin")
+ACTIVITIES = ("bike", "foot", "combined")
+
 DEFAULTS = {
+    "device": "wahoo",               # the device the page works for: "wahoo" | "garmin"
     "mode": "simple",                # "simple" | "pro"
     "folders": {
         "data": "",                  # parent of the standard folders created by the page
@@ -16,7 +27,7 @@ DEFAULTS = {
         "work": "",                  # temporary files (merged Wandrer data ready for WMC)
         "out": "",                   # where the generated tiles are written
     },
-    "activity": "bike",              # "bike" | "foot" | "combined" | (pro) "any" (all types) | "latest" (type of newest export)
+    "activity": None,                # "bike" | "foot" | "combined" | (pro) "any" (all types); None = type of the newest export
     "geocode": True,                 # look up the main place name of each export online
     "excluded_exports": [],          # export file names the user unticked
     "tiles": [],                     # ["136/88", ...]
@@ -60,23 +71,65 @@ def _merge(base, new):
     return out
 
 
-def load(path=SETTINGS_PATH):
+# kept apart for each device; every other key of DEFAULTS is shared (the Squadrats file too, see below)
+DEVICE_KEYS = ("activity", "excluded_exports", "tiles", "wandrer", "squadrats", "build", "pois")
+
+
+def _read(path):
     try:
         with open(path, encoding="utf-8") as f:
-            data = _merge(DEFAULTS, json.load(f))
-            if data["activity"] == "auto":          # old name of "latest"
-                data["activity"] = "latest"
-            return data
+            raw = json.load(f)
+        return raw if isinstance(raw, dict) else {}
     except (OSError, ValueError):
-        return copy.deepcopy(DEFAULTS)
+        return {}
+
+
+def _split(raw):
+    """(device, shared keys, {device: device keys}, squadrats file) of a stored file, either version."""
+    if isinstance(raw.get("devices"), dict):
+        devices = {d: v for d, v in raw["devices"].items() if d in DEVICES and isinstance(v, dict)}
+        sq_file = raw.get("squadrats_file", "")
+    else:                                   # first version: everything was for the Wahoo
+        devices = {"wahoo": {k: raw[k] for k in DEVICE_KEYS if k in raw}}
+        sq_file = (raw.get("squadrats") or {}).get("file", "") if isinstance(raw.get("squadrats"), dict) else ""
+    device = raw.get("device") if raw.get("device") in DEVICES else "wahoo"
+    shared = {k: v for k, v in raw.items() if k not in DEVICE_KEYS and k not in ("devices", "device", "version")}
+    return device, shared, devices, sq_file if isinstance(sq_file, str) else ""
+
+
+def _view(device, shared, block, sq_file):
+    data = _merge(DEFAULTS, {**shared, **(block or {}), "device": device})
+    data["squadrats"]["file"] = sq_file
+    if data["activity"] not in ACTIVITIES + ("any",):    # "latest" / "auto" of earlier versions, or unknown
+        data["activity"] = None
+    return data
+
+
+def load(path=SETTINGS_PATH):
+    """The settings of the current device, with the shared ones (a flat dict shaped like DEFAULTS)."""
+    device, shared, devices, sq_file = _split(_read(path))
+    return _view(device, shared, devices.get(device), sq_file)
 
 
 def save(data, path=SETTINGS_PATH):
+    """Store the page's settings and return the view to use from now on.
+
+    When data["device"] names another device than the stored one, the page is switching device: only the
+    shared keys are kept from data, and the other device's own settings are returned."""
+    stored_device, _, devices, _ = _split(_read(path))
     merged = _merge(DEFAULTS, data)
+    device = merged["device"] if merged["device"] in DEVICES else "wahoo"
+    shared = {k: v for k, v in merged.items() if k not in DEVICE_KEYS and k != "device"}
+    sq_file = merged["squadrats"].get("file", "") or ""
+    if device == stored_device or stored_device not in devices:
+        block = {k: copy.deepcopy(merged[k]) for k in DEVICE_KEYS}
+        block["squadrats"].pop("file", None)
+        devices[device] = block
+    out = {"version": 2, "device": device, **shared, "squadrats_file": sq_file, "devices": devices}
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(merged, f, indent=2)
-    return merged
+        json.dump(out, f, indent=2)
+    return _view(device, shared, devices.get(device), sq_file)
 
 
 STANDARD_FOLDERS = {"wandrer": "Wandrer_exports", "squadrats": "Squadrats_exports",

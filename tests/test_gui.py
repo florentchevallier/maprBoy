@@ -99,26 +99,105 @@ class ActivityTests(unittest.TestCase):
         return [{"name": "new", "activity": "combined", "date": "2"}, {"name": "old", "activity": "bike", "date": "1"},
                 {"name": "bad", "error": "x"}, {"name": "todo", "pending": True}]
 
-    def test_default_is_bike_and_a_newer_type_does_not_hide_it(self):
+    def test_default_is_the_type_of_the_newest_export(self):
         s = settings.load(os.devnull); infos = self.infos()
-        self.assertEqual(s["activity"], "bike")
+        self.assertIsNone(s["activity"])
+        self.assertEqual(server.annotate(s, infos), "combined")
+        self.assertEqual([i["active"] for i in infos], [True, False, False, False])
+        self.assertIn("other type", infos[1]["why"])
+
+    def test_a_chosen_type_is_kept_whatever_the_newest_export(self):
+        s = settings.load(os.devnull); s["activity"] = "bike"; infos = self.infos()
         self.assertEqual(server.annotate(s, infos), "bike")
         self.assertEqual([i["active"] for i in infos], [False, True, False, False])
-        self.assertIn("other type", infos[0]["why"])
 
-    def test_latest_and_any_are_pro_only(self):
-        s = settings.load(os.devnull); s["activity"] = "latest"
-        self.assertEqual(server.annotate(s, self.infos()), "bike")          # simple mode: back to bike
-        s["mode"] = "pro"
-        self.assertEqual(server.annotate(s, self.infos()), "combined")      # newest export's type
-        s["activity"] = "any"; s["excluded_exports"] = ["new"]
-        infos = self.infos(); server.annotate(s, infos)
+    def test_any_is_pro_only(self):
+        s = settings.load(os.devnull); s["activity"] = "any"
+        self.assertEqual(server.annotate(s, self.infos()), "combined")      # simple mode: newest type
+        s["mode"] = "pro"; s["excluded_exports"] = ["new"]
+        infos = self.infos(); self.assertEqual(server.annotate(s, infos), "")
         self.assertEqual([i["active"] for i in infos], [False, True, False, False])
 
-    def test_old_auto_setting_becomes_latest(self):
+    def test_no_export_gives_bike(self):
+        self.assertEqual(server.effective_activity(settings.load(os.devnull), []), "bike")
+
+    def test_old_latest_and_auto_settings_become_unset(self):
         with tempfile.TemporaryDirectory() as d:
-            p = os.path.join(d, "s.json"); _write(p, json.dumps({"activity": "auto"}))
-            self.assertEqual(settings.load(p)["activity"], "latest")
+            for old in ("auto", "latest"):
+                p = os.path.join(d, "s.json"); _write(p, json.dumps({"activity": old}))
+                self.assertIsNone(settings.load(p)["activity"])
+
+
+class DeviceSettingsTests(unittest.TestCase):
+    def test_a_first_version_file_becomes_the_wahoo_settings(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            _write(p, json.dumps({"mode": "pro", "activity": "bike", "tiles": ["136/88"],
+                                  "folders": {"wandrer": "/w"}, "squadrats": {"enabled": True, "file": "sq.kml"}}))
+            s = settings.load(p)
+            self.assertEqual((s["device"], s["mode"], s["activity"], s["tiles"]), ("wahoo", "pro", "bike", ["136/88"]))
+            self.assertEqual(s["squadrats"]["file"], "sq.kml")
+            s["device"] = "garmin"
+            g = settings.save(s, p)                       # switching: the Garmin gets its own (default) settings
+            self.assertEqual((g["device"], g["activity"], g["tiles"]), ("garmin", None, []))
+            self.assertEqual((g["mode"], g["folders"]["wandrer"]), ("pro", "/w"))   # shared
+            self.assertEqual(g["squadrats"]["file"], "sq.kml")                     # shared
+            self.assertFalse(g["squadrats"]["enabled"])                            # per device
+            raw = json.load(open(p))
+            self.assertEqual(raw["version"], 2)
+            self.assertEqual(raw["devices"]["wahoo"]["tiles"], ["136/88"])
+
+    def test_each_device_keeps_its_own_export_type(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            s = settings.load(p); s["activity"] = "bike"; s = settings.save(s, p)
+            s["device"] = "garmin"; s = settings.save(s, p)
+            s["activity"] = "foot"; s["geocode"] = False; s = settings.save(s, p)
+            s["device"] = "wahoo"; w = settings.save(s, p)
+            self.assertEqual((w["activity"], w["geocode"]), ("bike", False))
+            w["device"] = "garmin"; g = settings.save(w, p)
+            self.assertEqual(g["activity"], "foot")
+            self.assertEqual(settings.load(p)["device"], "garmin")
+
+    def test_the_squadrats_file_is_shared(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            s = settings.load(p); s["squadrats"]["file"] = "a.kml"; s = settings.save(s, p)
+            s["device"] = "garmin"; g = settings.save(s, p)
+            self.assertEqual(g["squadrats"]["file"], "a.kml")
+            self.assertNotIn("file", json.load(open(p))["devices"]["wahoo"]["squadrats"])
+
+
+class DroppedFileTests(unittest.TestCase):
+    def test_export_name(self):
+        self.assertEqual(scan.export_file_name("20261021-18:02:11", "München", "foot", ".KMZ"),
+                         "wandrer-2026-10-21-Munchen-foot.kmz")
+        self.assertEqual(scan.export_file_name("20261021-18:02:11", "", "bike", ".kmz"), "wandrer-2026-10-21-bike.kmz")
+        self.assertTrue(scan.export_file_name("", "Bad Tölz / Wolfratshausen", "", ".kml").endswith(
+            "-Bad-Tolz-Wolfratshausen.kml"))
+
+    def test_free_name_never_replaces(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(scan.free_name(d, "a.kmz"), "a.kmz")
+            _write(os.path.join(d, "a.kmz"), "1"); _write(os.path.join(d, "a-2.kmz"), "2")
+            self.assertEqual(scan.free_name(d, "a.kmz"), "a-3.kmz")
+
+    def test_same_content_is_found(self):
+        with tempfile.TemporaryDirectory() as d:
+            _write(os.path.join(d, "old.kmz"), "same"); _write(os.path.join(d, "other.kmz"), "diff")
+            _write(os.path.join(d, ".upload.kmz"), "same")
+            self.assertEqual(scan.same_file_in(d, os.path.join(d, ".upload.kmz"), (".kmz",)), "old.kmz")
+            _write(os.path.join(d, ".upload.kmz"), "new!")
+            self.assertIsNone(scan.same_file_in(d, os.path.join(d, ".upload.kmz"), (".kmz",)))
+
+    def test_dropped_export_is_named_from_its_content(self):
+        from tests.synthetic import write_wandrer_kmz
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, ".upload.kmz")
+            write_wandrer_kmz(p, stamp="20261021-12:00:00", activity="foot")
+            self.assertEqual(scan.name_dropped_export(p, geocode=False), "wandrer-2026-10-21-foot.kmz")
+            _write(os.path.join(d, ".bad.kmz"), "not a kmz")
+            self.assertIsNone(scan.name_dropped_export(os.path.join(d, ".bad.kmz"), geocode=False))
 
 
 class RegionTests(unittest.TestCase):

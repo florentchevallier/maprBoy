@@ -48,6 +48,7 @@ DEFAULTS = {
         "levels": ["big", "small"],
         "buffer": 3,
         "small_scope": "explored-big",
+        "look": theme_style.sq_defaults(),   # colour, width and dashes of the outlines in the Wahoo theme, light and dark (Pro)
     },
     "build": {"skip_classic": False, "contour": False, "contour_spacing": "25-75-150",
               "contour_per_tile": False, "contour_tiles": {},

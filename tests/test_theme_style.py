@@ -92,5 +92,31 @@ class ThemeStyleTests(unittest.TestCase):
         self.assertEqual(theme_style.DEFAULT["light"]["visited"]["width"], 1.0)
 
 
+class SquadratsLookTest(unittest.TestCase):
+    def sq_lines(self, text):
+        return {m.group(1): m.group(0) for m in re.finditer(r'<style-line id="(squadrat-[^"]+)"[^>]*/>', text)}
+
+    def test_default_look_leaves_the_theme_unchanged(self):
+        self.assertEqual(theme_style.sq_apply(read(), theme_style.SQ_DEFAULT), read())
+        self.assertTrue(theme_style.sq_is_default({}))
+
+    def test_colour_width_and_dashes(self):
+        out = self.sq_lines(theme_style.sq_apply(read(), {
+            "light": {"big": {"color": "#0000ff", "dashed": True}, "small": {"width": 2, "dashed": False}}}))
+        self.assertIn('stroke="#0000FF"', out["squadrat-big-bolt"])
+        self.assertIn('dasharray="6,6"', out["squadrat-big-bolt"])
+        self.assertNotIn("dasharray", out["squadrat-small-roam"])
+        self.assertIn('width="2"', out["squadrat-small-roam"])
+        self.assertIn('stroke="#FF6060"', out["squadrat-big-bolt2-dark"])          # dark style untouched
+        self.assertIn('dasharray="6,6"', out["squadrat-small-bolt2-dark"])
+
+    def test_bad_values_and_changed_theme(self):
+        for bad in ({"light": {"big": {"color": "blue"}}}, {"dark": {"small": {"width": 0}}}):
+            with self.assertRaises(ValueError):
+                theme_style.sq_clean(bad)
+        with self.assertRaises(ValueError):
+            theme_style.sq_apply(read().replace("squadrat-big-roam", "squadrat-other-roam"), theme_style.SQ_DEFAULT)
+
+
 if __name__ == "__main__":
     unittest.main()

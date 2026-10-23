@@ -86,6 +86,7 @@ tr.hl td{background:color-mix(in srgb,var(--viol) 12%,transparent)}
 .seg button{border:0;border-radius:0;padding:6px 14px;background:transparent}
 .seg button.on{background:var(--accent);color:var(--accent-ink)}
 .pro-only{display:none}
+section[data-sec]:not(.pro) .pro-only{display:none}   /* wins over label.row, .chk... when the section is in Simple */
 .pro div.pro-only,.pro p.pro-only,.pro span.pro-only{display:block}
 .pro span.pro-only.inline{display:inline}
 .pro label.row.pro-only{display:grid}
@@ -150,7 +151,8 @@ table.exlist .tag{width:auto;padding:1px 8px;margin:1px 3px 2px 0;white-space:no
 .seg.types .n{font-weight:400;opacity:.75;margin-left:4px}
 .card h2 .onoff{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;margin-left:6px}
 .garmin-only{display:none}body.garmin .garmin-only{display:block}body.garmin #blkLook .pro-only,body.garmin #lookSimple{display:none}
-body.garmin #blkLook > h3 .bolt{display:none}
+body.garmin #blkLook > h3 .bolt,body.garmin #blkSqLook > h3 .bolt{display:none}
+body.garmin #blkSqLook .pro-only,body.garmin #sqLookSimple{display:none}
 .pole .blk > h3{cursor:pointer;user-select:none}.pole .blk > h3 > button.fold{margin:0 -4px 0 -6px}
 .pole .blk.folded > .blk-body{display:none}.pole .blk.folded > h3{margin-bottom:0}.pole .blk.folded .fsum{display:inline}
 .pro button.pro-only.inline{display:inline-block}
@@ -302,18 +304,21 @@ tr.rgrp.folded .gsum{display:inline}
     <p class="note garmin-only">On a Garmin, unvisited roads are magenta with a white edge, visited ones cyan, unpaved ones dashed, boundaries a purple band (see docs/GARMIN.md); choosing them here comes with the Garmin build from this page.</p>
   </div>
 </section>
-<section class="card" data-sec="squadrats">
-  <h2>Squadrats layer <span class="sp"></span><button class="icon" id="btnReload2" title="Look for a newer file">🔄</button><select class="secmode" data-secmode="squadrats" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
-  <label class="chk"><input type="checkbox" data-path="squadrats.enabled"><span>Outline the squares I have not explored yet <small id="sqFile"></small></span></label>
+<section class="card pole" data-sec="squadrats">
+  <h2>Squadrats <label class="onoff"><input type="checkbox" data-path="squadrats.enabled">On</label><span class="fsum" id="poleSumSq"></span><span class="sp"></span><div class="seg micro" data-pole="squadrats" role="group" aria-label="Simple or Pro for this section"><button type="button" data-m="simple">Simple</button><button type="button" data-m="pro">Pro</button></div></h2>
+  <div class="blk" id="blkSqFile">
+  <h3>File <span class="fsum" id="blkSumSqFile"></span><span class="sp"></span><button class="icon" id="btnReload2" title="Look for a newer file">🔄</button></h3>
+    <p class="note" id="sqFile"></p>
   <label class="row pro-only" style="grid-template-columns:150px 1fr">File to use<select id="sqSel" data-path="squadrats.file"></select></label>
-  <div class="opts">
-    <div>
+  <div class="drop" id="dropSquadrats">Drop a Squadrats <b>.kml</b> file here (or click to choose it): it is copied into your Squadrats folder, never replacing a file; the most recent one is used</div>
+  </div>
+  <div class="blk" id="blkSqSquares">
+  <h3>Squares to outline</h3>
       <div class="chk"><span>Levels</span>
         <label style="margin-left:10px"><input type="checkbox" data-level="big"> big squares (z14)</label>
         <label style="margin-left:10px"><input type="checkbox" data-level="small"> small squares (z17)</label></div>
+    <div class="pro-only">
       <label class="row" style="grid-template-columns:150px 110px 1fr">Band width (squares)<input type="number" min="0" step="1" data-path="squadrats.buffer" data-num="1"><small class="note">around what you explored</small></label>
-    </div>
-    <div>
       <label class="row" style="grid-template-columns:1fr">Small squares to outline
         <select data-path="squadrats.small_scope">
           <option value="explored-big">all those inside a big square I explored</option>
@@ -321,9 +326,28 @@ tr.rgrp.folded .gsum{display:inline}
           <option value="both">both</option>
         </select></label>
     </div>
+    <p class="note">Squadrats work with or without Wandrer: the outlines of the unexplored squares are drawn on every tile you chose.</p>
   </div>
-  <div class="drop" id="dropSquadrats">Drop a new Squadrats <b>.kml</b> file here (the most recent one is used)</div>
-  <p class="note">Squadrats work with or without Wandrer: the outlines are drawn on every tile you chose.</p>
+  <div class="blk" id="blkSqLook">
+  <h3>Look <span class="bolt">on the Bolt</span> <span class="fsum" id="blkSumSqLook"></span></h3>
+    <p class="note simple-only" id="sqLookSimple"></p>
+    <div class="pro-only">
+      <table class="looktbl">
+        <thead><tr><th></th><th>Colour</th><th>Width</th><th>Dashed</th></tr></thead>
+        <tbody>
+          <tr class="lookmode"><th colspan="4">Light styles <small>Roam, Bolt, Bolt 2</small></th></tr>
+          <tr><td>Big squares</td><td><input type="color" data-path="squadrats.look.light.big.color" aria-label="light Big squares colour"></td><td><input type="number" min="0.1" max="10" step="0.1" data-path="squadrats.look.light.big.width" data-num="1" aria-label="light Big squares width"></td><td><input type="checkbox" data-path="squadrats.look.light.big.dashed" aria-label="light Big squares dashed"></td></tr>
+          <tr><td>Small squares</td><td><input type="color" data-path="squadrats.look.light.small.color" aria-label="light Small squares colour"></td><td><input type="number" min="0.1" max="10" step="0.1" data-path="squadrats.look.light.small.width" data-num="1" aria-label="light Small squares width"></td><td><input type="checkbox" data-path="squadrats.look.light.small.dashed" aria-label="light Small squares dashed"></td></tr>
+          <tr class="lookmode"><th colspan="4">Dark style <small>Bolt 2 dark mode</small></th></tr>
+          <tr><td>Big squares</td><td><input type="color" data-path="squadrats.look.dark.big.color" aria-label="dark Big squares colour"></td><td><input type="number" min="0.1" max="10" step="0.1" data-path="squadrats.look.dark.big.width" data-num="1" aria-label="dark Big squares width"></td><td><input type="checkbox" data-path="squadrats.look.dark.big.dashed" aria-label="dark Big squares dashed"></td></tr>
+          <tr><td>Small squares</td><td><input type="color" data-path="squadrats.look.dark.small.color" aria-label="dark Small squares colour"></td><td><input type="number" min="0.1" max="10" step="0.1" data-path="squadrats.look.dark.small.width" data-num="1" aria-label="dark Small squares width"></td><td><input type="checkbox" data-path="squadrats.look.dark.small.dashed" aria-label="dark Small squares dashed"></td></tr>
+        </tbody>
+      </table>
+      <p><button class="small" id="btnSqLookReset" type="button">Reset the look of the squares</button></p>
+      <p class="note">These settings change the <b>theme</b>, not the tiles: after a build, copy the new <b>vtm-elemnt.xml</b> to the Bolt.</p>
+    </div>
+    <p class="note garmin-only">On a Garmin the squares are blue (big ones solid, small ones dashed, see docs/GARMIN.md); choosing them here comes with the Garmin build from this page.</p>
+  </div>
 </section>
 </div>
 <div id="colMap">
@@ -400,8 +424,9 @@ tr.rgrp.folded .gsum{display:inline}
 let S = null, ST = null, saveTimer = null, map = null, map2 = null, layerMenus = null, layerMenus2 = null, layerRect2 = null, layerTiles = null, layerExp = null, layerGrid = null, expRects = {}, locMarker = null;
 const $ = (q, r = document) => r.querySelector(q), $$ = (q, r = document) => [...r.querySelectorAll(q)];
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const get = (o, p) => p.split(".").reduce((a, k) => a[k], o);
-const set = (o, p, v) => { const ks = p.split("."); const l = ks.pop(); ks.reduce((a, k) => a[k], o)[l] = v; };
+// a setting the server does not send (an older server still running) reads as undefined instead of stopping the page
+const get = (o, p) => p.split(".").reduce((a, k) => (a == null ? undefined : a[k]), o);
+const set = (o, p, v) => { const ks = p.split("."); const l = ks.pop(); ks.reduce((a, k) => (a[k] = a[k] && typeof a[k] === "object" ? a[k] : {}), o)[l] = v; };
 const api = async (url, body) => {
   const r = await fetch(url, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json", "X-Wahoondrer": "1"}, body: JSON.stringify(body)});
   const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
@@ -425,7 +450,7 @@ function scheduleSave(reload) {
 }
 
 // ---------- Simple / Pro (global button, and one choice per section)
-const POLE_OF = {osm: "basemap", pois: "basemap", contour: "basemap", exports: "wandrer"};     // parts that now live in a pole follow its choice
+const POLE_OF = {osm: "basemap", pois: "basemap", contour: "basemap", exports: "wandrer"};   // squadrats: its own name     // parts that now live in a pole follow its choice
 const modeOf = sec => { const m = ((S.ui || {}).sections || {})[POLE_OF[sec] || sec]; return m === "simple" || m === "pro" ? m : S.mode; };
 function dropSameAsGlobal() {        // a pole's own choice equal to the button at the top is no own choice any more
   const sec = (S.ui || {}).sections || {};
@@ -521,6 +546,7 @@ function renderInputs() {
   $$("[data-path]").forEach(el => {
     if (el.tagName === "SELECT" && (el.id === "actSel" || el.id === "sqSel")) return;
     const v = get(S, el.dataset.path);
+    if (v === undefined) return;
     if (el.type === "checkbox") el.checked = !!v; else el.value = v;
   });
   $$("[data-level]").forEach(el => el.checked = S.squadrats.levels.includes(el.dataset.level));
@@ -590,8 +616,18 @@ function renderWandrerSums() {
   $("#blkSumLook").textContent = isGarmin() ? "" : "· " + u.color;
   $("#poleSumWandrer").textContent = "· " + (S.wandrer.enabled ? activeExports().length + " export" + (activeExports().length === 1 ? "" : "s") : "off");
 }
+function renderSquadratsSums() {
+  const L = ((S.squadrats.look || {}).light) || {}, sw = (c, d) => `<span class="sw" style="background:${d ? `repeating-linear-gradient(90deg,${esc(c)} 0 5px,transparent 5px 9px)` : esc(c)}"></span>`;
+  const big = L.big || {}, small = L.small || {}, lv = S.squadrats.levels || [];
+  $("#sqLookSimple").innerHTML = (lv.includes("big") ? `Big squares ${sw(big.color, big.dashed)} ${big.dashed ? "dashed" : "solid"}` : "")
+    + (lv.includes("big") && lv.includes("small") ? " · " : "") + (lv.includes("small") ? `Small squares ${sw(small.color, small.dashed)} ${small.dashed ? "dashed" : "solid"}` : "")
+    + `. <span class="pro-hint">Change them in Pro.</span>`;
+  $("#blkSumSqLook").textContent = isGarmin() ? "" : "· " + big.color;
+  $("#poleSumSq").textContent = "· " + (S.squadrats.enabled ? (ST.squadrats_used || "no file") : "off");
+  $("#blkSumSqFile").textContent = "· " + (ST.squadrats_used || "none");
+}
 function renderDerived() {
-  renderWandrerSums();
+  renderWandrerSums(); renderSquadratsSums();
   const ch = activeExports();
   const hasB = ch.some(e => e.boundaries > 0), cb = $("#optBoundaries");
   cb.disabled = !hasB;
@@ -1051,6 +1087,12 @@ $$("[data-path]").forEach(el => el.addEventListener("change", () => {
 const LOOK_DEFAULT = {
   light: {unvisited: {color: "#ff8800", width: 1.5, outline: true}, visited: {color: "#2e9e4f", width: 1.0, outline: false}},
   dark: {unvisited: {color: "#ff8800", width: 1.5, outline: true}, visited: {color: "#4ccb7a", width: 1.0, outline: false}}};
+const SQ_LOOK_DEFAULT = {
+  light: {big: {color: "#e03030", width: 1.6, dashed: false}, small: {color: "#e03030", width: 1.4, dashed: true}},
+  dark: {big: {color: "#ff6060", width: 1.6, dashed: false}, small: {color: "#ff6060", width: 1.4, dashed: true}}};
+$("#btnSqLookReset").onclick = () => {
+  S.squadrats.look = JSON.parse(JSON.stringify(SQ_LOOK_DEFAULT)); renderInputs(); scheduleSave(false);
+};
 $("#btnLookReset").onclick = () => {
   S.wandrer.look = JSON.parse(JSON.stringify(LOOK_DEFAULT)); renderInputs(); scheduleSave(false);
 };

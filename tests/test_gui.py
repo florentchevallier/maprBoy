@@ -176,6 +176,19 @@ class DeviceSettingsTests(unittest.TestCase):
             self.assertNotIn("file", json.load(open(p))["devices"]["wahoo"]["squadrats"])
 
 
+class SquadratsLookArgsTests(unittest.TestCase):
+    def test_only_a_changed_look_is_passed(self):
+        s = settings.load(os.devnull)
+        self.assertEqual(jobs.look_args(s["wandrer"], s["squadrats"]), [])
+        s["squadrats"]["look"]["light"]["big"]["color"] = "#0000FF"
+        args = jobs.look_args(s["wandrer"], s["squadrats"])
+        self.assertEqual(args[0], "--theme-squadrats")
+        self.assertEqual(json.loads(args[1])["light"]["big"]["color"], "#0000FF")
+        s["squadrats"]["look"]["dark"]["small"]["width"] = 0
+        with self.assertRaises(jobs.SettingsError):
+            jobs.look_args(s["wandrer"], s["squadrats"])
+
+
 class DroppedFileTests(unittest.TestCase):
     def test_export_name(self):
         self.assertEqual(scan.export_file_name("20261021-18:02:11", "München", "foot", ".KMZ"),

@@ -112,30 +112,51 @@ def use_poi_rules(path):
     print(f"POIs: {len(pois)} type(s) enabled ({', '.join(p['key'] + '=' + p['value'] for p in pois) or 'none'})")
 
 
-def use_theme_look(look):
-    """Draw the Wandrer roads as `look` says (see wahoondrer/theme_style.py), in the private copy of config/
-    and the theme (the one made for the POIs if there is one, else a new one). The repository is not touched."""
+def _private_theme():
+    """Path of the theme in the private copy of config/ and the theme (the one made for the POIs if there is one,
+    else a new one). The repository is not touched."""
     global ASSETS
+    dst = os.path.join(os.path.expanduser("~"), ".wahoondrer", "generated")
+    if ASSETS == REPO:
+        if os.path.isdir(dst):
+            shutil.rmtree(dst)
+        for sub in ("config", os.path.join("themes", "vtm")):
+            shutil.copytree(os.path.join(REPO, sub), os.path.join(dst, sub),
+                            ignore=shutil.ignore_patterns("__pycache__", ".DS_Store"))
+        ASSETS = dst
+    return os.path.join(ASSETS, "themes", "vtm", "vtm-elemnt.xml")
+
+
+def _change_theme(change):
+    path = _private_theme()
+    with open(path, encoding="utf-8", newline="") as f:
+        text = f.read()
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(change(text))
+
+
+def use_theme_look(look):
+    """Draw the Wandrer roads as `look` says (see wahoondrer/theme_style.py), in the private theme."""
     try:
         look = theme_style.clean(look)
-        dst = os.path.join(os.path.expanduser("~"), ".wahoondrer", "generated")
-        if ASSETS == REPO:
-            if os.path.isdir(dst):
-                shutil.rmtree(dst)
-            for sub in ("config", os.path.join("themes", "vtm")):
-                shutil.copytree(os.path.join(REPO, sub), os.path.join(dst, sub),
-                                ignore=shutil.ignore_patterns("__pycache__", ".DS_Store"))
-            ASSETS = dst
-        path = os.path.join(ASSETS, "themes", "vtm", "vtm-elemnt.xml")
-        with open(path, encoding="utf-8", newline="") as f:
-            text = f.read()
-        with open(path, "w", encoding="utf-8", newline="") as f:
-            f.write(theme_style.apply(text, look))
+        _change_theme(lambda text: theme_style.apply(text, look))
     except ValueError as exc:
         sys.exit(f"! Look of the Wandrer roads: {exc}")
     print("Look of the Wandrer roads changed in the theme: " + "; ".join(
         f"{mode} {kind} {v['color']} {v['width']:g}{' outlined' if v['outline'] else ''}"
         for mode, kinds in look.items() for kind, v in kinds.items()))
+
+
+def use_squadrats_look(look):
+    """Draw the Squadrats outlines as `look` says (see wahoondrer/theme_style.py), in the private theme."""
+    try:
+        look = theme_style.sq_clean(look)
+        _change_theme(lambda text: theme_style.sq_apply(text, look))
+    except ValueError as exc:
+        sys.exit(f"! Look of the Squadrats: {exc}")
+    print("Look of the Squadrats changed in the theme: " + "; ".join(
+        f"{mode} {lv} {v['color']} {v['width']:g}{' dashed' if v['dashed'] else ''}"
+        for mode, lv_ in look.items() for lv, v in lv_.items()))
 
 
 def contour_choices(items):
@@ -329,6 +350,8 @@ def main():
     ap.add_argument("--contour", action="store_true", help="add contour lines (needs pyhgtmap, see --setup-contour)")
     ap.add_argument("--poi-rules", help="JSON file with the POIs to enable (written by the web page); "
                                         "default: config/poi-rules.json")
+    ap.add_argument("--theme-squadrats", metavar="JSON",
+                    help="how the Squadrats outlines look in the theme (written by the web page, see wahoondrer/theme_style.py)")
     ap.add_argument("--theme-look", metavar="JSON",
                     help="how the Wandrer roads look in the theme (written by the web page, see wahoondrer/theme_style.py); "
                          "default: the theme as it is")
@@ -354,6 +377,13 @@ def main():
             sys.exit(f"! Look of the Wandrer roads: {exc}")
         if custom_look:
             use_theme_look(json.loads(args.theme_look))
+    if args.theme_squadrats:
+        try:
+            custom_sq = not theme_style.sq_is_default(json.loads(args.theme_squadrats))
+        except ValueError as exc:
+            sys.exit(f"! Look of the Squadrats: {exc}")
+        if custom_sq:
+            use_squadrats_look(json.loads(args.theme_squadrats))
     initialize_work_directories()
     adjustments_due_to_breaking_changes()
     download_tooling()

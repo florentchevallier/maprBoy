@@ -160,15 +160,23 @@ def _inside(path, parent):
     return path == parent or path.startswith(parent + os.sep)
 
 
-def look_args(w):
-    """['--theme-look', json] when the look of the Wandrer roads is not the default one, else []."""
+def look_args(w, q=None):
+    """['--theme-look', json] when the look of the Wandrer roads is not the default one, and
+    ['--theme-squadrats', json] when the look of the Squadrats outlines is not; else []."""
+    out = []
     try:
         look = theme_style.clean(w.get("look"))
     except ValueError as exc:
         raise SettingsError(f"Look of the Wandrer roads: {exc}")
-    if theme_style.is_default(look):
-        return []
-    return ["--theme-look", json.dumps(look)]
+    if not theme_style.is_default(look):
+        out += ["--theme-look", json.dumps(look)]
+    try:
+        sq = theme_style.sq_clean((q or {}).get("look"))
+    except ValueError as exc:
+        raise SettingsError(f"Look of the Squadrats: {exc}")
+    if not theme_style.sq_is_default(sq):
+        out += ["--theme-squadrats", json.dumps(sq)]
+    return out
 
 
 def poi_args(s):
@@ -299,7 +307,7 @@ def build_commands(s, exports, squadrats_file, plan=False):
                     b += ["--contour-tile", f"{k}={v}"]
     if not plan:
         b += poi_args(s)
-        b += look_args(w)
+        b += look_args(w, q)
     if plan:
         b.append("--plan")
     cmds.append(("Plan: tiles and OSM regions" if plan else "Build the map tiles", b))

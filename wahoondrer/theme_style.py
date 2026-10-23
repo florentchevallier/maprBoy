@@ -96,3 +96,65 @@ def apply(xml, look):
         return f'{i}<line use="wandrer-visited-outline-{m.group("cat")}" />\n{m.group(0)}'
 
     return _VISITED_USE.sub(visited_outline, out)
+
+
+# ------------------------------------------------------------------ Squadrats
+# The outlines of the unexplored Squadrats squares: one line per level (big = z14, small = z17) and per style
+# ("squadrat-big-roam"...). Colour, width and dashes, once for the light styles and once for the dark one.
+SQ_DEFAULT = {
+    "light": {"big": {"color": "#E03030", "width": 1.6, "dashed": False},
+              "small": {"color": "#E03030", "width": 1.4, "dashed": True}},
+    "dark": {"big": {"color": "#FF6060", "width": 1.6, "dashed": False},
+             "small": {"color": "#FF6060", "width": 1.4, "dashed": True}},
+}
+SQ_DASH = "6,6"
+SQ_EXPECTED_LINES = len(MODE_OF) * 2
+_SQ_LINE = re.compile(rf'<style-line id="squadrat-(?P<level>big|small)-(?P<cat>{_CATS})"[^>]*/>')
+
+
+def sq_defaults():
+    return copy.deepcopy(SQ_DEFAULT)
+
+
+def _sq_one(part, base, where):
+    part = {**base, **(part if isinstance(part, dict) else {})}
+    one = _one({"color": part["color"], "width": part["width"], "outline": False}, base | {"outline": False}, where)
+    return {"color": one["color"], "width": one["width"], "dashed": bool(part["dashed"])}
+
+
+def sq_clean(look):
+    """The Squadrats look checked and completed with the defaults; raises ValueError with a readable message."""
+    look = look if isinstance(look, dict) else {}
+    out = {}
+    for mode in SQ_DEFAULT:
+        m = look.get(mode) if isinstance(look.get(mode), dict) else {}
+        out[mode] = {lv: _sq_one(m.get(lv), SQ_DEFAULT[mode][lv], f"{mode} {lv} squares") for lv in SQ_DEFAULT[mode]}
+    return out
+
+
+def sq_is_default(look):
+    return sq_clean(look) == sq_clean(SQ_DEFAULT)
+
+
+def sq_apply(xml, look):
+    """The theme text with the Squadrats outlines drawn as `look` says."""
+    look = sq_clean(look)
+    count = 0
+
+    def change(m):
+        nonlocal count
+        count += 1
+        st = look[MODE_OF[m.group("cat")]][m.group("level")]
+        line = _set(_set(m.group(0), "stroke", st["color"]), "width", f"{st['width']:g}")
+        has_dash = re.search(r'\bdasharray="[^"]*"', line)
+        if st["dashed"] and not has_dash:
+            line = re.sub(r'\s*/>$', f' dasharray="{SQ_DASH}" />', line)
+        elif not st["dashed"] and has_dash:
+            line = re.sub(r'\s+dasharray="[^"]*"', "", line)
+        return line
+
+    out = _SQ_LINE.sub(change, xml)
+    if count != SQ_EXPECTED_LINES:
+        raise ValueError(f"the theme has {count} Squadrats lines instead of {SQ_EXPECTED_LINES}; "
+                         "it changed and wahoondrer/theme_style.py must follow")
+    return out

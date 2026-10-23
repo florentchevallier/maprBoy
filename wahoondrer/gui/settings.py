@@ -122,7 +122,7 @@ def save(data, path=SETTINGS_PATH):
     device = merged["device"] if merged["device"] in DEVICES else "wahoo"
     shared = {k: v for k, v in merged.items() if k not in DEVICE_KEYS and k != "device"}
     sq_file = merged["squadrats"].get("file", "") or ""
-    if device == stored_device or stored_device not in devices:
+    if device == stored_device:             # switching device: the page sends the other device's values, keep them out
         block = {k: copy.deepcopy(merged[k]) for k in DEVICE_KEYS}
         block["squadrats"].pop("file", None)
         devices[device] = block

@@ -159,6 +159,14 @@ class DeviceSettingsTests(unittest.TestCase):
             self.assertEqual(g["activity"], "foot")
             self.assertEqual(settings.load(p)["device"], "garmin")
 
+    def test_coming_back_from_a_device_never_saved_keeps_the_first_one(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            s = settings.load(p); s["activity"] = "bike"; s["tiles"] = ["136/88"]; s = settings.save(s, p)
+            s["device"] = "garmin"; g = settings.save(s, p)           # Garmin: defaults, nothing saved for it yet
+            g["device"] = "wahoo"; w = settings.save(g, p)
+            self.assertEqual((w["activity"], w["tiles"]), ("bike", ["136/88"]))
+
     def test_the_squadrats_file_is_shared(self):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "s.json")

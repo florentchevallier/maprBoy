@@ -143,6 +143,14 @@ td .old{color:var(--bad);white-space:nowrap;cursor:help;position:relative}td .ol
 .seg.micro{margin-left:auto;border-radius:6px}.seg.micro button{padding:2px 9px;font-size:12px;font-weight:600;color:var(--mute)}
 .seg.micro button.on{background:var(--ink);color:var(--card)}.seg.micro button.on.own{background:var(--accent);color:var(--accent-ink)}
 .pro .simple-only{display:none}
+table.exlist td{vertical-align:top}table.exlist .exname{overflow-wrap:anywhere}table.exlist td.tags{white-space:normal;width:1%}
+table.exlist .tag{width:auto;padding:1px 8px;margin:1px 3px 2px 0;white-space:nowrap}
+.sw{display:inline-block;width:20px;height:12px;border-radius:3px;border:1px solid #0003;vertical-align:-1px}.pro-hint{color:var(--mute)}
+.seg.types button{padding:2px 10px;font-size:13px;font-weight:600}.seg.types button.on{background:var(--ink);color:var(--card)}
+.seg.types .n{font-weight:400;opacity:.75;margin-left:4px}
+.card h2 .onoff{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;margin-left:6px}
+.garmin-only{display:none}body.garmin .garmin-only{display:block}body.garmin #blkLook .pro-only,body.garmin #lookSimple{display:none}
+body.garmin #blkLook > h3 .bolt{display:none}
 .pole .blk > h3{cursor:pointer;user-select:none}.pole .blk > h3 > button.fold{margin:0 -4px 0 -6px}
 .pole .blk.folded > .blk-body{display:none}.pole .blk.folded > h3{margin-bottom:0}.pole .blk.folded .fsum{display:inline}
 .pro button.pro-only.inline{display:inline-block}
@@ -243,23 +251,17 @@ tr.rgrp.folded .gsum{display:inline}
   <p class="note">After a change, the tiles must be rebuilt and the theme copied again to the Bolt (“Make the maps” does both). More places and lower zoom levels make the tiles heavier and the map busier: add them with care.</p>
   </div>
 </section>
-<section class="card" data-sec="exports">
-  <h2>Wandrer exports <span class="sp"></span><button class="icon" id="btnReload" title="Look for new or changed files">🔄</button><select class="secmode" data-secmode="exports" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
-  <p class="hint">Ticked exports are merged; where they overlap, the most recent one wins. "Near" is the town where you ride most in that export.</p>
+<section class="card pole" data-sec="wandrer">
+  <h2>Wandrer <label class="onoff"><input type="checkbox" data-path="wandrer.enabled">On</label><span class="fsum" id="poleSumWandrer"></span><span class="sp"></span><div class="seg micro" data-pole="wandrer" role="group" aria-label="Simple or Pro for this section"><button type="button" data-m="simple">Simple</button><button type="button" data-m="pro">Pro</button></div></h2>
+  <div class="blk" id="blkExports">
+  <h3>Exports <span class="seg types" id="typeSeg" role="group" aria-label="Type of export"></span><span class="fsum" id="blkSumExports"></span><span class="sp"></span><button class="icon" id="btnReload" title="Look for new or changed files">🔄</button></h3>
   <div id="scanBox" style="display:none"><div class="note" id="scanText"></div><div class="bar" id="scanBar"><i></i></div></div>
-  <div class="actions" id="actBox" style="margin:4px 0 8px"><span class="note">Which exports to use:</span>
-    <select id="actSel" data-path="activity" style="width:auto"></select><span class="note" id="actNote"></span>
-    <span class="sp"></span><button class="small" id="exNone" title="Untick every export">Untick all</button><button class="small" id="exAll" title="Tick every export">Tick all</button></div>
-  <p class="note" style="margin:0 0 8px">Wandrer gives three kinds of export: <b>bike</b>, <b>foot</b> and <b>combined</b>. The map is made from one kind.<span class="pro-only inline"> Pro: “all types” mixes them.</span> Until you choose, the type of your newest export is used.</p>
   <div id="exports"></div>
   <div class="drop" id="dropWandrer">Drop your Wandrer <b>.kmz</b> files here (or click to choose them): they are copied into your Wandrer folder, named by date, town and type, never replacing a file</div>
-</section>
-<section class="card" data-sec="wandrer">
-  <h2>Wandrer layer<select class="secmode" data-secmode="wandrer" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
-  <label class="chk"><input type="checkbox" data-path="wandrer.enabled"><span>Add the Wandrer layer <small>unvisited roads in orange (dashed when unpaved)</small></span></label>
-  <div class="opts">
-    <div>
-      <label class="chk"><input type="checkbox" data-path="wandrer.boundaries" id="optBoundaries"><span>Achievement boundaries <small id="boundNote">subtle violet dashed lines</small></span></label>
+  <p class="note">Only the exports of the chosen type are listed (the type is read inside each file); ticked ones are merged, the most recent wins where they overlap, and are shown on the map. The choice is kept for each device.</p>
+  </div>
+  <div class="blk" id="blkRoads">
+  <h3>Roads</h3>
       <label class="row" style="grid-template-columns:150px 1fr">Show unvisited roads
         <select id="radiusSel">
           <option value="250">within 250 m of roads I rode</option>
@@ -270,11 +272,17 @@ tr.rgrp.folded .gsum{display:inline}
       <label class="row" id="radiusCustom" style="grid-template-columns:150px 110px 1fr;display:none">Distance (m)<input type="number" min="0" step="10" data-path="wandrer.radius_m" data-num="1"><small class="note">0 = everywhere</small></label>
       <p class="note">Roads farther than this from a road you rode are left out to keep the tiles light. <b>In an area where you have ridden nothing yet, no unvisited road is shown</b>: choose a larger distance or "everywhere" (heavier tiles). Wandrer only counts roads open to the public, so the orange layer shows which ones count.</p>
       <label class="chk"><input type="checkbox" data-path="wandrer.with_traveled"><span>Show visited roads <small>thin green lines; makes tiles heavier</small></span></label>
-    </div>
+      <label class="chk"><input type="checkbox" data-path="wandrer.boundaries" id="optBoundaries"><span>Achievement boundaries <small id="boundNote">subtle violet dashed lines</small></span></label>
     <div class="pro-only">
       <label class="row" style="grid-template-columns:150px 110px 1fr">Simplify (m)<input type="number" min="0" step="0.5" data-path="wandrer.simplify_m" data-num="1"><small class="note">0 = none</small></label>
       <label class="chk"><input type="checkbox" data-path="wandrer.unpaved_always"><span>Keep every unvisited unpaved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
       <label class="chk"><input type="checkbox" data-path="wandrer.paved_always"><span>Keep every unvisited paved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
+    </div>
+  </div>
+  <div class="blk" id="blkLook">
+  <h3>Look <span class="bolt">on the Bolt</span> <span class="fsum" id="blkSumLook"></span></h3>
+    <p class="note simple-only" id="lookSimple"></p>
+    <div class="pro-only">
       <table class="looktbl">
         <thead><tr><th></th><th>Unvisited</th><th>Visited</th></tr></thead>
         <tbody>
@@ -291,6 +299,7 @@ tr.rgrp.folded .gsum{display:inline}
       <p><button class="small" id="btnLookReset" type="button">Reset the look of the roads</button></p>
       <p class="note">These settings change the <b>theme</b>, not the tiles: after a build, copy the new <b>vtm-elemnt.xml</b> to the Bolt (see “Files for the Bolt”, a red warning marks it).</p>
     </div>
+    <p class="note garmin-only">On a Garmin, unvisited roads are magenta with a white edge, visited ones cyan, unpaved ones dashed, boundaries a purple band (see docs/GARMIN.md); choosing them here comes with the Garmin build from this page.</p>
   </div>
 </section>
 <section class="card" data-sec="squadrats">
@@ -416,7 +425,7 @@ function scheduleSave(reload) {
 }
 
 // ---------- Simple / Pro (global button, and one choice per section)
-const POLE_OF = {osm: "basemap", pois: "basemap", contour: "basemap"};     // parts that now live in a pole follow its choice
+const POLE_OF = {osm: "basemap", pois: "basemap", contour: "basemap", exports: "wandrer"};     // parts that now live in a pole follow its choice
 const modeOf = sec => { const m = ((S.ui || {}).sections || {})[POLE_OF[sec] || sec]; return m === "simple" || m === "pro" ? m : S.mode; };
 function dropSameAsGlobal() {        // a pole's own choice equal to the button at the top is no own choice any more
   const sec = (S.ui || {}).sections || {};
@@ -433,7 +442,7 @@ $$(".seg.micro[data-pole] button").forEach(b => b.onclick = e => {
   e.stopPropagation();
   const pole = b.closest(".seg").dataset.pole; S.ui = S.ui || {}; S.ui.sections = S.ui.sections || {};
   if (b.dataset.m === S.mode) delete S.ui.sections[pole]; else S.ui.sections[pole] = b.dataset.m;
-  applyModes(); renderPois(); drawTileMenus(); renderContour(); scheduleSave(false);
+  applyModes(); renderPois(); renderActivity(); renderExports(); drawTileMenus(); renderContour(); scheduleSave(false);
 });
 function applyModes() {
   $$("section[data-sec]").forEach(s => s.classList.toggle("pro", modeOf(s.dataset.sec) === "pro"));
@@ -529,18 +538,23 @@ function renderExports() {
   if (!S.folders.wandrer) { box.innerHTML = '<p class="note">Set up your folders (⚙ at the top), then drop your Wandrer files here.</p>'; return; }
   if (!ex.length) { box.innerHTML = '<p class="note">No KMZ/KML file in this folder yet.</p>'; return; }
   const acts = new Set(ex.filter(e => e.active).map(e => e.activity).filter(Boolean));
-  const flag = (on, label, n, cls) => `<span class="tag ${on ? cls : "no"}" title="${on ? num(n) + " " + label : "no " + label}">${label}${on && modeOf("exports") === "pro" ? " " + num(n) : ""}</span>`;
-  let h = `<table><tr><th></th><th>File</th><th>Exported</th><th>Type</th><th>Near</th><th>This export contains:</th><th>Tiles</th></tr>`;
-  for (const e of ex) {
-    if (e.pending) { h += `<tr class="off"><td></td><td>${esc(e.name)}</td><td colspan="5">waiting to be read…</td></tr>`; continue; }
-    if (e.error) { h += `<tr class="off"><td></td><td>${esc(e.name)}</td><td colspan="5" class="warn">cannot be read: ${esc(e.error)}</td></tr>`; continue; }
+  const flag = (on, label, n, cls) => `<span class="tag ${on ? cls : "no"}" title="${on ? num(n) + " " + label : "no " + label}">${label}${on && modeOf("wandrer") === "pro" ? " " + num(n) : ""}</span>`;
+  const pro = modeOf("wandrer") === "pro", all = !ST.activity_used;
+  let h = `<table class="exlist"><tr><th></th><th>Export</th><th>Contains</th>${pro ? "<th>Tiles</th>" : ""}</tr>`;
+  const act = ST.activity_used, shown = ex.filter(e => !act || e.pending || e.error || !e.activity || e.activity === act);
+  const hidden = ex.length - shown.length;
+  for (const e of shown) {
+    if (e.pending) { h += `<tr class="off"><td></td><td>${esc(e.name)}<div class="note">waiting to be read…</div></td><td colspan="2"></td></tr>`; continue; }
+    if (e.error) { h += `<tr class="off"><td></td><td>${esc(e.name)}<div class="warn">cannot be read: ${esc(e.error)}</div></td><td colspan="2"></td></tr>`; continue; }
     const near = e.place ? esc(e.place) : (S.geocode ? (e.hub ? "…" : "–") : "–");
     h += `<tr data-row="${esc(e.name)}" class="${e.active ? "" : "off"}"><td><input type="checkbox" data-ex="${esc(e.name)}" ${S.excluded_exports.includes(e.name) ? "" : "checked"}></td>
-      <td>${esc(e.name)}${e.why && e.why !== "unticked" ? `<div class="note">${esc(e.why)}</div>` : ""}</td><td>${esc(e.date)}</td><td>${esc(e.activity || "?")}</td><td>${near}</td>
+      <td><div class="exname">${esc(e.name)}</div><div class="note">${near !== "–" ? "near " + near + " · " : ""}${esc(e.date)}${all ? " · " + esc(e.activity || "?") : ""}${e.why && e.why !== "unticked" ? " · " + esc(e.why) : ""}</div></td>
       <td class="tags">${flag(e.untraveled > 0, "unvisited", e.untraveled, "unv")}${flag(e.unpaved > 0, "unpaved", e.unpaved, "unp")}${flag(e.traveled > 0, "ridden", e.traveled, "rid")}${flag(e.boundaries > 0, "boundaries", e.boundaries, "bnd")}</td>
-      <td>${e.tiles.map(t => t.join("/")).join(", ")}</td></tr>`;
+      ${pro ? `<td class="note">${e.tiles.map(t => t.join("/")).join(", ")}</td>` : ""}</tr>`;
   }
   h += "</table>";
+  if (hidden) h += `<p class="note">${hidden} export${hidden > 1 ? "s" : ""} of other types not listed.</p>`;
+  $("#blkSumExports").textContent = "· " + ex.filter(e => e.active).length + " used" + (act ? " (" + act + ")" : "");
   if (acts.size > 1) h += `<p class="warn">Exports of different types are merged (${[...acts].join(", ")}). The same road can be "unvisited" in one and "ridden" in another: check that this is what you want.</p>`;
   box.innerHTML = h;
   $$("[data-ex]", box).forEach(c => c.onchange = async () => {
@@ -554,19 +568,30 @@ function renderExports() {
   });
 }
 
-$("#exNone").onclick = async () => { S.excluded_exports = ST.exports.map(e => e.name); await api("/api/settings", S); await refresh(); };
-$("#exAll").onclick = async () => { S.excluded_exports = []; await api("/api/settings", S); await refresh(); };
 
 function renderActivity() {
-  const sel = $("#actSel"), count = t => ST.exports.filter(e => e.activity === t).length;
-  const opts = ["bike", "foot", "combined"].map(t => [t, `${t} (${count(t)} file${count(t) === 1 ? "" : "s"})`]);
-  if (modeOf("exports") === "pro") opts.push(["any", "all types (mix)"]);
-  sel.innerHTML = opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
-  sel.value = opts.some(o => o[0] === S.activity) ? S.activity : (ST.activity_used || "bike");
-  $("#actNote").textContent = ST.activity_used ? `→ using: ${ST.activity_used}` : "";
+  const count = t => ST.exports.filter(e => e.activity === t).length, used = ST.activity_used, pro = modeOf("wandrer") === "pro";
+  const cur = S.activity === "any" && pro ? "any" : (used || "bike");
+  const opts = ["bike", "foot", "combined"].map(t => [t, t[0].toUpperCase() + t.slice(1), count(t)]);
+  if (pro) opts.push(["any", "All types", ST.exports.filter(e => e.activity).length]);
+  $("#typeSeg").innerHTML = opts.map(([v, l, n]) => `<button type="button" data-type="${v}" class="${v === cur ? "on" : ""}" aria-pressed="${v === cur}"${n || v === cur ? "" : " disabled"}>${l}<span class="n">${n}</span></button>`).join("");
+  $$("#typeSeg button").forEach(b => b.onclick = async e => {
+    e.stopPropagation(); if (b.classList.contains("on")) return;
+    S.activity = b.dataset.type; clearTimeout(saveTimer); unsaved = false;
+    await api("/api/settings", S); await refresh(); drawMapLayers(true);
+  });
 }
 
+function renderWandrerSums() {
+  const L = (S.wandrer.look || {}).light || {}, sw = c => `<span class="sw" style="background:${esc(c)}"></span>`;
+  const u = L.unvisited || {}, v = L.visited || {};
+  $("#lookSimple").innerHTML = `Unvisited ${sw(u.color)} ${esc(u.color)}, dashed when unpaved` + (S.wandrer.with_traveled ? ` · Visited ${sw(v.color)} ${esc(v.color)}` : "")
+    + (S.wandrer.boundaries ? ` · Boundaries ${sw("#7a4fc4")} violet` : "") + `. <span class="pro-hint">Change them in Pro.</span>`;
+  $("#blkSumLook").textContent = isGarmin() ? "" : "· " + u.color;
+  $("#poleSumWandrer").textContent = "· " + (S.wandrer.enabled ? activeExports().length + " export" + (activeExports().length === 1 ? "" : "s") : "off");
+}
 function renderDerived() {
+  renderWandrerSums();
   const ch = activeExports();
   const hasB = ch.some(e => e.boundaries > 0), cb = $("#optBoundaries");
   cb.disabled = !hasB;
@@ -1366,11 +1391,15 @@ function renderDevice() {
   const what = isGarmin() ? "watch" : "Bolt";
   $("#step2Label").textContent = $("#filesTitle").textContent = "Copy to the " + what;
   $("#garminNote").hidden = !isGarmin();
+  document.body.classList.toggle("garmin", isGarmin());
 }
 $$("#devSeg button").forEach(b => b.onclick = async () => {
   if (b.dataset.device === S.device) return;
   clearTimeout(saveTimer); unsaved = false;
-  try { S.device = b.dataset.device; await api("/api/settings", S); await refresh(); drawMapLayers(true); }
+  try {
+    await api("/api/settings", S);                     // first keep what is waiting for the device we leave
+    S.device = b.dataset.device; await api("/api/settings", S); await refresh(); drawMapLayers(true);
+  }
   catch (e) { $("#runMsg").textContent = e.message; }
 });
 function setStep(n) {

@@ -80,7 +80,7 @@ tr.hl td{background:color-mix(in srgb,var(--viol) 12%,transparent)}
 .badge{display:inline-block;padding:1px 7px;border-radius:99px;font-size:12px;margin:1px 2px 1px 0;background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ink)}
 .badge.no{background:transparent;color:var(--mute);text-decoration:line-through;opacity:.6}
 #map{height:400px;border-radius:10px;border:1px solid var(--line);margin:8px 0}
-.tilebar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tilebar,.pro div.tilebar.pro-only{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .tilebar input[type=text]{flex:1;min-width:200px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .seg button{border:0;border-radius:0;padding:6px 14px;background:transparent}
@@ -92,7 +92,6 @@ section[data-sec]:not(.pro) .pro-only{display:none}   /* wins over label.row, .c
 .pro label.row.pro-only{display:grid}
 .pro label.chk.pro-only{display:flex}
 .pro th.pro-only,.pro td.pro-only{display:table-cell}
-select.secmode{width:auto;margin-left:auto;padding:2px 6px;font-size:12px;color:var(--mute);font-weight:400}
 .poi-ico{width:22px;height:22px;vertical-align:middle;background:#8884;border-radius:4px;padding:1px}
 table.pois select{width:auto;padding:3px 5px}
 table.pois input[type=number]{width:70px;padding:3px 5px}
@@ -144,6 +143,18 @@ td .old{color:var(--bad);white-space:nowrap;cursor:help;position:relative}td .ol
 .seg.micro{margin-left:auto;border-radius:6px}.seg.micro button{padding:2px 9px;font-size:12px;font-weight:600;color:var(--mute)}
 .seg.micro button.on{background:var(--ink);color:var(--card)}.seg.micro button.on.own{background:var(--accent);color:var(--accent-ink)}
 .pro .simple-only{display:none}
+.pro label.pro-only.inline-flex,.pro span.pro-only.inline-flex{display:inline-flex}
+.lays{gap:10px 12px;align-items:center;flex-wrap:wrap}
+.mapgrip{flex:none;height:9px;margin:-6px 0 4px;cursor:ns-resize;border-radius:0 0 8px 8px;background:linear-gradient(var(--line),var(--line)) center/36px 3px no-repeat;touch-action:none}
+.mapgrip:hover{background-color:color-mix(in srgb,var(--line) 45%,transparent)}
+#map.fixedh{flex:none !important}
+body.maptall #colMap{position:static;max-height:none;overflow:visible}
+.leaflet-interactive:focus{outline:none}
+.notilelabels .tlabel{display:none}
+.lsw{display:inline-block;width:20px;height:0;border-top:2px dashed;vertical-align:3px}
+.regchips{display:inline-flex;gap:6px;flex-wrap:wrap}.regchip{display:inline-flex;align-items:center;gap:4px;padding:1px 4px 1px 10px;border-radius:99px;background:color-mix(in srgb,var(--viol) 16%,transparent);font-size:13px}
+.regchip button{border:0;background:transparent;padding:0 6px;font-size:14px;line-height:1;color:var(--mute)}#regPick{width:240px;padding:4px 8px;font-size:13px}
+#areaRegions[hidden]{display:none}
 .maptools{display:flex;gap:10px 12px;align-items:center;flex-wrap:wrap;margin:2px 0 6px}.maptools .sp{flex:1}
 .maptools.mt2{font-size:13px}.maptools label{display:inline-flex;align-items:center;gap:6px}
 .areaseg button{padding:4px 10px;font-size:13px;display:inline-flex;align-items:center;gap:5px}.areaseg button.on{background:var(--ink);color:var(--card)}
@@ -157,7 +168,6 @@ table.exlist .tag{width:auto;padding:1px 8px;margin:1px 3px 2px 0;white-space:no
 .seg.types .n{font-weight:400;opacity:.75;margin-left:4px}
 .card h2 .onoff{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;margin-left:6px}
 .garmin-only{display:none}body.garmin .garmin-only{display:block}body.garmin #blkLook .pro-only,body.garmin #lookSimple{display:none}
-body.garmin #blkLook > h3 .bolt,body.garmin #blkSqLook > h3 .bolt{display:none}
 body.garmin #blkSqLook .pro-only,body.garmin #sqLookSimple{display:none}
 .pole .blk > h3{cursor:pointer;user-select:none}.pole .blk > h3 > button.fold{margin:0 -4px 0 -6px}
 .pole .blk.folded > .blk-body{display:none}.pole .blk.folded > h3{margin-bottom:0}.pole .blk.folded .fsum{display:inline}
@@ -256,7 +266,7 @@ tr.rgrp.folded .gsum{display:inline}
     <div class="warn" id="cuMsg"></div>
   </div>
   <div class="actions" style="margin-top:8px"><button class="small" id="poiReset">Back to the defaults</button><span class="note" id="poiNote"></span></div>
-  <p class="note">After a change, the tiles must be rebuilt and the theme copied again to the Bolt (“Make the maps” does both). More places and lower zoom levels make the tiles heavier and the map busier: add them with care.</p>
+  <p class="note">After a change, the tiles must be rebuilt and the theme copied again to your device (“Make the maps” does both). More places and lower zoom levels make the tiles heavier and the map busier: add them with care.</p>
   </div>
 </section>
 <section class="card pole" data-sec="wandrer">
@@ -288,7 +298,7 @@ tr.rgrp.folded .gsum{display:inline}
     </div>
   </div>
   <div class="blk" id="blkLook">
-  <h3>Look <span class="bolt">on the Bolt</span> <span class="fsum" id="blkSumLook"></span></h3>
+  <h3>Look on your device <span class="fsum" id="blkSumLook"></span></h3>
     <p class="note simple-only" id="lookSimple"></p>
     <div class="pro-only">
       <table class="looktbl">
@@ -305,7 +315,7 @@ tr.rgrp.folded .gsum{display:inline}
         </tbody>
       </table>
       <p><button class="small" id="btnLookReset" type="button">Reset the look of the roads</button></p>
-      <p class="note">These settings change the <b>theme</b>, not the tiles: after a build, copy the new <b>vtm-elemnt.xml</b> to the Bolt (see “Files for the Bolt”, a red warning marks it).</p>
+      <p class="note">These settings change the <b>theme</b>, not the tiles: after a build, copy the new <b>vtm-elemnt.xml</b> to your device (step 2: a red warning marks it).</p>
     </div>
     <p class="note garmin-only">On a Garmin, unvisited roads are magenta with a white edge, visited ones cyan, unpaved ones dashed, boundaries a purple band (see docs/GARMIN.md); choosing them here comes with the Garmin build from this page.</p>
   </div>
@@ -335,7 +345,7 @@ tr.rgrp.folded .gsum{display:inline}
     <p class="note">Squadrats work with or without Wandrer: the outlines of the unexplored squares are drawn on every tile you chose.</p>
   </div>
   <div class="blk" id="blkSqLook">
-  <h3>Look <span class="bolt">on the Bolt</span> <span class="fsum" id="blkSumSqLook"></span></h3>
+  <h3>Look on your device <span class="fsum" id="blkSumSqLook"></span></h3>
     <p class="note simple-only" id="sqLookSimple"></p>
     <div class="pro-only">
       <table class="looktbl">
@@ -358,28 +368,33 @@ tr.rgrp.folded .gsum{display:inline}
 </div>
 <div id="colMap">
 <section class="card" data-sec="tiles">
-  <h2>Tiles to generate<select class="secmode" data-secmode="tiles" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+  <h2>Tiles to generate<span class="sp"></span><div class="seg micro" data-pole="tiles" role="group" aria-label="Simple or Pro for this section"><button type="button" data-m="simple">Simple</button><button type="button" data-m="pro">Pro</button></div></h2>
   <div class="maptools">
     <span class="seg areaseg" id="areaSeg" role="group" aria-label="How to choose the tiles">
-      <button type="button" data-area="manual">Manual</button><button type="button" data-area="exports">From Wandrer exports</button><button type="button" data-area="exports_km">Exports +</button><span class="kmbox"><input type="number" id="areaKm" min="0" max="200" step="1" aria-label="Margin around the exports in km">km</span><button type="button" data-area="regions" disabled title="Next step">Regions</button>
+      <button type="button" data-area="manual">Manual</button><button type="button" data-area="exports">From Wandrer exports</button><button type="button" data-area="exports_km">Exports +</button><span class="kmbox"><input type="number" id="areaKm" min="0" max="200" step="1" aria-label="Margin around the exports in km">km</span><button type="button" data-area="regions">Regions</button>
     </span>
     <span class="sp"></span><button type="button" class="small" id="mapFit">🔍 Zoom to my data</button><button type="button" class="small" id="mapLocate">📍 My location</button>
   </div>
   <div class="maptools mt2">
-    <label><input type="checkbox" id="layExp" checked> Wandrer coverage</label><label><input type="checkbox" id="layTiles" checked> Selected tiles</label>
+    <span class="pro-only inline-flex lays"><span class="note">On the map:</span><label><input type="checkbox" id="layExp" checked> Wandrer coverage</label><label><input type="checkbox" id="layTiles" checked> Selected tiles</label><label><input type="checkbox" id="layOsm" checked> OSM regions</label></span>
     <span class="sp"></span><span class="note" id="areaHint"></span>
   </div>
+  <div class="maptools" id="areaRegions" hidden>
+    <span class="note">Regions:</span><span id="regChips" class="regchips"></span>
+    <input type="text" id="regPick" list="regList" placeholder="Add a region… (type a name)" aria-label="Add a region"><datalist id="regList"></datalist>
+  </div>
   <div class="tilebar pro-only" style="margin:6px 0 0">
-    <input type="text" id="tilesText" placeholder="e.g. 135/88, 136/88" aria-label="Tiles">
     <button id="tilesClear">Clear</button>
+    <input type="text" id="tilesText" placeholder="e.g. 135/88, 136/88" aria-label="Tiles">
   </div>
   <span class="note" id="locNote"></span>
   <div id="map"></div>
+  <div class="mapgrip" id="mapGrip" title="Drag to change the map height (double-click: back to the default)" aria-hidden="true"></div>
   <div class="note" id="mapNote"></div>
   <div class="note" id="mapLegend"></div>
 </section>
 <section class="card" data-sec="make">
-  <h2>Make the maps<select class="secmode" data-secmode="make" title="Simple or Pro for this section only"><option value="">Follow the button above</option><option value="simple">Simple</option><option value="pro">Pro</option></select></h2>
+  <h2>Make the maps<span class="sp"></span><div class="seg micro" data-pole="make" role="group" aria-label="Simple or Pro for this section"><button type="button" data-m="simple">Simple</button><button type="button" data-m="pro">Pro</button></div></h2>
   <label class="chk pro-only"><input type="checkbox" data-path="build.skip_classic"><span>Only redo the Wandrer part <small>faster: reuses the classic tiles of the last run. Ignored (with a message) if the tiles, POIs, contour lines or OSM data changed since</small></span></label>
   <label class="chk"><input type="checkbox" data-path="build.notify"><span>Notify me when a run ends <small>a system notification when the maps are ready, or when a step failed (useful while you do something else)</small></span></label>
   <div class="envwarn envnote" id="garminNote" hidden>Garmin maps are made from the command line for now: <span class="path">python3 scripts/build_garmin.py</span> (see docs/GARMIN.md). Making them from this page comes next.</div>
@@ -435,6 +450,7 @@ tr.rgrp.folded .gsum{display:inline}
 
 <script>
 "use strict";
+let layerReg = null, layerOsm = null;
 let S = null, ST = null, saveTimer = null, map = null, map2 = null, layerMenus = null, layerMenus2 = null, layerRect2 = null, layerTiles = null, layerExp = null, layerGrid = null, expRects = {}, locMarker = null;
 const $ = (q, r = document) => r.querySelector(q), $$ = (q, r = document) => [...r.querySelectorAll(q)];
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -468,7 +484,7 @@ const POLE_OF = {osm: "basemap", pois: "basemap", contour: "basemap", exports: "
 const modeOf = sec => { const m = ((S.ui || {}).sections || {})[POLE_OF[sec] || sec]; return m === "simple" || m === "pro" ? m : S.mode; };
 function dropSameAsGlobal() {        // a pole's own choice equal to the button at the top is no own choice any more
   const sec = (S.ui || {}).sections || {};
-  for (const pole of new Set(Object.values(POLE_OF))) if (sec[pole] === S.mode) delete sec[pole];
+  for (const k of Object.keys(sec)) if (sec[k] === S.mode) delete sec[k];
 }
 function renderMicro() {
   $$(".seg.micro[data-pole]").forEach(g => {
@@ -485,9 +501,9 @@ $$(".seg.micro[data-pole] button").forEach(b => b.onclick = e => {
 });
 function applyModes() {
   $$("section[data-sec]").forEach(s => s.classList.toggle("pro", modeOf(s.dataset.sec) === "pro"));
-  $$("select[data-secmode]").forEach(sel => sel.value = ((S.ui || {}).sections || {})[sel.dataset.secmode] || "");
   renderMicro();
   applyFolds();
+  applyLayers();
 }
 
 // ---------- fold / unfold (sections, region groups, tile folders). The state is kept in the settings (ui.folded);
@@ -642,9 +658,13 @@ function renderSquadratsSums() {
 }
 // ---------- area: how the tiles are chosen. A mode fills S.tiles; a click or a typed list switches to Manual.
 const AREA_HINT = {manual: "Click the map to add or remove a tile (zoom-8 tiles, about 100 × 70 km).",
+  regions: "The tiles that touch the chosen OpenStreetMap regions (violet on the map); click a tile to adjust (switches to Manual).",
   exports: "The tiles touched by the exports in use; click a tile to adjust (switches to Manual).",
   exports_km: "The tiles within this margin of the exports in use; click a tile to adjust (switches to Manual)."};
-const area = () => (S.area = S.area || {mode: "manual", km: 10});
+const area = () => { S.area = S.area || {mode: "manual", km: 10}; S.area.regions = S.area.regions || []; return S.area; };
+const regionTiles = {};                           // "key,key" -> ["x/y", ...] from the server (the outlines are there)
+const regionShapes = {};                          // key -> {name, rings}
+let regionNames = null;                           // [{key, label}] of every Geofabrik region, for the picker
 function toManual() { if (area().mode !== "manual") { area().mode = "manual"; renderArea(); } }
 function tilesInBox(w, s, e, n) {
   const [x0, y0] = tileOf(w, n), [x1, y1] = tileOf(e, s), out = [];
@@ -659,8 +679,39 @@ function areaTiles() {
     return parseTiles(ex.flatMap(e => { const [w, s, ea, n] = e.bbox, lat = (s + n) / 2, dy = km / 111.2, dx = km / (111.32 * Math.cos(lat * Math.PI / 180));
       return tilesInBox(w - dx, s - dy, ea + dx, n + dy); }).join(","));
   }
+  if (a.mode === "regions") {
+    const k = a.regions.join(",");
+    if (!k) return [];
+    if (regionTiles[k]) return regionTiles[k];
+    api("/api/region_tiles?keys=" + encodeURIComponent(k)).then(r => { regionTiles[k] = r.tiles; applyArea(); drawMapLayers(); }).catch(() => {});
+    return null;                                  // known in a moment
+  }
   return null;                                    // manual: the tiles stay as they are
 }
+async function loadShapes(keys) {
+  const todo = keys.filter(k => !regionShapes[k]);
+  if (todo.length) Object.assign(regionShapes, await api("/api/region_shapes?keys=" + encodeURIComponent(todo.join(","))));
+}
+async function loadRegionNames() {
+  if (regionNames) return;
+  try { regionNames = (await api("/api/regions_available")).available.map(r => ({key: r.key, label: r.label})); }
+  catch (e) { regionNames = []; }
+  $("#regList").innerHTML = regionNames.map(r => `<option value="${esc(r.label)}"></option>`).join("");
+}
+function renderRegionChips() {
+  const a = area(), name = k => (regionShapes[k] && regionShapes[k].name) || ((regionNames || []).find(r => r.key === k) || {}).label || k;
+  $("#regChips").innerHTML = a.regions.map(k => `<span class="regchip">${esc(name(k))}<button type="button" data-regdel="${esc(k)}" aria-label="Remove ${esc(name(k))}">×</button></span>`).join("")
+    || '<span class="note">none yet</span>';
+  $$("[data-regdel]").forEach(b => b.onclick = () => { a.regions = a.regions.filter(k => k !== b.dataset.regdel); afterRegionsChange(); });
+}
+function afterRegionsChange() { renderRegionChips(); renderLegend(); applyArea(); scheduleSave(false); loadShapes(area().regions).then(() => { renderRegionChips(); drawMapLayers(true); }); }
+$("#regPick").addEventListener("change", e => {
+  const v = e.target.value.trim(), hit = (regionNames || []).find(r => r.label === v || r.key === v);
+  e.target.value = "";
+  if (!hit) return;
+  if (!area().regions.includes(hit.key)) area().regions.push(hit.key);
+  afterRegionsChange();
+});
 function applyArea() {                            // recompute the tiles of a mode (after a mode, margin or export change)
   const t = areaTiles();
   if (t && t.join(",") !== S.tiles.join(",")) { S.tiles = t; scheduleSave(false); drawMapLayers(); }
@@ -669,6 +720,9 @@ function renderArea() {
   const a = area();
   $$("#areaSeg button").forEach(b => { const on = b.dataset.area === a.mode; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
   $("#areaSeg").classList.toggle("km", a.mode === "exports_km");
+  renderLegend();
+  $("#areaRegions").hidden = a.mode !== "regions";
+  if (a.mode === "regions") { loadRegionNames().then(renderRegionChips); loadShapes(a.regions).then(() => { renderRegionChips(); drawMapLayers(); }); }
   if (document.activeElement !== $("#areaKm")) $("#areaKm").value = a.km;
   $("#areaHint").textContent = AREA_HINT[a.mode] || "";
 }
@@ -677,8 +731,25 @@ $$("#areaSeg button").forEach(b => b.onclick = e => {
   area().mode = b.dataset.area; renderArea(); applyArea(); scheduleSave(false); drawMapLayers(true);
 });
 $("#areaKm").addEventListener("change", e => { area().km = Math.max(0, Math.min(200, Math.round(+e.target.value || 0))); renderArea(); applyArea(); scheduleSave(false); drawMapLayers(true); });
-$("#layExp").onchange = e => { if (map) { if (e.target.checked) layerExp.addTo(map); else map.removeLayer(layerExp); } };
-$("#layTiles").onchange = e => { if (map) { if (e.target.checked) layerTiles.addTo(map); else map.removeLayer(layerTiles); } };
+let osmInfo = null;                              // {recent, old} counts of the downloaded regions drawn, for the legend
+const layerOn = id => !$('section[data-sec="tiles"]').classList.contains("pro") || $("#" + id).checked;
+function applyLayers() {
+  if (!map) return;
+  for (const [id, lay] of [["layExp", layerExp], ["layTiles", layerTiles]]) { if (layerOn(id)) lay.addTo(map); else map.removeLayer(lay); }
+  if (!layerOn("layOsm")) map.removeLayer(layerOsm); else if (osmInfo) layerOsm.addTo(map); else drawOsmRegions();
+  renderLegend();
+}
+["layExp", "layTiles", "layOsm"].forEach(id => $("#" + id).onchange = applyLayers);
+async function drawOsmRegions(R) {                 // R: the /api/regions answer when the caller has it already
+  if (!map) return;
+  if (!R) try { R = await api("/api/regions"); } catch (e) { return; }
+  await loadShapes(R.downloaded.map(r => r.key)); layerOsm.clearLayers(); osmInfo = {recent: 0, old: 0, days: R.max_days};
+  for (const r of R.downloaded) { const sh = regionShapes[r.key]; if (!sh) continue; const old = r.age_days > R.max_days; osmInfo[old ? "old" : "recent"]++;
+    for (const ring of sh.rings) L.polygon(ring.map(([x, y]) => [y, x]), {color: old ? "#ef6c00" : "#2e7d32", weight: 2, dashArray: "10 6", fill: false})
+      .bindTooltip(`${esc(sh.name)} · ${r.age_days} d${old ? " (WMC will renew it)" : ""}`, {sticky: true, className: "nm"}).addTo(layerOsm); }
+  if (layerOn("layOsm")) layerOsm.addTo(map);
+  renderLegend();
+}
 
 function renderDerived() {
   renderWandrerSums(); renderSquadratsSums(); renderArea(); applyArea();
@@ -693,8 +764,7 @@ function renderDerived() {
   $("#sqFile").textContent = used ? `using ${used.name} (${sq[0].name === used.name ? "most recent" : "chosen by you"})` : (S.folders.squadrats ? "no KML file in the Squadrats folder yet" : "set up your folders first");
   $("#mapNote").textContent = S.tiles.length ? `${S.tiles.length} tile(s): ${S.tiles.join(", ")}` : "No tile chosen yet.";
   $("#tilesText").value = S.tiles.join(", ");
-  const usedTypes = [...new Set(activeExports().map(e => e.activity || "?"))];
-  $("#mapLegend").innerHTML = usedTypes.length ? "Exports: " + usedTypes.map(t => `${legendSwatch(t)} ${esc(t)}`).join(" &nbsp; ") : "";
+  renderLegend();
   drawMapLayers();
 }
 
@@ -736,6 +806,7 @@ async function initMap() {
   map._hiddenInit = !$("#map").offsetWidth;      // created inside a folded section: fit it when the section opens
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 12, attribution: "© OpenStreetMap"}).addTo(map);
   layerExp = L.layerGroup().addTo(map); layerTiles = L.layerGroup().addTo(map); layerGrid = L.layerGroup().addTo(map);
+  layerReg = L.layerGroup().addTo(map); layerOsm = L.layerGroup();
   layerMenus = L.layerGroup().addTo(map);
   map.on("click", e => {
     toManual();                                   // a click adjusts the tiles a mode chose: the selection is kept, as Manual
@@ -745,8 +816,30 @@ async function initMap() {
     scheduleSave(false); renderDerived();
   });
   map.on("moveend", drawGrid);
-  map.on("zoomend", () => { updatePatterns(); drawTileMenus(); });
+  map.on("zoomend", () => { updatePatterns(); drawTileMenus(); tileLabels(); });
+  initMapGrip(); applyLayers();
   drawMapLayers(true);
+}
+// a tile label is only useful when it covers at most a third of the tile's surface
+function tileLabels() {
+  if (!map) return;
+  const tilePx = 256 * Math.pow(2, map.getZoom() - 8), longest = Math.max(0, ...S.tiles.map(k => k.length));
+  map.getContainer().classList.toggle("notilelabels", (8 * longest + 18) * 26 > tilePx * tilePx / 3);
+}
+// the map height can be dragged with the grip under it (kept in this browser)
+function initMapGrip() {
+  const m = $("#map"), g = $("#mapGrip");
+  const setH = h => { m.style.height = h ? h + "px" : ""; m.classList.toggle("fixedh", !!h); document.body.classList.toggle("maptall", !!h); map.invalidateSize(); };
+  try { const h = +localStorage.getItem("mapH"); if (h >= 200) setH(h); } catch (e) {}
+  g.addEventListener("pointerdown", e => {
+    e.preventDefault(); g.setPointerCapture(e.pointerId);
+    const y0 = e.clientY, h0 = m.offsetHeight;
+    const move = ev => setH(Math.max(200, Math.min(1600, h0 + ev.clientY - y0)));
+    const up = () => { g.removeEventListener("pointermove", move); g.removeEventListener("pointerup", up);
+      try { localStorage.setItem("mapH", String(m.offsetHeight)); } catch (e) {} };
+    g.addEventListener("pointermove", move); g.addEventListener("pointerup", up);
+  });
+  g.addEventListener("dblclick", () => { setH(0); try { localStorage.removeItem("mapH"); } catch (e) {} });
 }
 function drawGrid() {
   if (!map) return; layerGrid.clearLayers();
@@ -788,6 +881,19 @@ function ensurePatterns(layer) {
   svg.insertBefore(defs, svg.firstChild); updatePatterns();
 }
 const patFill = t => TYPE_PAT.hasOwnProperty(t) ? `url(#wd-p-${t})` : null;
+function renderLegend() {
+  const parts = [], line = (c, txt) => `<span class="lsw" style="border-color:${c}"></span> ${txt}`;
+  const usedTypes = [...new Set(activeExports().map(e => e.activity || "?"))];
+  if (usedTypes.length && (!map || layerOn("layExp"))) parts.push("Wandrer exports: " + usedTypes.map(t => `${legendSwatch(t)} ${esc(t)}`).join(" &nbsp; "));
+  if (area().mode === "regions" && area().regions.length) parts.push(line("#6a3fb0", "chosen regions"));
+  if (map && osmInfo && layerOn("layOsm")) {
+    const o = [];
+    if (osmInfo.recent) o.push(line("#2e7d32", "up to date"));
+    if (osmInfo.old) o.push(line("#ef6c00", `older than ${osmInfo.days} days (WMC will renew them)`));
+    if (o.length) parts.push("Downloaded OSM regions: " + o.join(" &nbsp; "));
+  }
+  $("#mapLegend").innerHTML = parts.join(" &nbsp;·&nbsp; ");
+}
 const legendSwatch = t => {
   const c = typeCol(t), bg = t === "bike" ? `repeating-linear-gradient(-45deg,${c} 0 2px,transparent 2px 5px)` : t === "foot" ? `repeating-linear-gradient(45deg,${c} 0 2px,transparent 2px 5px)` : t === "combined" ? `radial-gradient(${c} 1.2px,transparent 1.6px) 0 0/5px 5px` : c;
   return `<span style="display:inline-block;width:16px;height:12px;border:2px solid ${c};background:${bg};vertical-align:-2px"></span>`;
@@ -804,7 +910,11 @@ function drawMapLayers(fit) {
     r.bindTooltip(esc(e.place ? e.place + " — " : "") + esc(e.name), {sticky: true, className: "nm"}); expRects[e.name] = r;
   }
   for (const k of S.tiles) { const [x, y] = k.split("/").map(Number);
-    L.rectangle(tileBbox(x, y), {color: "#e8731a", weight: 2, fillOpacity: .18, interactive: false}).bindTooltip(k, {permanent: true, direction: "center"}).addTo(layerTiles); }
+    L.rectangle(tileBbox(x, y), {color: "#e8731a", weight: 2, fillOpacity: .18, interactive: false}).bindTooltip(k, {permanent: true, direction: "center", className: "tlabel"}).addTo(layerTiles); }
+  tileLabels();
+  layerReg.clearLayers();
+  if (area().mode === "regions") for (const k of area().regions) { const sh = regionShapes[k]; if (!sh) continue;
+    for (const ring of sh.rings) L.polygon(ring.map(([x, y]) => [y, x]), {color: "#6a3fb0", weight: 2, dashArray: "6 5", fillOpacity: .05}).bindTooltip(esc(sh.name), {sticky: true, className: "nm"}).addTo(layerReg); }
   drawGrid(); drawTileMenus();
   if (fit) { const b = dataBounds(); if (b) map.fitBounds(b, {maxZoom: 9, padding: [20, 20]}); }
 }
@@ -1007,6 +1117,7 @@ let regResizeTimer = null;
 window.addEventListener("resize", () => { clearTimeout(regResizeTimer); regResizeTimer = setTimeout(() => { regColsPending = true; if (fixRegCols()) regColsPending = false; }, 200); });
 async function renderRegions(fresh) {
   const R = await api("/api/regions"), box = $("#regions");
+  drawOsmRegions(R);                               // the "OSM regions" map layer follows this list
   $("#maxDays").textContent = R.max_days;
   { const n = R.downloaded.length, old = R.downloaded.filter(r => r.age_days > R.max_days).length;   // shown in the heading while step 7 is folded
     const txt = n ? `${n} region${n > 1 ? "s" : ""} downloaded, ${mb(R.downloaded.reduce((t, r) => t + r.size, 0))}` + (old ? `, ${old} to renew` : "") : "no region downloaded yet";
@@ -1159,11 +1270,6 @@ $$("[data-level]").forEach(el => el.addEventListener("change", () => {
   S.squadrats.levels = $$("[data-level]").filter(c => c.checked).map(c => c.dataset.level); scheduleSave(false);
 }));
 $$("#modeSeg button").forEach(b => b.onclick = () => { S.mode = b.dataset.mode; dropSameAsGlobal(); renderInputs(); renderActivity(); renderExports(); renderPois(); drawTileMenus(); renderContour(); scheduleSave(false); });
-$$("select[data-secmode]").forEach(sel => sel.onchange = () => {
-  S.ui = S.ui || {sections: {}}; S.ui.sections = S.ui.sections || {};
-  if (sel.value) S.ui.sections[sel.dataset.secmode] = sel.value; else delete S.ui.sections[sel.dataset.secmode];
-  applyModes(); renderActivity(); renderExports(); renderPois(); drawTileMenus(); renderContour(); scheduleSave(false);
-});
 $("#tilesText").addEventListener("change", e => { toManual(); S.tiles = parseTiles(e.target.value); scheduleSave(false); renderDerived(); });
 $("#tilesClear").onclick = () => { toManual(); S.tiles = []; scheduleSave(false); renderDerived(); };
 $("#mapFit").onclick = () => { const b = dataBounds(); if (b && map) map.fitBounds(b, {maxZoom: 9, padding: [20, 20]}); };
@@ -1237,7 +1343,7 @@ async function tick() {
   $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, under the map)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log under the map." : ""); $("#btnCancel").disabled = !running;
   if (!running) { clearInterval(poll); poll = null; $("#dlBar").hidden = true; renderRegions();
     if (warnLines.length && j.status === "done") { $("#runMsg").style.whiteSpace = "pre-line"; $("#runMsg").textContent = "To know:\n" + warnLines.map(l => "• " + l.slice(2)).join("\n"); }
-    if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to the Bolt (one by one, after a backup), or use the list below.`; renderResults();
+    if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to your device (one by one, after a backup), or use the list below.`; renderResults();
     if (watchingRun && j.status === "done" && j.kind === "run") setStep(2);
     watchingRun = false; }
 }
@@ -1425,7 +1531,7 @@ async function loadPois() {
 
 // ---------- result files (what to copy to the Bolt)
 const fileUrl = rel => "/api/file?rel=" + encodeURIComponent(rel);
-const fileRow = (f, extra, newTile, plain, newTheme) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${plain ? '<span class="plaintile" title="No Wandrer data in this tile: plain map, no Wandrer or Squadrats lines">plain tile</span> ' : ""}${newTile ? '<span class="newtile">🌟 New tile!</span>' : ""}${newTheme ? '<span class="newtheme">🚨 NEW THEME: update the file on Bolt 🚨</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
+const fileRow = (f, extra, newTile, plain, newTheme) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${plain ? '<span class="plaintile" title="No Wandrer data in this tile: plain map, no Wandrer or Squadrats lines">plain tile</span> ' : ""}${newTile ? '<span class="newtile">🌟 New tile!</span>' : ""}${newTheme ? '<span class="newtheme">🚨 NEW THEME: update the file on your device 🚨</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
 const NOTHING_YET = '<p class="note">Nothing built yet: make the maps in step 1, then come back here.</p>';
 const GARMIN_COPY = '<p>Copy the <b>gmapsupp.img</b> made by <span class="path">scripts/build_garmin.py</span> to the device (Edge or watch) as ' +
   '<b>Garmin/gmapsupp.img</b>, one such file at a time, then enable it in the map settings (on a Forerunner 955: Map › Information, ' +
@@ -1438,11 +1544,11 @@ async function renderResults() {
   let r;
   try { r = await api("/api/results"); } catch (e) { box.innerHTML = NOTHING_YET; return; }
   if (!r.theme && !r.tiles.length) { box.innerHTML = NOTHING_YET; return; }
-  let h = '<h3>Files for the Bolt</h3><p class="note">Copy them <b>one by one</b>, after a backup. Easiest: “Open folder”, then copy in your file manager (or Android File Transfer). In Chrome or Edge you can also drag a file from here to the Bolt window; a folder cannot be dragged from a web page. Click a name to download it.</p>';
+  let h = '<h3>Files to copy</h3><p class="note">Copy them <b>one by one</b>, after a backup. Easiest: “Open folder”, then copy in your file manager (or Android File Transfer). In Chrome or Edge you can also drag a file from here to the device window; a folder cannot be dragged from a web page. Click a name to download it.</p>';
   if (r.theme) {
-    h += `<div class="rdir">1. Theme <span class="note">→ Bolt: maps/vtm-elemnt/</span><span style="flex:1"></span><button class="small" data-opendir="${esc(r.theme.dir)}">Open folder</button></div><div class="rin">`;
+    h += `<div class="rdir">1. Theme <span class="note">→ device: maps/vtm-elemnt/</span><span style="flex:1"></span><button class="small" data-opendir="${esc(r.theme.dir)}">Open folder</button></div><div class="rin">`;
     h += r.theme.files.map(f => fileRow(f, f.name === "vtm-elemnt.xml" ? ["", "", ""] : null, false, false, r.theme.new && f.name === "vtm-elemnt.xml")).join("");
-    if (r.theme.icons.length) h += `<details class="var"><summary>icons/ (${r.theme.icons.length}) — only if the Bolt has none yet; do not overwrite icons that already work</summary>${r.theme.icons.map(f => fileRow(f)).join("")}</details>`;
+    if (r.theme.icons.length) h += `<details class="var"><summary>icons/ (${r.theme.icons.length}) — only if the device has none yet; do not overwrite icons that already work</summary>${r.theme.icons.map(f => fileRow(f)).join("")}</details>`;
     h += "</div>";
   }
   const dateOf = t => t ? new Date(t * 1000).toLocaleString("en-GB", {day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"}) : "";
@@ -1459,8 +1565,8 @@ async function renderResults() {
   const lastT = r.tiles.filter(t => t.last), otherT = r.tiles.filter(t => !t.last);
   const tileList = (key, label, head, tiles) => { const off = isFolded(key);
     return `<div class="rdir" data-fold="${key}">${foldBtn(!off, label)}${head}</div><div class="rlist"${off ? " hidden" : ""}>` + tiles.map(tileGroup).join("") + "</div>"; };
-  if (lastT.length) h += tileList("list:last", "Tiles of the last run", `2. Tiles of the last run <span class="note">→ Bolt: maps/tiles/8/</span>`, lastT);
-  if (otherT.length) h += tileList("list:other", lastT.length ? "Other tiles" : "Tiles", `${lastT.length ? "3. Other tiles" : "2. Tiles"} <span class="note">${lastT.length ? "made by earlier runs" : "→ Bolt: maps/tiles/8/"}</span>`, otherT);
+  if (lastT.length) h += tileList("list:last", "Tiles of the last run", `2. Tiles of the last run <span class="note">→ device: maps/tiles/8/</span>`, lastT);
+  if (otherT.length) h += tileList("list:other", lastT.length ? "Other tiles" : "Tiles", `${lastT.length ? "3. Other tiles" : "2. Tiles"} <span class="note">${lastT.length ? "made by earlier runs" : "→ device: maps/tiles/8/"}</span>`, otherT);
   box.innerHTML = h;
 }
 $("#results").addEventListener("dragstart", e => {

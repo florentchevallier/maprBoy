@@ -62,9 +62,79 @@ def catalog():
             url = (p.get("urls") or {}).get("pbf")
             if p.get("id") and url:
                 items[file_key(p["id"])] = {"id": p["id"], "name": clean_name(p.get("name", p["id"])),
-                                            "parent": p.get("parent"), "url": url}
+                                            "parent": p.get("parent"), "url": url,
+                                            "rings": _outer_rings(ft.get("geometry"))}
         _catalog.update(mtime=mtime, items=items)
     return _catalog["items"]
+
+
+def _outer_rings(geom):
+    """Outer rings [[(lon, lat), ...], ...] of a GeoJSON Polygon / MultiPolygon (holes are left out)."""
+    if not isinstance(geom, dict):
+        return []
+    polys = geom.get("coordinates") or []
+    if geom.get("type") == "Polygon":
+        polys = [polys]
+    elif geom.get("type") != "MultiPolygon":
+        return []
+    return [[(round(p[0], 4), round(p[1], 4)) for p in poly[0]] for poly in polys if poly and len(poly[0]) >= 3]
+
+
+def shapes(keys):
+    """{key: {"name", "rings"}} of the regions (for the map); unknown keys are left out."""
+    cat = catalog()
+    return {k: {"name": pretty_name(k), "rings": cat[k]["rings"]} for k in keys if k in cat and cat[k]["rings"]}
+
+
+def _in_ring(x, y, ring):
+    inside, j = False, len(ring) - 1
+    for i in range(len(ring)):
+        xi, yi = ring[i]
+        xj, yj = ring[j]
+        if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+            inside = not inside
+        j = i
+    return inside
+
+
+def _segment_hits_box(a, b, box):
+    """Liang-Barsky: does the segment a-b cross the box (w, s, e, n)?"""
+    (x0, y0), (x1, y1) = a, b
+    w, s, e, n = box
+    t0, t1, dx, dy = 0.0, 1.0, x1 - x0, y1 - y0
+    for p, q in ((-dx, x0 - w), (dx, e - x0), (-dy, y0 - s), (dy, n - y0)):
+        if p == 0:
+            if q < 0:
+                return False
+        else:
+            t = q / p
+            if p < 0:
+                t0 = max(t0, t)
+            else:
+                t1 = min(t1, t)
+            if t0 > t1:
+                return False
+    return True
+
+
+def _ring_touches_box(ring, box):
+    w, s, e, n = box
+    if any(_in_ring(x, y, ring) for x, y in ((w, s), (w, n), (e, s), (e, n), ((w + e) / 2, (s + n) / 2))):
+        return True
+    return any(_segment_hits_box(ring[i - 1], ring[i], box) for i in range(1, len(ring)))
+
+
+def tiles_of(keys):
+    """Zoom-8 tiles ["x/y", ...] touched by the regions."""
+    from ..tiles import tile_bbox, tiles_for_bbox
+    cat, out = catalog(), set()
+    for k in keys:
+        for ring in (cat.get(k) or {}).get("rings", []):
+            xs, ys = [p[0] for p in ring], [p[1] for p in ring]
+            for x, y in tiles_for_bbox(min(xs), min(ys), max(xs), max(ys)):
+                if f"{x}/{y}" not in out and _ring_touches_box(ring, tile_bbox(x, y)):
+                    out.add(f"{x}/{y}")
+    return sorted(out, key=lambda t: tuple(int(v) for v in t.split("/")))
 
 
 def pretty_name(key):

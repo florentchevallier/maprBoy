@@ -171,11 +171,12 @@ class DeviceSettingsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "s.json")
             s = settings.load(p)
-            self.assertEqual(s["area"], {"mode": "manual", "km": 10})
-            s["area"] = {"mode": "exports_km", "km": 25}; s = settings.save(s, p)
+            self.assertEqual(s["area"], {"mode": "manual", "km": 10, "regions": []})
+            s["area"] = {"mode": "regions", "km": 25, "regions": ["oberbayern"]}; s = settings.save(s, p)
             s["device"] = "garmin"; g = settings.save(s, p)
-            self.assertEqual(g["area"]["mode"], "manual")
-            g["device"] = "wahoo"; self.assertEqual(settings.save(g, p)["area"], {"mode": "exports_km", "km": 25})
+            self.assertEqual((g["area"]["mode"], g["area"]["regions"]), ("manual", []))
+            g["device"] = "wahoo"
+            self.assertEqual(settings.save(g, p)["area"], {"mode": "regions", "km": 25, "regions": ["oberbayern"]})
 
     def test_the_squadrats_file_is_shared(self):
         with tempfile.TemporaryDirectory() as d:
@@ -263,6 +264,41 @@ class RegionTests(unittest.TestCase):
             self.assertEqual(dl.status()["error"], "")
             with self.assertRaises(ValueError):
                 dl.start(["nope"])
+
+
+class RegionShapeTests(unittest.TestCase):
+    """Outlines and tiles of the Regions area mode."""
+    def _catalog(self, d, geoms):
+        regions.GEOFABRIK = os.path.join(d, "g.json")
+        feats = [{"properties": {"id": k, "name": k.title(), "urls": {"pbf": "u"}}, "geometry": g} for k, g in geoms.items()]
+        _write(regions.GEOFABRIK, json.dumps({"features": feats}))
+        regions._catalog.update(mtime=None, items={})
+
+    def test_square_takes_every_tile_of_its_box(self):
+        from wahoondrer.tiles import tiles_for_bbox
+        sq = [[11.0, 48.0], [11.9, 48.0], [11.9, 48.6], [11.0, 48.6], [11.0, 48.0]]
+        with tempfile.TemporaryDirectory() as d:
+            self._catalog(d, {"sq": {"type": "Polygon", "coordinates": [sq, [[11.4, 48.2], [11.5, 48.2], [11.5, 48.3], [11.4, 48.2]]]}})
+            want = sorted(f"{x}/{y}" for x, y in tiles_for_bbox(11.0, 48.0, 11.9, 48.6))
+            self.assertEqual(regions.tiles_of(["sq"]), want)
+            sh = regions.shapes(["sq", "unknown"])
+            self.assertEqual(list(sh), ["sq"])
+            self.assertEqual(len(sh["sq"]["rings"]), 1)                 # the hole is left out
+            self.assertEqual(sh["sq"]["name"], "Sq")
+
+    def test_diagonal_band_skips_the_far_corners(self):
+        from wahoondrer.tiles import tiles_for_bbox
+        band = [[10.0, 47.0], [10.2, 47.0], [13.0, 49.8], [13.0, 50.0], [12.8, 50.0], [10.0, 47.2], [10.0, 47.0]]
+        with tempfile.TemporaryDirectory() as d:
+            self._catalog(d, {"band": {"type": "MultiPolygon", "coordinates": [[band]]}})
+            got = regions.tiles_of(["band"])
+            box = sorted(f"{x}/{y}" for x, y in tiles_for_bbox(10.0, 47.0, 13.0, 50.0))
+            self.assertTrue(got and set(got) < set(box))
+            xs = sorted({int(t.split("/")[0]) for t in box}); ys = sorted({int(t.split("/")[1]) for t in box})
+            self.assertNotIn(f"{xs[-1]}/{ys[-1]}", got)                 # south-east corner: far from the band
+            self.assertNotIn(f"{xs[0]}/{ys[0]}", got)                   # north-west corner
+            self.assertEqual(regions.tiles_of(["band", "band"]), got)
+            self.assertEqual(regions.tiles_of([]), [])
 
 
 class RegionExtraTests(unittest.TestCase):

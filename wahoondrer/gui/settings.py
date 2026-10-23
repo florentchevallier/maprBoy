@@ -32,7 +32,8 @@ DEFAULTS = {
     "excluded_exports": [],          # export file names the user unticked
     "tiles": [],                     # ["136/88", ...]
     "area": {"mode": "manual",       # how the tiles are chosen: "manual" | "exports" | "exports_km" | "regions"
-             "km": 10},              # margin around the exports for "exports_km"
+             "km": 10,               # margin around the exports for "exports_km"
+             "regions": []},         # Geofabrik regions (file keys, e.g. "europe_germany_bayern_oberbayern") for "regions"
     "wandrer": {
         "enabled": True,
         "boundaries": True,

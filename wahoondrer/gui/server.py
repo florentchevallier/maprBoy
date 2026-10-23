@@ -229,6 +229,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._poi_icon(url.path.rsplit("/", 1)[-1])
             if url.path == "/api/osm_data":
                 return self._send(200, regions.data_dir_info(settings.load()["folders"]["data"]))
+            if url.path in ("/api/region_shapes", "/api/region_tiles"):
+                keys = [k for k in q.get("keys", [""])[0].split(",") if k]
+                return self._send(200, regions.shapes(keys) if url.path == "/api/region_shapes"
+                                  else {"tiles": regions.tiles_of(keys)})
             if url.path == "/api/regions_available":
                 return self._send(200, {"available": regions.available()})
             return self._static(url.path)

@@ -314,6 +314,54 @@ def build_commands(s, exports, squadrats_file, plan=False):
     return cmds
 
 
+# ------------------------------------------------------------------ run history (for the time estimate)
+RUNS_PATH = os.path.join(os.path.expanduser("~"), ".wahoondrer", "runs.json")
+RUNS_KEPT = 30
+ESTIMATE_MIN_RUNS = 2        # comparable successful runs needed before showing an estimate
+ESTIMATE_MAX_SPREAD = 2.0    # ...and their time per tile may differ by at most this factor
+
+
+def run_profile(s):
+    """What makes two runs comparable: the device, the number of tiles, Wandrer only or not, contour lines."""
+    return {"device": s.get("device", "wahoo"), "tiles": len(s.get("tiles") or []),
+            "skip_classic": bool(s["build"].get("skip_classic")), "contour": bool(s["build"].get("contour"))}
+
+
+def load_runs(path=None):
+    try:
+        with open(path or RUNS_PATH, encoding="utf-8") as f:
+            runs = json.load(f)
+        return [r for r in runs if isinstance(r, dict)] if isinstance(runs, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def record_run(profile, seconds, path=None):
+    """Keep the duration of a successful run (the most recent RUNS_KEPT)."""
+    if not profile or not profile.get("tiles") or seconds <= 0:
+        return
+    path = path or RUNS_PATH
+    runs = load_runs(path) + [dict(profile, seconds=round(seconds), date=time.strftime("%Y-%m-%d %H:%M"))]
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(runs[-RUNS_KEPT:], f, indent=1)
+    except OSError:
+        pass                                  # the estimate is a convenience: never fail a run for it
+
+
+def per_tile_estimate(runs, device, skip_classic, contour_on):
+    """{"seconds_per_tile", "runs"} from the comparable runs, or None when they are too few or too different
+    (better nothing than a wrong figure)."""
+    same = [r["seconds"] / r["tiles"] for r in runs
+            if r.get("device", "wahoo") == device and bool(r.get("skip_classic")) == bool(skip_classic)
+            and bool(r.get("contour")) == bool(contour_on) and r.get("tiles", 0) > 0 and r.get("seconds", 0) > 0][-5:]
+    if len(same) < ESTIMATE_MIN_RUNS or max(same) > ESTIMATE_MAX_SPREAD * min(same):
+        return None
+    mid = sorted(same)[len(same) // 2] if len(same) % 2 else sum(sorted(same)[len(same) // 2 - 1:len(same) // 2 + 1]) / 2
+    return {"seconds_per_tile": round(mid, 1), "runs": len(same)}
+
+
 class Job:
     """Runs commands sequentially in a thread; the page polls for new log lines."""
 
@@ -324,19 +372,20 @@ class Job:
     def reset(self):
         self.lines, self.status, self.proc, self.cancelled = [], "idle", None, False
         self.title, self.started, self.finished, self.kind = "", 0.0, 0.0, ""
-        self.notify, self.thread = False, None
+        self.notify, self.thread, self.profile = False, None, None
         self.plan = getattr(self, "plan", None)   # last "Check the plan" result, kept between jobs
 
     def running(self):
         return self.status == "running"
 
-    def start(self, commands, kind="run", notify=False):
-        """notify: show a system notification when a "run" ends (done or failed; not when cancelled)."""
+    def start(self, commands, kind="run", notify=False, profile=None):
+        """notify: show a system notification when a "run" ends (done or failed; not when cancelled).
+        profile: run_profile() of the settings; a successful run's duration is kept for the time estimate."""
         with self.lock:
             if self.running():
                 raise SettingsError("A job is already running.")
             self.reset()
-            self.status, self.started, self.kind, self.notify = "running", time.time(), kind, notify
+            self.status, self.started, self.kind, self.notify, self.profile = "running", time.time(), kind, notify, profile
             self.thread = threading.Thread(target=self._run, args=(commands,), daemon=True)
         self.thread.start()
 
@@ -385,6 +434,8 @@ class Job:
             self.finished = time.time()
             self.status = "cancelled" if self.cancelled else ("done" if ok else "failed")
         took = format_duration(self.finished - self.started) if self.started else ""
+        if self.kind == "run" and self.status == "done":
+            record_run(self.profile, self.finished - self.started)
         self._log({"done": f"\nFinished in {took}.", "failed": f"\nTime spent: {took}.", "cancelled": f"\nCancelled after {took}."}[self.status])
         self._notify(took, hint)
 
@@ -396,7 +447,7 @@ class Job:
             with self.lock:
                 notes = sum(1 for l in self.lines if l.startswith("! "))
             more = (f"{notes} note{'s' if notes > 1 else ''} to read: open the page."
-                    if notes else "Open the page to copy the files to the Bolt.")
+                    if notes else "Open the page to copy the files to your device.")
             native.notify("maprBoy: maps ready", f"Finished in {took}. {more}")
         else:
             step = re.sub(r"^\d+/\d+ ", "", self.title)

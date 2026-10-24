@@ -181,3 +181,19 @@ class MergeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OsmTagsTest(unittest.TestCase):
+    """The roads written for the map writer carry no highway tag: highway=wandrer left an ELEMNT ROAM v1 blank."""
+    def test_no_highway_tag(self):
+        from wahoondrer.osmxml import write_osm
+        segs = {1: Segment(coords=[(LON, LAT), (LON + D, LAT)], state="unvisited", unpaved=True),
+                2: Segment(coords=[(LON, LAT + D), (LON + D, LAT + D)], state="visited", unpaved=False)}
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "w.osm")
+            write_osm(p, segs, {}, with_traveled=True)
+            text = open(p, encoding="utf-8").read()
+        self.assertNotIn('k="highway"', text)
+        self.assertIn('<tag k="wandrer" v="unvisited" />', text)
+        self.assertIn('<tag k="surface" v="unpaved" />', text)
+        self.assertIn('<tag k="wandrer" v="visited" />', text)

@@ -138,6 +138,16 @@ north = 49.008535
 
 Copying to the Bolt is manual (file by file, never replacing a whole folder, after backing up `maps/tiles/8`). The themes live in `maps/vtm-elemnt/`.
 
+## ELEMNT ROAM v1 (tested October 2026 on a borrowed device, tile 136/88)
+
+- Tiles are `maps/tiles/8/<x>/<y>.map.gz`: the same mapsforge binary (v3) as our `.map.lzma`, only gzip-compressed (file name inside the gzip: `<y>.map`). No `.17` marker. The factory tiles held OSM data from 2015.
+- VTM rendering is switched on by an **empty file `cfg_BHomeActivity_VtmMaps` at the device root** (next to `maps` and `factory`). Our `maps/vtm-elemnt/vtm-elemnt.xml` and `icons/` are then used, with the theme's "ROAM" style layer (no building fills there).
+- A restart is enough to read new tiles; empty `maps/temp` after changing the theme. adb was not needed (`am broadcast ... BMapManager.PURGE` / `RELOAD_MAP` kept in reserve).
+- `highway=wandrer` gave a blank map (see section 7). A ROAM theme variant using pure magenta `#FF00FF` also gave a blank map with a tile that works with the usual theme: avoid it.
+- Not a problem: tiles of 26–28 MB gzipped (36–39 MB unpacked), the 8-digit transparent colour, dashes.
+- Few screen colours (our orange looks beige), POIs crowd the map at 500 m; free space on that device was about 250 MB, enough for a few tiles only.
+- Ideas for later: ROAM colours, fewer POIs at wide zoom, copy with `adb push` from the page.
+
 ---
 
 # 5. How WahooMapsCreator works
@@ -232,7 +242,7 @@ Every new tag must be declared in **three** places, otherwise it silently disapp
 Tags used by the project:
 
 ```text
-highway=wandrer   + wandrer=visited | unvisited   (+ surface=unpaved)
+wandrer=visited | unvisited   (+ surface=unpaved)    (no highway tag, see below)
 wandrer=boundary
 squadrat=big | small                               (ways without highway tag)
 fee=yes|no, access=customers|private               (POI sub-tags)
@@ -242,13 +252,15 @@ fee=yes|no, access=customers|private               (POI sub-tags)
 
 History: when the Squadrats layer was first added, `squadrat` was missing from `tags-to-keep.json` and the layer vanished without any error. The symptom is tile files whose size does not change.
 
-The tag-mapping rule for Wandrer looks like this:
+The tag-mapping rules for Wandrer look like this:
 
 ```xml
-<osm-tag key="highway" value="wandrer" zoom-appear="10" />
+<osm-tag key="wandrer" value="unvisited" zoom-appear="10" />
 ```
 
-Early proof of concept: before this rule existed, the `.map.lzma` was about 1.7 KB; after it, 56 KB — proof that the data now reached MapWriter.
+Early proof of concept: before such a rule existed, the `.map.lzma` was about 1.7 KB; after it, 56 KB — proof that the data now reached MapWriter.
+
+History: the Wandrer roads used to carry `highway=wandrer` as well. It was dropped in October 2026: an ELEMNT ROAM v1 shows a blank map as soon as a tile holds this unknown highway value, and the theme only matches on `wandrer=*` (the boundaries never had a highway tag).
 
 ---
 
@@ -269,7 +281,7 @@ Example content of one export (Munich, September 2026): about 59,700 traveled, 5
 The KMZ cannot be used by WMC directly, so every `LineString` becomes an OSM-like way:
 
 ```text
-KML placemark #Untraveled  → way: highway=wandrer, wandrer=unvisited
+KML placemark #Untraveled  → way: wandrer=unvisited
 KML placemark #UntraveledUnpaved → same + surface=unpaved
 #achievementBoundary rings → wandrer=boundary (each ring split in 2 open ways)
 ```

@@ -195,10 +195,9 @@
         <osm-tag key="highway" value="trunk" zoom-appear="6" />
         <osm-tag key="highway" value="trunk_link" zoom-appear="6" />
         <osm-tag key="highway" value="unclassified" zoom-appear="10" />
-        <osm-tag key="highway" value="wandrer" zoom-appear="10" />
     </ways>
 
-    <!-- WANDRER OVERLAY TAGS (tags secondaires portes par les ways highway=wandrer)
+    <!-- WANDRER OVERLAY TAGS (les ways Wandrer n'ont pas de highway : un highway inconnu laisse la carte blanche sur un ROAM v1)
          Sans ces declarations le mapwriter les supprime du .map et les regles
          de theme (VTM ou mapsforge) ne peuvent plus matcher dessus. -->
     <ways>

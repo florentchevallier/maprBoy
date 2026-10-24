@@ -233,6 +233,10 @@ class Handler(BaseHTTPRequestHandler):
                 keys = [k for k in q.get("keys", [""])[0].split(",") if k]
                 return self._send(200, regions.shapes(keys) if url.path == "/api/region_shapes"
                                   else {"tiles": regions.tiles_of(keys)})
+            if url.path == "/api/estimate":
+                g = lambda k: q.get(k, [""])[0]
+                return self._send(200, {"estimate": jobs.per_tile_estimate(
+                    jobs.load_runs(), g("device") or "wahoo", g("skip") == "1", g("contour") == "1")})
             if url.path == "/api/regions_available":
                 return self._send(200, {"available": regions.available()})
             return self._static(url.path)
@@ -373,7 +377,8 @@ class Handler(BaseHTTPRequestHandler):
         if s["folders"]["work"]:
             os.makedirs(os.path.expanduser(s["folders"]["work"]), exist_ok=True)
         os.makedirs(os.path.expanduser(s["folders"]["out"]), exist_ok=True)
-        JOB.start(cmds, "plan" if plan else "run", notify=bool(s["build"].get("notify", True)))
+        JOB.start(cmds, "plan" if plan else "run", notify=bool(s["build"].get("notify", True)),
+                  profile=jobs.run_profile(s))
         return self._send(200, {"started": True, "commands": [c[1] for c in cmds]})
 
     def _upload(self, q):

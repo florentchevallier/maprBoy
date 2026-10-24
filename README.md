@@ -4,7 +4,7 @@ Builds Wahoo ELEMNT (Bolt v2) maps with [WahooMapsCreator](https://github.com/tr
 and bakes your **Wandrer** data (unexplored roads, achievement boundaries) into the base map.
 
 - Source: Wandrer KML/KMZ exports (no OSM matching).
-- Output: `.map.lzma` files per z8 tile, with a `highway=wandrer` layer (`wandrer=visited|unvisited`).
+- Output: `.map.lzma` files per z8 tile, with a Wandrer layer (`wandrer=visited|unvisited|boundary`, no `highway` tag).
 - Optional Squadrats layer (from a Squadrats KML export): outlines of the squares NOT yet explored, as thin red lines (big z14 squares solid, small z17 squares dashed).
 - VTM theme `vtm-elemnt.xml`: unvisited roads in orange (dashed when unpaved), boundaries as a subtle violet dashed line, and (optional) the roads already ridden as thin green lines.
 

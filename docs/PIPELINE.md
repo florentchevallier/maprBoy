@@ -27,7 +27,7 @@ Small squares scope (`--squadrats-small-scope`): `explored-big` (default) outlin
 Tags: `squadrat=big|small` (no `highway`). Tag mapping: big `zoom-appear=11`, small `14`. Theme: big solid width 1.6 (zoom >= 11), small dashed `6,6` width 1.4 (zoom >= 14), red (`#E03030`, `#FF6060` in dark mode). Line width does not scale with zoom on the Bolt, so the small squares are dashed and only slightly thinner than the big ones to stay visible at 500 m.
 
 ## Data scheme
-`highway=wandrer` + `wandrer=visited|unvisited` (+ `surface=unpaved`); boundaries `wandrer=boundary` (rings split into 2 open ways); Squadrats outlines `squadrat=big|small`. IDs: nodes 50e9+, ways 9e9+. Traveled segments are skipped by default (`--with-traveled`): they make tiles heavier and made the urban colour fills disappear on the Bolt.
+`wandrer=visited|unvisited` (+ `surface=unpaved`), without any `highway` tag (an unknown `highway=wandrer` left the map blank on an ELEMNT ROAM v1); boundaries `wandrer=boundary` (rings split into 2 open ways); Squadrats outlines `squadrat=big|small`. IDs: nodes 50e9+, ways 9e9+. Traveled segments are skipped by default (`--with-traveled`): they make tiles heavier and made the urban colour fills disappear on the Bolt.
 
 ## POI rules (one table, three generated files)
 POIs are described once in `config/poi-rules.json` (one entry per POI: OSM key/value, zoom, icon, size,

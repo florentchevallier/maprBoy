@@ -981,7 +981,7 @@
    <!-- END generated:poi-theme -->
 
    <!-- Wandrer overlay : regle de niveau racine (NE PAS imbriquer sous highway=*,
-        les ways Wandrer portent highway=wandrer ou aucun highway pour les limites) -->
+        les ways Wandrer n'ont aucun highway : wandrer=visited|unvisited|boundary) -->
    <m e="way" k="wandrer">
       <m v="unvisited">
          <m k="surface" v="unpaved">

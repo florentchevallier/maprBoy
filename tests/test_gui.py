@@ -670,6 +670,45 @@ def py(code):
     return [sys.executable, "-c", code]
 
 
+class EstimateTests(unittest.TestCase):
+    """The time estimate shown before a run: only from comparable, consistent past runs."""
+    P = {"device": "wahoo", "tiles": 4, "skip_classic": False, "contour": False}
+
+    def test_record_and_estimate(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "runs.json")
+            jobs.record_run(self.P, 400, path)
+            self.assertIsNone(jobs.per_tile_estimate(jobs.load_runs(path), "wahoo", False, False))   # one run: too few
+            jobs.record_run(dict(self.P, tiles=2), 240, path)
+            est = jobs.per_tile_estimate(jobs.load_runs(path), "wahoo", False, False)
+            self.assertEqual(est, {"seconds_per_tile": 110.0, "runs": 2})
+            self.assertIsNone(jobs.per_tile_estimate(jobs.load_runs(path), "wahoo", True, False))    # other kind of run
+            self.assertIsNone(jobs.per_tile_estimate(jobs.load_runs(path), "garmin", False, False))
+
+    def test_too_different_runs_give_nothing(self):
+        runs = [dict(self.P, seconds=100), dict(self.P, seconds=1000)]
+        self.assertIsNone(jobs.per_tile_estimate(runs, "wahoo", False, False))
+
+    def test_history_is_capped_and_ignores_empty_runs(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "runs.json")
+            jobs.record_run(dict(self.P, tiles=0), 50, path)
+            self.assertEqual(jobs.load_runs(path), [])
+            for i in range(jobs.RUNS_KEPT + 5):
+                jobs.record_run(self.P, 100 + i, path)
+            runs = jobs.load_runs(path)
+            self.assertEqual(len(runs), jobs.RUNS_KEPT)
+            self.assertEqual(runs[-1]["seconds"], 100 + jobs.RUNS_KEPT + 4)
+            _write(path, "not json")
+            self.assertEqual(jobs.load_runs(path), [])
+
+    def test_profile(self):
+        with tempfile.TemporaryDirectory() as d:
+            s = settings.load(os.path.join(d, "s.json"))
+        s["tiles"] = ["1/2", "3/4"]; s["build"]["contour"] = True
+        self.assertEqual(jobs.run_profile(s), {"device": "wahoo", "tiles": 2, "skip_classic": False, "contour": True})
+
+
 class JobNotificationTests(unittest.TestCase):
     def test_done_run_notifies_with_the_duration(self):
         job, note = run_job([("Build the map tiles", py("print('hello')"))])

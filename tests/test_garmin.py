@@ -175,8 +175,8 @@ OSM = """<?xml version="1.0" encoding="UTF-8"?>
 <osm version="0.6">
   <node id="1" lat="48.1500" lon="11.5500"/><node id="2" lat="48.1510" lon="11.5520"/>
   <node id="3" lat="48.1520" lon="11.5540"/><node id="4" lat="48.1530" lon="11.5560"/>
-  <way id="10"><nd ref="1"/><nd ref="2"/><tag k="highway" v="wandrer"/><tag k="wandrer" v="unvisited"/></way>
-  <way id="11"><nd ref="3"/><nd ref="4"/><tag k="highway" v="wandrer"/><tag k="wandrer" v="visited"/></way>
+  <way id="10"><nd ref="1"/><nd ref="2"/><tag k="wandrer" v="unvisited"/></way>
+  <way id="11"><nd ref="3"/><nd ref="4"/><tag k="wandrer" v="visited"/></way>
 </osm>
 """
 

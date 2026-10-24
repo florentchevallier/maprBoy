@@ -1,8 +1,10 @@
 """Write Wandrer segments/boundaries as OSM XML (to be converted to .pbf).
 
-Tag scheme: highway=wandrer + wandrer=visited|unvisited [+ surface=unpaved],
-and wandrer=boundary for boundaries; squadrat=big|small for the outlines of
-unexplored Squadrats squares.
+Tag scheme: wandrer=visited|unvisited [+ surface=unpaved] for the roads,
+wandrer=boundary for boundaries; squadrat=big|small for the outlines of
+unexplored Squadrats squares. No highway tag: an unknown highway value
+(highway=wandrer) left the map blank on an ELEMNT ROAM v1, and the theme
+matches on wandrer=* anyway.
 
 IDs: real OSM node IDs exceed 14 billion (2026), so Wandrer nodes start at 50e9
 (also above WMC elevation nodes at 20e9 and sea/land at ~32.95e9). Ways start
@@ -47,7 +49,7 @@ def write_osm(path, segments, boundaries, with_traveled=False, squadrats=None):
             if seg.state == "visited" and not with_traveled:
                 stats["skipped_visited"] += 1
                 continue
-            tags = {"highway": "wandrer", "wandrer": seg.state}
+            tags = {"wandrer": seg.state}
             if seg.unpaved:
                 tags["surface"] = "unpaved"
             add_way(seg.coords, tags)

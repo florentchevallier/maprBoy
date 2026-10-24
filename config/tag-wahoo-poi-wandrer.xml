@@ -148,7 +148,6 @@
     <osm-tag key="highway" value="trunk" zoom-appear="8" />
     <osm-tag key="highway" value="trunk_link" zoom-appear="10" />
     <osm-tag key="highway" value="unclassified" zoom-appear="10" />
-    <osm-tag key="highway" value="wandrer" zoom-appear="10" />
     <osm-tag key="wandrer" value="visited" zoom-appear="10" />
     <osm-tag key="wandrer" value="unvisited" zoom-appear="10" />
     <osm-tag key="wandrer" value="boundary" zoom-appear="10" />

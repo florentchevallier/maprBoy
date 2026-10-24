@@ -11,8 +11,9 @@ What it does, file by file (never a whole folder):
 - a file that is already on the device with the same content (size, then md5) is skipped;
 - a file that would be replaced is first saved in Output/backup/<date>/ (same layout as the device);
 - each file is pushed to a temporary name, then renamed: a stopped copy never leaves half a tile;
-- at the end, as WahooMapsCreator advises: empty maps/temp (a cache), then the PURGE and RELOAD_MAP
-  broadcasts, so the device reloads its maps without a restart.
+- at the end: maps/temp (a cache) is emptied, and the page offers to restart the device (reboot()): on the
+  Bolt v2 the new maps only show after a restart. The PURGE / RELOAD_MAP broadcasts that WahooMapsCreator
+  mentions were tried: the map stayed blank until the restart, so they are not sent.
 
 Usage: python3 -m wahoondrer.devcopy --out OUTPUT_FOLDER [--model bolt2|roam1] [--adb PATH]
 """
@@ -31,8 +32,6 @@ from .progress import MARK, gui
 
 REMOTE = "/sdcard"
 JUNK = (".DS_Store", "Thumbs.db")
-BROADCASTS = ("com.wahoofitness.bolt.service.BMapManager.PURGE",
-              "com.wahoofitness.bolt.service.BMapManager.RELOAD_MAP")
 COMMON_ADB = ("/opt/homebrew/bin/adb", "/usr/local/bin/adb",
               os.path.expanduser("~/Library/Android/sdk/platform-tools/adb"),
               os.path.expanduser("~/Android/Sdk/platform-tools/adb"))
@@ -203,12 +202,19 @@ def copy(out, model="bolt2", adb_path="", log=print):
     log(f"{copied} file(s) copied, {skipped} already up to date" +
         (f", {saved} old file(s) saved in {backup}" if saved else ""))
     if copied:
-        log("Reloading the maps on the device: maps/temp emptied, then PURGE and RELOAD_MAP")
         dev.shell(f"rm -rf {REMOTE}/maps/temp/*", check=False)
-        ok = all(dev.shell(f"am broadcast -a {b}", check=False).strip() for b in BROADCASTS)
-        if not ok:
-            log("! The device did not answer the reload commands: restart it to see the new maps.")
+        log("maps/temp emptied. Restart the ELEMNT to see the new maps (button on the page, or by hand).")
     return {"copied": copied, "skipped": skipped, "saved": saved, "backup": backup if saved else ""}
+
+
+def reboot(adb_path=""):
+    """Restart the first authorised device (the new maps show after a restart). Returns its serial."""
+    adb = find_adb(adb_path)
+    ready = [d for d in devices(adb) if d["state"] == "device"] if adb else []
+    if not ready:
+        raise CopyError("No authorised device plugged in.")
+    Adb(adb, ready[0]["serial"]).run("reboot", timeout=30)
+    return ready[0]["serial"]
 
 
 def main(argv=None):

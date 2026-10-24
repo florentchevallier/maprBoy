@@ -123,8 +123,7 @@ class DevCopyTest(unittest.TestCase):
             self.assertTrue(all(c[2].endswith(".part") for c in pushes))                 # never half a tile
             shells = [c[1] for c in dev.calls if c[0] == "shell"]
             self.assertIn("rm -rf /sdcard/maps/temp/*", shells)
-            self.assertEqual([s for s in shells if s.startswith("am broadcast")],
-                             ["am broadcast -a " + b for b in devcopy.BROADCASTS])
+            self.assertFalse(any(s.startswith("am broadcast") for s in shells))       # did not reload the map: restart instead
             self.assertNotIn("/sdcard/maps/tiles/8/136/89.map.lzma", dev.files)       # not of the last run
 
     def test_nothing_new_means_no_reload(self):
@@ -137,6 +136,19 @@ class DevCopyTest(unittest.TestCase):
             self.assertEqual((r["copied"], r["saved"]), (0, 0))
             self.assertFalse(any(c[0] == "push" for c in dev.calls))
             self.assertFalse(any(c[0] == "shell" and c[1].startswith(("rm ", "am ")) for c in dev.calls))
+
+    def test_reboot(self):
+        dev = FakeDevice()
+        with mock.patch.object(devcopy, "find_adb", return_value="/x/adb"), \
+                mock.patch.object(devcopy, "devices", return_value=[{"serial": "S1", "state": "device"}]), \
+                mock.patch.object(devcopy, "Adb", return_value=dev) as adb:
+            self.assertEqual(devcopy.reboot(), "S1")
+        adb.assert_called_with("/x/adb", "S1")
+        self.assertEqual(dev.calls, [("reboot",)])
+        with mock.patch.object(devcopy, "find_adb", return_value="/x/adb"), \
+                mock.patch.object(devcopy, "devices", return_value=[{"serial": "S1", "state": "unauthorized"}]):
+            with self.assertRaises(devcopy.CopyError):
+                devcopy.reboot()
 
     def test_status_without_adb(self):
         with mock.patch.object(devcopy, "find_adb", return_value=None):

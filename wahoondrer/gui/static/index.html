@@ -1675,8 +1675,8 @@ async function renderDevCopy() {
   if (!d.adb) h += `<p class="note">With <b>adb</b> (Android platform tools), maprBoy can copy the maps to the ELEMNT for you, file by file. To install it on a Mac: <code>brew install android-platform-tools</code>, then restart this page. Until then, copy the files by hand (below).</p><div class="acts">${again}</div>`;
   else if (!d.devices.length) h += `<p class="note">adb is ready. Plug the ELEMNT in by USB (and close Android File Transfer if it opens).</p><div class="acts">${again}</div>`;
   else if (!d.ready) h += `<p class="note">The ELEMNT is plugged in but not authorised yet. Unplug it, press its power button briefly several times, plug it in again, then check again. (Done once; it worked like this on a Bolt v2.)</p><div class="acts">${again}</div>`;
-  else h += `<p class="note">ELEMNT connected (${esc(d.devices.find(x => x.state === "device").serial)}). The theme and the tiles of the last run${wahooModel() === "roam1" ? " (Roam v1 files)" : ""} are copied file by file; files already up to date are skipped, the ones replaced are saved first in <span class="path">Output/backup/</span>, and the maps are reloaded at the end.</p>
-    <div class="acts"><button class="primary" id="devCopyGo">Copy to the ELEMNT</button><button class="stop" id="devCopyStop" hidden>■ Stop</button>${again}</div>`;
+  else h += `<p class="note">ELEMNT connected (${esc(d.devices.find(x => x.state === "device").serial)}). The theme and the tiles of the last run${wahooModel() === "roam1" ? " (Roam v1 files)" : ""} are copied file by file; files already up to date are skipped and the ones replaced are saved first in <span class="path">Output/backup/</span>. Then restart the ELEMNT: the new maps show after a restart.</p>
+    <div class="acts"><button class="primary" id="devCopyGo">Copy to the ELEMNT</button><button class="stop" id="devCopyStop" hidden>■ Stop</button><button id="devReboot" title="Restart the ELEMNT (about a minute); the new maps show afterwards">↻ Restart the ELEMNT</button>${again}</div>`;
   h += '<div id="devCopyRun" hidden><progress id="devCopyBar" max="1" value="0"></progress><div class="note" id="devCopyTxt"></div></div><div class="note" id="devCopyMsg"></div>';
   box.innerHTML = h;
   $("#devAgain").onclick = renderDevCopy;
@@ -1687,12 +1687,20 @@ async function renderDevCopy() {
     catch (e) { $("#devCopyMsg").textContent = e.message; go.disabled = false; }
   };
   const stop = $("#devCopyStop"); if (stop) stop.onclick = () => api("/api/cancel", {});
+  const rb = $("#devReboot");
+  if (rb) rb.onclick = async () => {
+    if (!confirm("Restart the ELEMNT now? It takes a minute or two; keep it plugged in or not, as you like.")) return;
+    rb.disabled = true;
+    try { await api("/api/device_reboot", {}); $("#devCopyMsg").textContent = "The ELEMNT is restarting: the new maps show once it is on again (it can take a few minutes with many tiles)."; }
+    catch (e) { $("#devCopyMsg").textContent = e.message; rb.disabled = false; }
+  };
 }
 function copyProgress(j, shown) {
   const run = $("#devCopyRun"); if (!run) return;
   copyLines.push(...shown.map(l => l.trim()).filter(l => l && !l.startsWith("===")));
   const running = j.status === "running";
   run.hidden = !running; if ($("#devCopyStop")) $("#devCopyStop").hidden = !running; if ($("#devCopyGo")) $("#devCopyGo").disabled = running;
+  if ($("#devReboot")) { $("#devReboot").disabled = running; $("#devReboot").classList.toggle("primary", !running && j.status === "done" && copyLines.some(l => / file\(s\) copied/.test(l) && !/^0 file/.test(l))); }
   $("#devCopyBar").value = $("#stepBar").value;
   $("#devCopyTxt").textContent = copyLines.slice(-1)[0] || "Starting…";
   if (!running) {

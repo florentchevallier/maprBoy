@@ -3,6 +3,7 @@ import json
 import mimetypes
 import os
 import re
+import subprocess
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -371,6 +372,14 @@ class Handler(BaseHTTPRequestHandler):
                     raise jobs.SettingsError("The automatic copy is for the Wahoo ELEMNT only.")
                 JOB.start([jobs.copy_command(s)], "copy")
                 return self._send(200, {"started": True})
+            if path == "/api/device_reboot":        # the new maps show after a restart of the ELEMNT
+                if JOB.running() and JOB.kind == "copy":
+                    raise jobs.SettingsError("Wait for the end of the copy.")
+                try:
+                    serial = devcopy.reboot((settings.load().get("tools") or {}).get("adb") or "")
+                except (devcopy.CopyError, OSError, subprocess.SubprocessError) as exc:
+                    raise jobs.SettingsError(str(exc))
+                return self._send(200, {"rebooting": serial})
             if path == "/api/roam_prepare":         # make the Roam v1 files of the tiles already built
                 s = settings.load()
                 JOB.start([jobs.roam_command(s)], "roam")

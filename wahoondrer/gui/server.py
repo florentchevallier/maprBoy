@@ -9,7 +9,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from .. import contour, devcopy, poi_config, roam
+from .. import contour, devcopy, gztiles, poi_config
 from . import jobs, native, regions, scan, settings
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -94,24 +94,24 @@ def is_junk(name):
     return name.startswith(".") or name.lower() in ("thumbs.db", "ehthumbs.db", "desktop.ini")
 
 
-def results(out, model="bolt2"):
+def results(out, fmt="lzma"):
     """What a build left in the output folder: the files to copy to the device (theme, then tiles).
-    model "roam1": the files of Output/roam_v1/ (.map.gz, cfg file), laid out like an ELEMNT Roam v1."""
+    fmt "gz": the files of Output/wahoondrer_maps_gz/ (.map.gz tiles, cfg file), laid out like the device."""
     out = os.path.abspath(os.path.expanduser(out or ""))
-    is_roam = model == "roam1"
-    maps = os.path.join(out, roam.DIR if is_roam else "wahoondrer_maps", "maps")
+    is_gz = fmt == "gz"
+    maps = os.path.join(out, gztiles.DIR if is_gz else "wahoondrer_maps", "maps")
     names_dir = os.path.join(out, "wahoondrer_maps", "maps", "tiles", "8")      # the place names (.txt) stay there
-    tile_ext = (".map.gz",) if is_roam else (".map.lzma", ".map.lzma.17")
+    tile_ext = (".map.gz",) if is_gz else (".map.lzma", ".map.lzma.17")
 
     def entry(path):
         return {"name": os.path.basename(path), "size": os.path.getsize(path),
                 "rel": os.path.relpath(path, out).replace(os.sep, "/")}
 
-    res = {"out": out, "theme": None, "tiles": [], "last_run": None, "model": "roam1" if is_roam else "bolt2"}
-    if is_roam:
-        cfg = os.path.join(out, roam.DIR, roam.CFG)
-        res["roam"] = {"dir": os.path.join(out, roam.DIR), "cfg": entry(cfg) if os.path.isfile(cfg) else None,
-                       "missing": roam.missing(out), "made": bool(roam.tiles_in(out))}
+    res = {"out": out, "theme": None, "tiles": [], "last_run": None, "format": "gz" if is_gz else "lzma"}
+    if is_gz:
+        cfg = os.path.join(out, gztiles.DIR, gztiles.CFG)
+        res["gz"] = {"dir": os.path.join(out, gztiles.DIR), "cfg": entry(cfg) if os.path.isfile(cfg) else None,
+                     "missing": gztiles.missing(out)}
     try:                                    # written by build_tiles.py at the end of each run
         with open(os.path.join(out, "last_run.json"), encoding="utf-8") as f:
             res["last_run"] = json.load(f)
@@ -164,10 +164,10 @@ def results(out, model="bolt2"):
 
 
 def result_file(out, rel):
-    """Absolute path of a built file, only inside wahoondrer_maps / wmc_classic / roam_v1 of the output folder."""
+    """Absolute path of a built file, only inside wahoondrer_maps / wmc_classic / wahoondrer_maps_gz of the output folder."""
     out = os.path.realpath(os.path.expanduser(out or ""))
     full = os.path.realpath(os.path.join(out, rel))
-    allowed = [os.path.join(out, d) + os.sep for d in ("wahoondrer_maps", "wmc_classic", roam.DIR)]
+    allowed = [os.path.join(out, d) + os.sep for d in ("wahoondrer_maps", "wmc_classic", gztiles.DIR)]
     if not out or not any(full.startswith(a) for a in allowed) or not os.path.isfile(full):
         return None
     return full
@@ -230,8 +230,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, contour_status())
             if url.path == "/api/results":
                 s = settings.load()
-                model = settings.wahoo_model(s) if s.get("device", "wahoo") == "wahoo" else "bolt2"
-                return self._send(200, results(s["folders"]["out"], model))
+                fmt = settings.tile_format(s) if s.get("device", "wahoo") == "wahoo" else "lzma"
+                return self._send(200, results(s["folders"]["out"], fmt))
             if url.path == "/api/file":
                 return self._file(q.get("rel", [""])[0])
             if url.path == "/api/poi_catalog":
@@ -244,6 +244,13 @@ class Handler(BaseHTTPRequestHandler):
                 keys = [k for k in q.get("keys", [""])[0].split(",") if k]
                 return self._send(200, regions.shapes(keys) if url.path == "/api/region_shapes"
                                   else {"tiles": regions.tiles_of(keys)})
+            if url.path == "/api/cfg_file":         # the empty file that switches on the VTM maps (our theme)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Disposition", f'attachment; filename="{gztiles.CFG}"')
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
             if url.path == "/api/device":           # adb and the ELEMNT plugged in (automatic copy)
                 return self._send(200, devcopy.status((settings.load().get("tools") or {}).get("adb") or ""))
             if url.path == "/api/estimate":
@@ -380,9 +387,9 @@ class Handler(BaseHTTPRequestHandler):
                 except (devcopy.CopyError, OSError, subprocess.SubprocessError) as exc:
                     raise jobs.SettingsError(str(exc))
                 return self._send(200, {"rebooting": serial})
-            if path == "/api/roam_prepare":         # make the Roam v1 files of the tiles already built
+            if path == "/api/gz_prepare":           # write the .map.gz of the tiles already built
                 s = settings.load()
-                JOB.start([jobs.roam_command(s)], "roam")
+                JOB.start([jobs.gz_command(s)], "gz")
                 return self._send(200, {"started": True})
             if path == "/api/regions_cancel":
                 DOWNLOADER.cancel()

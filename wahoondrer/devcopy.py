@@ -2,12 +2,12 @@
 
 Tested on an ELEMNT Bolt v2 (October 2026): the device storage is /sdcard/, laid out like
 Output/wahoondrer_maps/ (maps/tiles/8/<x>/..., maps/vtm-elemnt/...). adb must be installed and the device
-authorised once (USB unplugged, several short presses on the power button, plug in again: `adb devices`
-then shows "device" instead of "unauthorized").
+authorised once (USB unplugged, 3 or 4 quick presses on the power button, plug in again: `adb devices`
+then shows "device" instead of "unauthorized"; Android File Transfer may stay open).
 
 What it does, file by file (never a whole folder):
 - the theme (vtm-elemnt.xml and the icons), the tiles of the last run (.map.lzma, .map.lzma.17 and the
-  small place-name .txt) - or, for the ELEMNT Roam v1, the files of Output/roam_v1/ (.map.gz, the cfg file);
+  small place-name .txt) - or, with the .map.gz format, the files of Output/wahoondrer_maps_gz/ (with the cfg file);
 - a file that is already on the device with the same content (size, then md5) is skipped;
 - a file that would be replaced is first saved in Output/backup/<date>/ (same layout as the device);
 - each file is pushed to a temporary name, then renamed: a stopped copy never leaves half a tile;
@@ -15,7 +15,7 @@ What it does, file by file (never a whole folder):
   Bolt v2 the new maps only show after a restart. The PURGE / RELOAD_MAP broadcasts that WahooMapsCreator
   mentions were tried: the map stayed blank until the restart, so they are not sent.
 
-Usage: python3 -m wahoondrer.devcopy --out OUTPUT_FOLDER [--model bolt2|roam1] [--adb PATH]
+Usage: python3 -m wahoondrer.devcopy --out OUTPUT_FOLDER [--format lzma|gz] [--adb PATH]
 """
 import argparse
 import hashlib
@@ -27,7 +27,7 @@ import subprocess
 import sys
 import time
 
-from . import roam
+from . import gztiles
 from .progress import MARK, gui
 
 REMOTE = "/sdcard"
@@ -106,9 +106,9 @@ def parse_ls(text):
 
 
 # ------------------------------------------------------------------ what to copy
-def plan(out, model="bolt2"):
+def plan(out, fmt="lzma"):
     """[(local path, remote path)] for the last run: theme (xml + icons), then the tiles of the last run.
-    Roam v1: the files of Output/roam_v1/ (its cfg file first)."""
+    fmt "gz": the files of Output/wahoondrer_maps_gz/ (its cfg file first)."""
     out = os.path.abspath(os.path.expanduser(out))
     try:
         with open(os.path.join(out, "last_run.json"), encoding="utf-8") as f:
@@ -116,7 +116,8 @@ def plan(out, model="bolt2"):
     except (OSError, ValueError):
         raise CopyError("No maps made yet (no last_run.json in the output folder): make the maps first.")
     tiles = last.get("built") or last.get("selected") or []
-    root = os.path.join(out, roam.DIR) if model == "roam1" else os.path.join(out, "wahoondrer_maps")
+    gz = fmt == "gz"
+    root = os.path.join(out, gztiles.DIR if gz else "wahoondrer_maps")
     names = os.path.join(out, "wahoondrer_maps", "maps", "tiles", "8")
     files = []
 
@@ -124,8 +125,8 @@ def plan(out, model="bolt2"):
         if os.path.isfile(local):
             files.append((local, REMOTE + "/" + rel))
 
-    if model == "roam1":
-        add(os.path.join(root, roam.CFG), roam.CFG)
+    if gz:
+        add(os.path.join(root, gztiles.CFG), gztiles.CFG)
     theme = os.path.join(root, "maps", "vtm-elemnt")
     add(os.path.join(theme, "vtm-elemnt.xml"), "maps/vtm-elemnt/vtm-elemnt.xml")
     icons = os.path.join(theme, "icons")
@@ -136,7 +137,7 @@ def plan(out, model="bolt2"):
     for t in tiles:
         x, y = str(t).split("/")
         tdir = os.path.join(root, "maps", "tiles", "8", x)
-        exts = (".map.gz",) if model == "roam1" else (".map.lzma", ".map.lzma.17")
+        exts = (".map.gz",) if gz else (".map.lzma", ".map.lzma.17")
         for ext in exts:
             add(os.path.join(tdir, y + ext), f"maps/tiles/8/{x}/{y}{ext}")
         if os.path.isdir(os.path.join(names, x)):
@@ -144,8 +145,8 @@ def plan(out, model="bolt2"):
                 if f.startswith(y + "_") and f.endswith(".txt"):           # the place name, for the user
                     add(os.path.join(names, x, f), f"maps/tiles/8/{x}/{f}")
     if not any(r.endswith((".map.lzma", ".map.gz")) for _, r in files):
-        raise CopyError("No tile of the last run found" + (" in roam_v1: prepare the Roam v1 files first."
-                                                           if model == "roam1" else "."))
+        raise CopyError("No tile of the last run found" + (" in wahoondrer_maps_gz: write the .map.gz tiles first."
+                                                           if gz else "."))
     return files
 
 
@@ -158,7 +159,7 @@ def md5(path):
 
 
 # ------------------------------------------------------------------ copy
-def copy(out, model="bolt2", adb_path="", log=print):
+def copy(out, fmt="lzma", adb_path="", log=print):
     out = os.path.abspath(os.path.expanduser(out))
     adb = find_adb(adb_path)
     if not adb:
@@ -167,7 +168,7 @@ def copy(out, model="bolt2", adb_path="", log=print):
     if not ready:
         raise CopyError("No authorised device: plug the ELEMNT in, authorise it, then check with `adb devices`.")
     dev = Adb(adb, ready[0]["serial"])
-    files = plan(out, model)
+    files = plan(out, fmt)
     backup = os.path.join(out, "backup", time.strftime("%Y-%m-%d_%H%M%S"))
     on_device = {}
     total = sum(os.path.getsize(p) for p, _ in files)
@@ -220,11 +221,11 @@ def reboot(adb_path=""):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True, help="the output folder (the one holding wahoondrer_maps)")
-    ap.add_argument("--model", default="bolt2", help="bolt2 (default) or roam1 (the .map.gz files of roam_v1)")
+    ap.add_argument("--format", default="lzma", choices=("lzma", "gz"), help="tile format of the device (default lzma)")
     ap.add_argument("--adb", default="", help="path of adb (default: found in the PATH)")
     args = ap.parse_args(argv)
     try:
-        copy(args.out, args.model, args.adb)
+        copy(args.out, args.format, args.adb)
     except (CopyError, OSError, subprocess.SubprocessError) as e:
         sys.exit(f"Error: {e}")
 

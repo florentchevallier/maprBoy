@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from wahoondrer import devcopy, roam
+from wahoondrer import devcopy, gztiles as roam
 
 LS = """total 141204
 -rw-rw---- 1 root sdcard_rw 20053243 2026-10-08 21:47 87.map.lzma
@@ -90,7 +90,7 @@ class DevCopyTest(unittest.TestCase):
             self.assertEqual(rem, ["/sdcard/maps/vtm-elemnt/vtm-elemnt.xml", "/sdcard/maps/vtm-elemnt/icons/cafe.svg",
                                    "/sdcard/maps/tiles/8/136/88.map.lzma", "/sdcard/maps/tiles/8/136/88.map.lzma.17",
                                    "/sdcard/maps/tiles/8/136/88_Munich.txt"])
-            rem = [r for _, r in devcopy.plan(d, "roam1")]
+            rem = [r for _, r in devcopy.plan(d, "gz")]
             self.assertEqual(rem, ["/sdcard/" + roam.CFG, "/sdcard/maps/vtm-elemnt/vtm-elemnt.xml",
                                    "/sdcard/maps/tiles/8/136/88.map.gz", "/sdcard/maps/tiles/8/136/88_Munich.txt"])
 
@@ -99,8 +99,8 @@ class DevCopyTest(unittest.TestCase):
             with self.assertRaises(devcopy.CopyError):
                 devcopy.plan(d)
             make_out(d)
-            with self.assertRaises(devcopy.CopyError):                     # no roam_v1 files yet
-                devcopy.plan(d, "roam1")
+            with self.assertRaises(devcopy.CopyError):                     # no .map.gz files yet
+                devcopy.plan(d, "gz")
 
     def _copy(self, d, dev):
         with mock.patch.object(devcopy, "find_adb", return_value="/x/adb"), \

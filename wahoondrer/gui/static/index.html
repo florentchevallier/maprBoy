@@ -157,7 +157,7 @@ body.maptall #colMap{position:static;max-height:none;overflow:visible}
 .notilelabels .tlabel{display:none}
 .pro label.row.maxdays{grid-template-columns:auto 250px 1fr;gap:12px 22px;align-items:center;margin:4px 0 10px}.mdwrap{display:flex;flex-direction:column;width:250px}#maxDaysRange{width:100%;margin:0;accent-color:var(--accent)}
 .mdlbl{display:flex;justify-content:space-between;font-size:11px;color:var(--mute);padding:0 8px}.mdlbl i{font-style:normal;width:0;display:flex;justify-content:center;white-space:nowrap}
-.devbox{display:flex;flex-direction:column;gap:4px;align-items:flex-start}select.model{width:auto;font-size:12.5px;padding:2px 6px;border-radius:7px}body.garmin #wahooModel{display:none}
+.devbox{display:flex;flex-direction:column;gap:4px;align-items:flex-start}select.model{width:auto;font-size:12.5px;padding:2px 6px;border-radius:7px}body.garmin #tileFormat{display:none}
 .devcopy{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 14px;background:color-mix(in srgb,var(--accent) 6%,var(--card))}.devcopy[hidden]{display:none}
 .devcopy h3{margin:0 0 6px;font-size:15px}.devcopy .acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}.devcopy progress{width:100%;height:10px;accent-color:var(--accent)}
 .devcopy code{background:var(--code);color:var(--codeink);padding:1px 6px;border-radius:5px;font-size:12.5px}
@@ -221,7 +221,7 @@ tr.rgrp.folded .gsum{display:inline}
 <header>
   <div class="tag"><span class="txt">custom OSM maps with POIs,<br>Wandrer &amp; Squadrats</span></div>
   <div class="devbox"><div class="seg devseg" id="devSeg" role="group" aria-label="Device"><button type="button" data-device="wahoo">Wahoo</button><button type="button" data-device="garmin">Garmin</button></div>
-  <select class="model" id="wahooModel" aria-label="Wahoo model" title="The ELEMNT Roam v1 gets its own files (.map.gz), in Output/roam_v1/"><option value="bolt2">ELEMNT Bolt v2</option><option value="roam2">ELEMNT Roam v2 (not tested yet)</option><option value="bolt1">ELEMNT Bolt v1 (not tested yet)</option><option value="roam1">ELEMNT Roam v1</option></select></div>
+  <select class="model" id="tileFormat" aria-label="Tile format of your ELEMNT" title="Which tiles your ELEMNT reads. To check: plug it in, open it (Android File Transfer on a Mac), go to maps/tiles/8/ and open one of the numbered folders. Files ending in .map.lzma: keep the default. Files ending in .map.gz: choose .map.gz. Empty or no folder: keep the default."><option value="lzma">.map.lzma tiles (most ELEMNTs, default)</option><option value="gz">.map.gz tiles (some older ELEMNTs)</option></select></div>
   <nav class="steps" aria-label="Steps"><button type="button" class="step" data-step="1"><span class="num">1</span>Prepare</button><span class="arrow" aria-hidden="true">→</span><button type="button" class="step" data-step="2"><span class="num">2</span><span id="step2Label">Copy to the Wahoo</span></button></nav>
   <div class="seg" id="modeSeg" title="Pro shows more options. Each section can also be set to Simple or Pro on its own.">
     <button data-mode="simple">Simple</button><button data-mode="pro">Pro</button>
@@ -1357,7 +1357,7 @@ async function renderMakeSum() {
   if (!n) { el.innerHTML = '<span class="note">No tile chosen yet: choose them on the map.</span>'; return; }
   const what = S.build.skip_classic && modeOf("make") === "pro" ? ["Wandrer part only"]
     : ["Base map" + (poiOn ? " + POIs" : "") + (S.build.contour ? " + contour lines" : ""), S.wandrer.enabled && "Wandrer", S.squadrats.enabled && "Squadrats"].filter(Boolean);
-  const parts = [`<span><b>${n}</b> tile${n === 1 ? "" : "s"}</span>`, `<span>${esc(what.join(" + "))}</span>`, `<span>for ${isGarmin() ? "Garmin" : esc(modelName())}</span>`];
+  const parts = [`<span><b>${n}</b> tile${n === 1 ? "" : "s"}</span>`, `<span>${esc(what.join(" + "))}</span>`, `<span>for ${isGarmin() ? "Garmin" : "Wahoo" + (tileFormat() === "gz" ? " (.map.gz)" : "")}</span>`];
   const e = isGarmin() ? null : await perTile();
   if (e) parts.push(`<span title="From your last ${e.runs} comparable runs">≈ <b>${fmtMin(e.seconds_per_tile * n)}</b></span>`);
   el.innerHTML = parts.join("");
@@ -1628,14 +1628,16 @@ async function renderResults() {
   if (!S.folders.out) { box.innerHTML = NOTHING_YET; return; }
   let r;
   try { r = await api("/api/results"); } catch (e) { box.innerHTML = NOTHING_YET; return; }
-  const roam = r.model === "roam1" ? r.roam : null;
+  const gz = r.format === "gz" ? r.gz : null;
   let h = "";
-  if (roam && roam.missing.length) h += `<div class="warn roamprep">${roam.missing.length} tile(s) of your last maps are not prepared for the ELEMNT Roam v1 yet (.map.gz, a few seconds per tile). <button class="small" id="roamPrep">Prepare them</button> <span class="note" id="roamPrepMsg"></span></div>`;
-  if (!r.theme && !r.tiles.length) { box.innerHTML = h || NOTHING_YET; bindRoamPrep(); return; }
+  if (gz && gz.missing.length) h += `<div class="warn gzprep">${gz.missing.length} tile(s) of your maps have no .map.gz yet (a few seconds per tile). <button class="small" id="gzPrep">Write them</button> <span class="note" id="gzPrepMsg"></span></div>`;
+  if (!r.theme && !r.tiles.length) { box.innerHTML = h || NOTHING_YET; bindGzPrep(); return; }
   h += '<h3>Files to copy</h3><p class="note">Copy them <b>one by one</b>, after a backup. Easiest: “Open folder”, then copy in your file manager (or Android File Transfer). In Chrome or Edge you can also drag a file from here to the device window; a folder cannot be dragged from a web page. Click a name to download it.</p>';
-  if (roam) {
-    h += `<p class="note">ELEMNT Roam v1: everything is in <span class="path">${esc(roam.dir)}</span>, laid out like the device. Copy the files into the existing folders of the Roam, one by one: never paste a whole folder over one of the device (Android File Transfer would replace it, with everything else it holds).</p>`;
-    if (roam.cfg) h += `<div class="rdir">0. Once: switch on our maps <span class="note">→ device: the top folder (next to maps and factory)</span><span style="flex:1"></span><button class="small" data-opendir="${esc(roam.dir)}">Open folder</button></div><div class="rin">${fileRow(roam.cfg)}<p class="note" style="margin:2px 0 0">An empty file: it makes the Roam draw the maps with our theme (VTM). Copy it once; after changing the theme, empty maps/temp on the Roam, then restart it.</p></div>`;
+  if (gz) {
+    h += `<p class="note">.map.gz tiles: everything is in <span class="path">${esc(gz.dir)}</span>, laid out like the device. Copy the files into the existing folders of the ELEMNT, one by one: never paste a whole folder over one of the device (Android File Transfer would replace it, with everything else it holds).</p>`;
+    if (gz.cfg) h += `<div class="rdir">0. Once: switch on our maps <span class="note">→ device: the top folder (next to maps and factory)</span><span style="flex:1"></span><button class="small" data-opendir="${esc(gz.dir)}">Open folder</button></div><div class="rin">${fileRow(gz.cfg)}<p class="note" style="margin:2px 0 0">An empty file: it makes the ELEMNT draw the maps with our theme (VTM). Copy it once; after changing the theme, empty maps/temp on the device, then restart it.</p></div>`;
+  } else if (!isGarmin()) {
+    h += `<details class="var"><summary>Only if your ELEMNT keeps the Wahoo map style instead of ours</summary><p class="note">Copy once the empty file <a href="/api/cfg_file" download="cfg_BHomeActivity_VtmMaps">cfg_BHomeActivity_VtmMaps</a> to the top folder of the device (next to maps and factory), then restart it: it switches on the VTM maps, drawn with our theme. (Needed on a Roam v1 we tested; the Bolt v2 uses VTM already.)</p></details>`;
   }
   if (r.theme) {
     h += `<div class="rdir">1. Theme <span class="note">→ device: maps/vtm-elemnt/</span><span style="flex:1"></span><button class="small" data-opendir="${esc(r.theme.dir)}">Open folder</button></div><div class="rin">`;
@@ -1661,7 +1663,7 @@ async function renderResults() {
   if (lastT.length) h += tileList("list:last", "Tiles of the last run", `2. Tiles of the last run <span class="note">→ device: maps/tiles/8/</span>`, lastT);
   if (otherT.length) h += tileList("list:other", lastT.length ? "Other tiles" : "Tiles", `${lastT.length ? "3. Other tiles" : "2. Tiles"} <span class="note">${lastT.length ? "made by earlier runs" : "→ device: maps/tiles/8/"}</span>`, otherT);
   box.innerHTML = h;
-  bindRoamPrep();
+  bindGzPrep();
 }
 // ---------- automatic copy to the Wahoo (adb), shown at the top of step 2
 let copyLines = [];
@@ -1673,9 +1675,9 @@ async function renderDevCopy() {
   const again = '<button class="small" id="devAgain">Check again</button>';
   let h = "<h3>Copy automatically</h3>";
   if (!d.adb) h += `<p class="note">With <b>adb</b> (Android platform tools), maprBoy can copy the maps to the ELEMNT for you, file by file. To install it on a Mac: <code>brew install android-platform-tools</code>, then restart this page. Until then, copy the files by hand (below).</p><div class="acts">${again}</div>`;
-  else if (!d.devices.length) h += `<p class="note">adb is ready. Plug the ELEMNT in by USB (and close Android File Transfer if it opens).</p><div class="acts">${again}</div>`;
-  else if (!d.ready) h += `<p class="note">The ELEMNT is plugged in but not authorised yet. Unplug it, press its power button briefly several times, plug it in again, then check again. (Done once; it worked like this on a Bolt v2.)</p><div class="acts">${again}</div>`;
-  else h += `<p class="note">ELEMNT connected (${esc(d.devices.find(x => x.state === "device").serial)}). The theme and the tiles of the last run${wahooModel() === "roam1" ? " (Roam v1 files)" : ""} are copied file by file; files already up to date are skipped and the ones replaced are saved first in <span class="path">Output/backup/</span>. Then restart the ELEMNT: the new maps show after a restart.</p>
+  else if (!d.devices.length) h += `<p class="note">adb is ready. Plug the ELEMNT in by USB.</p><div class="acts">${again}</div>`;
+  else if (!d.ready) h += `<p class="note">The ELEMNT is plugged in but not authorised yet. Unplug it, press its power button 3 or 4 times quickly, plug it in again, then check again. (Done once; it worked like this on a Bolt v2.)</p><div class="acts">${again}</div>`;
+  else h += `<p class="note">ELEMNT connected (${esc(d.devices.find(x => x.state === "device").serial)}). The theme and the tiles of the last run${tileFormat() === "gz" ? " (.map.gz files)" : ""} are copied file by file; files already up to date are skipped and the ones replaced are saved first in <span class="path">Output/backup/</span>. Then restart the ELEMNT: the new maps show after a restart.</p>
     <div class="acts"><button class="primary" id="devCopyGo">Copy to the ELEMNT</button><button class="stop" id="devCopyStop" hidden>■ Stop</button><button id="devReboot" title="Restart the ELEMNT (about a minute); the new maps show afterwards">↻ Restart the ELEMNT</button>${again}</div>`;
   h += '<div id="devCopyRun" hidden><progress id="devCopyBar" max="1" value="0"></progress><div class="note" id="devCopyTxt"></div></div><div class="note" id="devCopyMsg"></div>';
   box.innerHTML = h;
@@ -1709,12 +1711,12 @@ function copyProgress(j, shown) {
     msg.textContent = (j.status === "done" ? "✓ Done. " : j.status === "cancelled" ? "Stopped. " : "✗ The copy failed. ") + tail;
   }
 }
-function bindRoamPrep() {
-  const b = $("#roamPrep"); if (!b) return;
+function bindGzPrep() {
+  const b = $("#gzPrep"); if (!b) return;
   b.onclick = async () => {
-    b.disabled = true; $("#roamPrepMsg").textContent = "Working…";
-    try { await api("/api/roam_prepare", {}); since = 0; startPolling(); }
-    catch (e) { $("#roamPrepMsg").textContent = e.message; b.disabled = false; }
+    b.disabled = true; $("#gzPrepMsg").textContent = "Working…";
+    try { await api("/api/gz_prepare", {}); since = 0; startPolling(); }
+    catch (e) { $("#gzPrepMsg").textContent = e.message; b.disabled = false; }
   };
 }
 $("#results").addEventListener("dragstart", e => {
@@ -1737,17 +1739,15 @@ $("#results").addEventListener("click", async e => {
 
 // ---------- device (Wahoo / Garmin), steps (1 prepare, 2 copy), folders and settings panel
 const isGarmin = () => !!(S && S.device === "garmin");
-const MODEL_NAMES = {bolt2: "ELEMNT Bolt v2", roam2: "ELEMNT Roam v2", bolt1: "ELEMNT Bolt v1", roam1: "ELEMNT Roam v1"};
-const wahooModel = () => (S && MODEL_NAMES[S.wahoo_model]) ? S.wahoo_model : "bolt2";
-const modelName = () => MODEL_NAMES[wahooModel()];
-$("#wahooModel").addEventListener("change", async e => {
-  S.wahoo_model = e.target.value;
+const tileFormat = () => (S && S.tile_format === "gz") ? "gz" : "lzma";
+$("#tileFormat").addEventListener("change", async e => {
+  S.tile_format = e.target.value;
   try { await api("/api/settings", S); } catch (err) { $("#runMsg").textContent = err.message; }
   renderMakeSum(); renderResults(); renderDevCopy(); fitHeader();
 });
 function renderDevice() {
   $$("#devSeg button").forEach(b => { const on = b.dataset.device === S.device; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
-  $("#wahooModel").value = wahooModel();
+  $("#tileFormat").value = tileFormat();
   if (document.body.classList.contains("step2")) renderDevCopy();
   const what = isGarmin() ? "Garmin" : "Wahoo";
   $("#step2Label").textContent = $("#filesTitle").textContent = "Copy to the " + what;

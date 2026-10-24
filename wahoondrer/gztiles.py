@@ -1,17 +1,19 @@
-"""ELEMNT ROAM v1: the same tiles as the other ELEMNTs, only gzip-compressed.
+""".map.gz tiles, for the ELEMNTs whose maps are gzip-compressed instead of LZMA.
 
-Tested in October 2026 on a borrowed ROAM v1: its tiles are maps/tiles/8/<x>/<y>.map.gz, the same
-mapsforge binary as our .map.lzma (the name inside the gzip is <y>.map), without the .17 marker. The VTM
-rendering (our theme) is switched on by an empty file cfg_BHomeActivity_VtmMaps at the device root.
+Most ELEMNTs read .map.lzma (WahooMapsCreator supports Bolt v1/v2, Roam v1/v2, ELEMNT). A borrowed ELEMNT
+Roam v1 (October 2026, probably an old firmware) held maps/tiles/8/<x>/<y>.map.gz instead: the same mapsforge
+binary as our .map.lzma (the name inside the gzip is <y>.map), without the .17 marker, and it displayed our
+tiles once converted. Its VTM rendering (our theme) was switched on by an empty file
+cfg_BHomeActivity_VtmMaps at the device root.
 
 prepare() writes, next to wahoondrer_maps/, a folder laid out like the device:
-    roam_v1/cfg_BHomeActivity_VtmMaps        (empty, copied once)
-    roam_v1/maps/tiles/8/<x>/<y>.map.gz
-    roam_v1/maps/vtm-elemnt/...              (the same theme)
+    wahoondrer_maps_gz/cfg_BHomeActivity_VtmMaps        (empty, copied once)
+    wahoondrer_maps_gz/maps/tiles/8/<x>/<y>.map.gz
+    wahoondrer_maps_gz/maps/vtm-elemnt/...              (the same theme)
 so the .map.lzma and .map.gz files are never mixed. A tile is converted again only when its .map.lzma is
 newer (the .map.gz gets the date of its .map.lzma).
 
-Usage: python3 -m wahoondrer.roam --out OUTPUT_FOLDER [--tiles 136/88,135/88]
+Usage: python3 -m wahoondrer.gztiles --out OUTPUT_FOLDER [--tiles 136/88,135/88]
 """
 import argparse
 import gzip
@@ -20,7 +22,7 @@ import os
 import shutil
 import sys
 
-DIR = "roam_v1"
+DIR = "wahoondrer_maps_gz"
 CFG = "cfg_BHomeActivity_VtmMaps"
 JUNK = (".DS_Store", "Thumbs.db")
 
@@ -79,7 +81,7 @@ def prepare(out, tiles=None, log=print):
     out = os.path.abspath(os.path.expanduser(out))
     todo = missing(out, tiles)
     for i, t in enumerate(todo, 1):
-        log(f"Roam v1: tile {t} -> .map.gz ({i}/{len(todo)})")
+        log(f".map.gz: tile {t} ({i}/{len(todo)})")
         convert(*paths(out, t))
     theme = os.path.join(src_maps(out), "vtm-elemnt")
     if os.path.isdir(theme):
@@ -89,7 +91,7 @@ def prepare(out, tiles=None, log=print):
     cfg = os.path.join(dst_root(out), CFG)
     if not os.path.exists(cfg):
         open(cfg, "wb").close()
-    log(f"Roam v1: {len(todo)} tile(s) converted, theme copied, files ready in {dst_root(out)}")
+    log(f".map.gz: {len(todo)} tile(s) converted, theme copied, files ready in {dst_root(out)}")
     return todo
 
 

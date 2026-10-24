@@ -61,7 +61,7 @@ DEFAULTS = {
     "pois": {"overrides": {}, "custom": []},   # the user's POI choices, apart from the defaults in config/poi-rules.json
     "tools": {"mkgmap": "",          # path of mkgmap.jar (Garmin maps)
               "adb": ""},            # path of adb (automatic copy to a Wahoo); "" = found by itself
-    "wahoo_model": "bolt2",          # bolt2 | roam2 | bolt1 | roam1: the Roam v1 gets .map.gz tiles in Output/roam_v1/
+    "tile_format": "lzma",           # Wahoo tiles: "lzma" (most ELEMNTs) | "gz" (Output/wahoondrer_maps_gz/, e.g. an old Roam v1)
     "osm_max_days": 14,              # WMC renews the OSM regions older than this (days); 0 = never (shared by the devices)
 }
 
@@ -80,13 +80,13 @@ def _merge(base, new):
 
 
 # kept apart for each device; every other key of DEFAULTS is shared (the Squadrats file too, see below)
-WAHOO_MODELS = ("bolt2", "roam2", "bolt1", "roam1")
+TILE_FORMATS = ("lzma", "gz")
 
 
-def wahoo_model(s):
-    """The Wahoo model of the settings; anything unexpected is the Bolt v2."""
-    v = s.get("wahoo_model")
-    return v if v in WAHOO_MODELS else "bolt2"
+def tile_format(s):
+    """The tile format of the Wahoo ("lzma" or "gz"); anything unexpected is "lzma"."""
+    v = s.get("tile_format")
+    return v if v in TILE_FORMATS else "lzma"
 
 
 OSM_MAX_DAYS = (7, 14, 30, 60, 90, 0)   # the choices of the page (0 = never renew)
@@ -124,6 +124,8 @@ def _split(raw):
 
 
 def _view(device, shared, block, sq_file):
+    if "tile_format" not in shared and shared.get("wahoo_model") == "roam1":   # the model menu of an earlier version
+        shared = {**shared, "tile_format": "gz"}
     data = _merge(DEFAULTS, {**shared, **(block or {}), "device": device})
     data["squadrats"]["file"] = sq_file
     if data["activity"] not in ACTIVITIES + ("any",):    # "latest" / "auto" of earlier versions, or unknown

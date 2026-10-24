@@ -1255,8 +1255,8 @@ class ResultsTests(unittest.TestCase):
             self.assertTrue(server.results(out)["theme"]["new"])
 
 
-class RoamTests(unittest.TestCase):
-    """ELEMNT Roam v1: .map.gz copies in Output/roam_v1/, laid out like the device."""
+class GzTilesTests(unittest.TestCase):
+    """.map.gz tiles in Output/wahoondrer_maps_gz/, laid out like the device."""
     def _out(self, d):
         import lzma
         maps = os.path.join(d, "wahoondrer_maps", "maps")
@@ -1273,19 +1273,19 @@ class RoamTests(unittest.TestCase):
 
     def test_prepare_converts_once(self):
         import gzip
-        from wahoondrer import roam
+        from wahoondrer import gztiles as roam
         with tempfile.TemporaryDirectory() as d:
             self._out(d)
             self.assertEqual(roam.missing(d), ["136/88"])
             self.assertEqual(roam.prepare(d, log=lambda *_: None), ["136/88"])
-            gz = os.path.join(d, "roam_v1", "maps", "tiles", "8", "136", "88.map.gz")
+            gz = os.path.join(d, "wahoondrer_maps_gz", "maps", "tiles", "8", "136", "88.map.gz")
             with gzip.open(gz, "rb") as f:
                 self.assertEqual(f.read(), self.data)
             with open(gz, "rb") as f:                       # the name inside the gzip: 88.map
                 self.assertIn(b"88.map\x00", f.read(40))
-            self.assertTrue(os.path.isfile(os.path.join(d, "roam_v1", "maps", "vtm-elemnt", "vtm-elemnt.xml")))
-            self.assertFalse(os.path.exists(os.path.join(d, "roam_v1", "maps", "vtm-elemnt", ".DS_Store")))
-            self.assertEqual(os.path.getsize(os.path.join(d, "roam_v1", roam.CFG)), 0)
+            self.assertTrue(os.path.isfile(os.path.join(d, "wahoondrer_maps_gz", "maps", "vtm-elemnt", "vtm-elemnt.xml")))
+            self.assertFalse(os.path.exists(os.path.join(d, "wahoondrer_maps_gz", "maps", "vtm-elemnt", ".DS_Store")))
+            self.assertEqual(os.path.getsize(os.path.join(d, "wahoondrer_maps_gz", roam.CFG)), 0)
             self.assertEqual(roam.missing(d), [])
             self.assertEqual(roam.prepare(d, log=lambda *_: None), [])       # nothing new: nothing redone
             src = os.path.join(d, "wahoondrer_maps", "maps", "tiles", "8", "136", "88.map.lzma")
@@ -1293,47 +1293,50 @@ class RoamTests(unittest.TestCase):
             self.assertEqual(roam.missing(d), ["136/88"])
 
     def test_results_and_files_for_the_roam(self):
-        from wahoondrer import roam
+        from wahoondrer import gztiles as roam
         with tempfile.TemporaryDirectory() as d:
             self._out(d)
-            r = server.results(d, "roam1")
-            self.assertEqual((r["model"], r["roam"]["missing"], r["roam"]["cfg"], r["tiles"]), ("roam1", ["136/88"], None, []))
+            r = server.results(d, "gz")
+            self.assertEqual((r["format"], r["gz"]["missing"], r["gz"]["cfg"], r["tiles"]), ("gz", ["136/88"], None, []))
             roam.prepare(d, log=lambda *_: None)
-            r = server.results(d, "roam1")
-            self.assertEqual(r["roam"]["missing"], [])
-            self.assertEqual(r["roam"]["cfg"]["name"], roam.CFG)
+            r = server.results(d, "gz")
+            self.assertEqual(r["gz"]["missing"], [])
+            self.assertEqual(r["gz"]["cfg"]["name"], roam.CFG)
             self.assertEqual([f["name"] for f in r["tiles"][0]["files"]], ["88.map.gz"])
             self.assertEqual(r["tiles"][0]["items"][0]["label"], "Munich")            # names taken from wahoondrer_maps
-            self.assertTrue(r["theme"]["dir"].endswith(os.path.join("roam_v1", "maps", "vtm-elemnt")))
-            self.assertTrue(server.result_file(d, "roam_v1/maps/tiles/8/136/88.map.gz"))
+            self.assertTrue(r["theme"]["dir"].endswith(os.path.join("wahoondrer_maps_gz", "maps", "vtm-elemnt")))
+            self.assertTrue(server.result_file(d, "wahoondrer_maps_gz/maps/tiles/8/136/88.map.gz"))
             self.assertEqual([f["name"] for f in server.results(d)["tiles"][0]["files"]], ["88.map.lzma", "88.map.lzma.17"])
 
     def test_copy_command(self):
         s = CommandTests.s(CommandTests())
         argv = jobs.copy_command(s)[1]
         self.assertEqual(argv[1:3], ["-m", "wahoondrer.devcopy"])
-        self.assertEqual(argv[argv.index("--model") + 1], "bolt2")
+        self.assertEqual(argv[argv.index("--format") + 1], "lzma")
         self.assertNotIn("--adb", argv)
-        s["wahoo_model"] = "roam1"; s["tools"]["adb"] = "/opt/adb"
+        s["tile_format"] = "gz"; s["tools"]["adb"] = "/opt/adb"
         argv = jobs.copy_command(s)[1]
-        self.assertEqual((argv[argv.index("--model") + 1], argv[argv.index("--adb") + 1]), ("roam1", "/opt/adb"))
+        self.assertEqual((argv[argv.index("--format") + 1], argv[argv.index("--adb") + 1]), ("gz", "/opt/adb"))
         s["folders"]["out"] = ""
         with self.assertRaises(jobs.SettingsError):
             jobs.copy_command(s)
 
     def test_commands_and_setting(self):
-        self.assertEqual(settings.wahoo_model({}), "bolt2")
-        self.assertEqual(settings.wahoo_model({"wahoo_model": "roam1"}), "roam1")
-        self.assertEqual(settings.wahoo_model({"wahoo_model": "ace"}), "bolt2")
+        self.assertEqual(settings.tile_format({}), "lzma")
+        self.assertEqual(settings.tile_format({"tile_format": "gz"}), "gz")
+        self.assertEqual(settings.tile_format({"tile_format": "zip"}), "lzma")
+        with tempfile.TemporaryDirectory() as d:                 # the model menu of the previous version
+            p = os.path.join(d, "s.json"); _write(p, json.dumps({"wahoo_model": "roam1"}))
+            self.assertEqual(settings.load(p)["tile_format"], "gz")
         s = CommandTests.s(CommandTests())
-        self.assertNotIn("wahoondrer.roam", str(jobs.build_commands(s, ["/x/a.kmz"], None)))
-        s["wahoo_model"] = "roam1"
+        self.assertNotIn("wahoondrer.gztiles", str(jobs.build_commands(s, ["/x/a.kmz"], None)))
+        s["tile_format"] = "gz"
         cmds = jobs.build_commands(s, ["/x/a.kmz"], None)
-        self.assertEqual(cmds[-1][1][1:3], ["-m", "wahoondrer.roam"])
+        self.assertEqual(cmds[-1][1][1:3], ["-m", "wahoondrer.gztiles"])
         self.assertEqual(cmds[-1][1][cmds[-1][1].index("--tiles") + 1], "135/88,136/88")
-        self.assertNotIn("wahoondrer.roam", str(jobs.build_commands(s, [], None, plan=True)))
+        self.assertNotIn("wahoondrer.gztiles", str(jobs.build_commands(s, [], None, plan=True)))
         s["device"] = "garmin"
-        self.assertNotIn("wahoondrer.roam", str(jobs.build_commands(s, ["/x/a.kmz"], None)))
+        self.assertNotIn("wahoondrer.gztiles", str(jobs.build_commands(s, ["/x/a.kmz"], None)))
 
 
 class ProgressTests(unittest.TestCase):

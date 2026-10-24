@@ -316,6 +316,19 @@ def build_commands(s, exports, squadrats_file, plan=False):
     return cmds
 
 
+def copy_command(s):
+    """The step that copies the maps of the last run to the ELEMNT plugged in (adb, wahoondrer/devcopy.py)."""
+    if not s["folders"]["out"]:
+        raise SettingsError("Choose the output folder first (⚙).")
+    out = os.path.abspath(os.path.expanduser(s["folders"]["out"]))
+    argv = [sys.executable, "-m", "wahoondrer.devcopy", "--out", out,
+            "--model", "roam1" if settings_mod.wahoo_model(s) == "roam1" else "bolt2"]
+    adb = (s.get("tools") or {}).get("adb") or ""
+    if adb:
+        argv += ["--adb", adb]
+    return ("Copy the maps to the device", argv)
+
+
 def roam_command(s, tiles=None):
     """The step that writes the .map.gz files of the ELEMNT Roam v1 (Output/roam_v1/, laid out like the device)."""
     out = os.path.abspath(os.path.expanduser(s["folders"]["out"] or ""))

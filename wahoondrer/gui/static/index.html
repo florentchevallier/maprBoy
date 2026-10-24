@@ -158,6 +158,9 @@ body.maptall #colMap{position:static;max-height:none;overflow:visible}
 .pro label.row.maxdays{grid-template-columns:auto 250px 1fr;gap:12px 22px;align-items:center;margin:4px 0 10px}.mdwrap{display:flex;flex-direction:column;width:250px}#maxDaysRange{width:100%;margin:0;accent-color:var(--accent)}
 .mdlbl{display:flex;justify-content:space-between;font-size:11px;color:var(--mute);padding:0 8px}.mdlbl i{font-style:normal;width:0;display:flex;justify-content:center;white-space:nowrap}
 .devbox{display:flex;flex-direction:column;gap:4px;align-items:flex-start}select.model{width:auto;font-size:12.5px;padding:2px 6px;border-radius:7px}body.garmin #wahooModel{display:none}
+.devcopy{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 14px;background:color-mix(in srgb,var(--accent) 6%,var(--card))}.devcopy[hidden]{display:none}
+.devcopy h3{margin:0 0 6px;font-size:15px}.devcopy .acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}.devcopy progress{width:100%;height:10px;accent-color:var(--accent)}
+.devcopy code{background:var(--code);color:var(--codeink);padding:1px 6px;border-radius:5px;font-size:12.5px}
 .lsw{display:inline-block;width:20px;height:0;border-top:2px dashed;vertical-align:3px}
 .regchips{display:inline-flex;gap:6px;flex-wrap:wrap}.regchip{display:inline-flex;align-items:center;gap:4px;padding:1px 4px 1px 10px;border-radius:99px;background:color-mix(in srgb,var(--viol) 16%,transparent);font-size:13px}
 .regchip button{border:0;background:transparent;padding:0 6px;font-size:14px;line-height:1;color:var(--mute)}#regPick{width:240px;padding:4px 8px;font-size:13px}
@@ -429,6 +432,7 @@ tr.rgrp.folded .gsum{display:inline}
 <section class="card files">
   <h2 id="filesTitle">Copy to the Wahoo</h2>
   <p class="note" id="doneNote"></p>
+  <div id="devCopy" class="devcopy" hidden></div>
   <div id="results"><p class="note">Nothing built yet.</p></div>
   <div class="actions" style="margin-top:12px"><button type="button" data-step="1">← Back to step 1</button></div>
 </section>
@@ -1410,6 +1414,7 @@ async function tick() {
   log.hidden = $("#logFold").hidden = !log.textContent;
   renderLogTail();
   warnLines.push(...shown.filter(l => l.startsWith("! ")));
+  if (j.kind === "copy") copyProgress(j, shown);
   if (atEnd) log.scrollTop = log.scrollHeight;
   $("#runState").hidden = j.status === "idle";
   const left = j.status === "running" && runEst ? runEst - j.seconds : 0;
@@ -1658,6 +1663,44 @@ async function renderResults() {
   box.innerHTML = h;
   bindRoamPrep();
 }
+// ---------- automatic copy to the Wahoo (adb), shown at the top of step 2
+let copyLines = [];
+async function renderDevCopy() {
+  const box = $("#devCopy");
+  if (isGarmin()) { box.hidden = true; return; }
+  let d; try { d = await api("/api/device"); } catch (e) { box.hidden = true; return; }
+  box.hidden = false;
+  const again = '<button class="small" id="devAgain">Check again</button>';
+  let h = "<h3>Copy automatically</h3>";
+  if (!d.adb) h += `<p class="note">With <b>adb</b> (Android platform tools), maprBoy can copy the maps to the ELEMNT for you, file by file. To install it on a Mac: <code>brew install android-platform-tools</code>, then restart this page. Until then, copy the files by hand (below).</p><div class="acts">${again}</div>`;
+  else if (!d.devices.length) h += `<p class="note">adb is ready. Plug the ELEMNT in by USB (and close Android File Transfer if it opens).</p><div class="acts">${again}</div>`;
+  else if (!d.ready) h += `<p class="note">The ELEMNT is plugged in but not authorised yet. Unplug it, press its power button briefly several times, plug it in again, then check again. (Done once; it worked like this on a Bolt v2.)</p><div class="acts">${again}</div>`;
+  else h += `<p class="note">ELEMNT connected (${esc(d.devices.find(x => x.state === "device").serial)}). The theme and the tiles of the last run${wahooModel() === "roam1" ? " (Roam v1 files)" : ""} are copied file by file; files already up to date are skipped, the ones replaced are saved first in <span class="path">Output/backup/</span>, and the maps are reloaded at the end.</p>
+    <div class="acts"><button class="primary" id="devCopyGo">Copy to the ELEMNT</button><button class="stop" id="devCopyStop" hidden>■ Stop</button>${again}</div>`;
+  h += '<div id="devCopyRun" hidden><progress id="devCopyBar" max="1" value="0"></progress><div class="note" id="devCopyTxt"></div></div><div class="note" id="devCopyMsg"></div>';
+  box.innerHTML = h;
+  $("#devAgain").onclick = renderDevCopy;
+  const go = $("#devCopyGo");
+  if (go) go.onclick = async () => {
+    go.disabled = true; $("#devCopyMsg").textContent = ""; copyLines = [];
+    try { await api("/api/settings", S); await api("/api/device_copy", {}); since = 0; startPolling(); }
+    catch (e) { $("#devCopyMsg").textContent = e.message; go.disabled = false; }
+  };
+  const stop = $("#devCopyStop"); if (stop) stop.onclick = () => api("/api/cancel", {});
+}
+function copyProgress(j, shown) {
+  const run = $("#devCopyRun"); if (!run) return;
+  copyLines.push(...shown.map(l => l.trim()).filter(l => l && !l.startsWith("===")));
+  const running = j.status === "running";
+  run.hidden = !running; if ($("#devCopyStop")) $("#devCopyStop").hidden = !running; if ($("#devCopyGo")) $("#devCopyGo").disabled = running;
+  $("#devCopyBar").value = $("#stepBar").value;
+  $("#devCopyTxt").textContent = copyLines.slice(-1)[0] || "Starting…";
+  if (!running) {
+    const tail = copyLines.filter(l => !l.startsWith("copied")).slice(-3).join("\n");
+    const msg = $("#devCopyMsg"); msg.style.whiteSpace = "pre-line";
+    msg.textContent = (j.status === "done" ? "✓ Done. " : j.status === "cancelled" ? "Stopped. " : "✗ The copy failed. ") + tail;
+  }
+}
 function bindRoamPrep() {
   const b = $("#roamPrep"); if (!b) return;
   b.onclick = async () => {
@@ -1692,11 +1735,12 @@ const modelName = () => MODEL_NAMES[wahooModel()];
 $("#wahooModel").addEventListener("change", async e => {
   S.wahoo_model = e.target.value;
   try { await api("/api/settings", S); } catch (err) { $("#runMsg").textContent = err.message; }
-  renderMakeSum(); renderResults(); fitHeader();
+  renderMakeSum(); renderResults(); renderDevCopy(); fitHeader();
 });
 function renderDevice() {
   $$("#devSeg button").forEach(b => { const on = b.dataset.device === S.device; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
   $("#wahooModel").value = wahooModel();
+  if (document.body.classList.contains("step2")) renderDevCopy();
   const what = isGarmin() ? "Garmin" : "Wahoo";
   $("#step2Label").textContent = $("#filesTitle").textContent = "Copy to the " + what;
   $("#garminNote").hidden = !isGarmin();
@@ -1714,7 +1758,7 @@ $$("#devSeg button").forEach(b => b.onclick = async () => {
 function setStep(n) {
   document.body.classList.toggle("step2", n === 2);
   $$(".steps .step").forEach(b => { const on = +b.dataset.step === n; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current"); });
-  if (n === 2) renderResults();
+  if (n === 2) { renderResults(); renderDevCopy(); }
   setTimeout(() => { if (map) map.invalidateSize(); }, 0);
   window.scrollTo({top: 0});
 }

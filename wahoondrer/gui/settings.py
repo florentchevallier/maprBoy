@@ -59,7 +59,8 @@ DEFAULTS = {
     "ui": {"sections": {},           # per-section Simple/Pro choice: {"pois": "simple" | "pro"}; missing = follow `mode`
            "folded": {}},            # folded / open choices that differ from the default: {"sec:osm": false, "reg:Germany": true}
     "pois": {"overrides": {}, "custom": []},   # the user's POI choices, apart from the defaults in config/poi-rules.json
-    "tools": {"mkgmap": ""},         # path of mkgmap.jar (Garmin maps)
+    "tools": {"mkgmap": "",          # path of mkgmap.jar (Garmin maps)
+              "adb": ""},            # path of adb (automatic copy to a Wahoo); "" = found by itself
     "wahoo_model": "bolt2",          # bolt2 | roam2 | bolt1 | roam1: the Roam v1 gets .map.gz tiles in Output/roam_v1/
     "osm_max_days": 14,              # WMC renews the OSM regions older than this (days); 0 = never (shared by the devices)
 }

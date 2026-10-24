@@ -1308,6 +1308,19 @@ class RoamTests(unittest.TestCase):
             self.assertTrue(server.result_file(d, "roam_v1/maps/tiles/8/136/88.map.gz"))
             self.assertEqual([f["name"] for f in server.results(d)["tiles"][0]["files"]], ["88.map.lzma", "88.map.lzma.17"])
 
+    def test_copy_command(self):
+        s = CommandTests.s(CommandTests())
+        argv = jobs.copy_command(s)[1]
+        self.assertEqual(argv[1:3], ["-m", "wahoondrer.devcopy"])
+        self.assertEqual(argv[argv.index("--model") + 1], "bolt2")
+        self.assertNotIn("--adb", argv)
+        s["wahoo_model"] = "roam1"; s["tools"]["adb"] = "/opt/adb"
+        argv = jobs.copy_command(s)[1]
+        self.assertEqual((argv[argv.index("--model") + 1], argv[argv.index("--adb") + 1]), ("roam1", "/opt/adb"))
+        s["folders"]["out"] = ""
+        with self.assertRaises(jobs.SettingsError):
+            jobs.copy_command(s)
+
     def test_commands_and_setting(self):
         self.assertEqual(settings.wahoo_model({}), "bolt2")
         self.assertEqual(settings.wahoo_model({"wahoo_model": "roam1"}), "roam1")

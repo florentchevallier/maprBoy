@@ -8,7 +8,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from .. import contour, poi_config, roam
+from .. import contour, devcopy, poi_config, roam
 from . import jobs, native, regions, scan, settings
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -243,6 +243,8 @@ class Handler(BaseHTTPRequestHandler):
                 keys = [k for k in q.get("keys", [""])[0].split(",") if k]
                 return self._send(200, regions.shapes(keys) if url.path == "/api/region_shapes"
                                   else {"tiles": regions.tiles_of(keys)})
+            if url.path == "/api/device":           # adb and the ELEMNT plugged in (automatic copy)
+                return self._send(200, devcopy.status((settings.load().get("tools") or {}).get("adb") or ""))
             if url.path == "/api/estimate":
                 g = lambda k: q.get(k, [""])[0]
                 return self._send(200, {"estimate": jobs.per_tile_estimate(
@@ -363,6 +365,12 @@ class Handler(BaseHTTPRequestHandler):
                 except OSError as exc:
                     raise ValueError(f"Cannot create the link: {exc}")
                 return self._send(200, {"result": res, "info": regions.data_dir_info(base)})
+            if path == "/api/device_copy":
+                s = settings.load()
+                if s.get("device", "wahoo") != "wahoo":
+                    raise jobs.SettingsError("The automatic copy is for the Wahoo ELEMNT only.")
+                JOB.start([jobs.copy_command(s)], "copy")
+                return self._send(200, {"started": True})
             if path == "/api/roam_prepare":         # make the Roam v1 files of the tiles already built
                 s = settings.load()
                 JOB.start([jobs.roam_command(s)], "roam")

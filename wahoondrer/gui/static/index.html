@@ -28,7 +28,8 @@ main{margin:0 auto;padding:16px 20px 40px;display:grid;gap:16px;max-width:calc(v
 .layout{grid-template-columns:clamp(var(--colL),100% - var(--colRmax) - 16px,var(--colLmax)) minmax(0,1fr);align-items:start}
 .layout .envs{grid-column:1/-1;display:grid;gap:10px}.layout .envs:not(:has(> :not([hidden]))){display:none}
 #colLeft,#colMap,#colFiles{display:grid;gap:16px;min-width:0}
-#colLeft > section,#colMap > section{min-width:0;overflow-x:auto}
+#colLeft > section,#colMap > section,#colFiles > section{min-width:0;overflow-x:auto}
+body.step2 section[data-sec=tiles] :is(.maptools,.tilebar,#locNote,#mapNote),body.step2 section[data-sec=tiles] .seg.micro{display:none}
 #colMap{position:sticky;top:var(--headh,64px);max-height:calc(100vh - var(--headh,64px) - 16px);overflow:auto;grid-template-rows:minmax(0,1fr) auto}
 #colMap section[data-sec=tiles]{display:flex;flex-direction:column;min-height:420px}
 #colMap section[data-sec=tiles] > .fold-body{display:flex;flex-direction:column;flex:1;min-height:0}
@@ -36,7 +37,7 @@ main{margin:0 auto;padding:16px 20px 40px;display:grid;gap:16px;max-width:calc(v
 #colFiles{display:none}
 body.step2 #colLeft,body.step2 section[data-sec=make]{display:none}
 body.step2 #colFiles{display:grid}
-body.step2 .layout{grid-template-columns:minmax(0,var(--colRmax)) clamp(380px,100% - var(--colRmax) - 16px,var(--colLmax))}
+body.step2 .layout{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr)}   /* step 2: the list of files needs the room, the map shows where they are */
 @media (max-width:1000px){.layout,body.step2 .layout{grid-template-columns:1fr}#colMap{position:static;max-height:none}#colMap #map{height:400px;flex:none}}
 #devSeg button[data-device=wahoo].on{background:#19a6df;color:#06223a}#devSeg button[data-device=garmin].on{background:#2b6fb3;color:#fff}
 .steps{display:inline-flex;align-items:center;gap:6px;margin:0 auto}
@@ -110,7 +111,7 @@ details.var div{margin:3px 0 0 4px;color:var(--ink)}
 .rfile .sz{color:var(--mute);font-size:12.5px}
 .rdir{display:flex;gap:8px;align-items:center;margin:8px 0 2px;font-weight:600}
 .rin{margin-left:22px}
-.rtile{margin:12px 0 0}.cdate{width:150px;white-space:nowrap}.ccity{width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ccont{display:none}.pro .ccont{display:inline-block;width:118px;white-space:nowrap}.newslot{min-width:190px;text-align:right}.plaintile{background:var(--line);color:var(--mute);border-radius:6px;padding:0 6px;font-size:12.5px}.newtile{background:#fff3d6;color:#8a5a00;border-radius:6px;padding:0 6px;font-size:12.5px}.looktbl{border-collapse:collapse;margin:6px 0}.looktbl th,.looktbl td{padding:3px 14px 3px 0;text-align:left;font-weight:normal}.looktbl thead th{font-weight:600}.looktbl .lookmode th{padding-top:8px;font-weight:600}.looktbl input[type=number]{width:80px}.looktbl input[type=color]{width:52px;height:28px;padding:0}.rfile a{white-space:nowrap}.newslot{white-space:nowrap}.newtheme{white-space:nowrap;background:#c62828;color:#fff;font-weight:600;border-radius:6px;padding:0 8px;font-size:12.5px}
+.rtile{margin:12px 0 0;border-radius:8px;transition:box-shadow .15s}.rtile.hi{box-shadow:0 0 0 2px #e8731a}.rtile.flash{box-shadow:0 0 0 3px #e8731a;background:#fff3d6}.cdate{width:150px;white-space:nowrap}.ccity{width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ccont{display:none}.pro .ccont{display:inline-block;width:118px;white-space:nowrap}.newslot{min-width:190px;text-align:right}.plaintile{background:var(--line);color:var(--mute);border-radius:6px;padding:0 6px;font-size:12.5px}.newtile{background:#fff3d6;color:#8a5a00;border-radius:6px;padding:0 6px;font-size:12.5px}.looktbl{border-collapse:collapse;margin:6px 0}.looktbl th,.looktbl td{padding:3px 14px 3px 0;text-align:left;font-weight:normal}.looktbl thead th{font-weight:600}.looktbl .lookmode th{padding-top:8px;font-weight:600}.looktbl input[type=number]{width:80px}.looktbl input[type=color]{width:52px;height:28px;padding:0}.rfile a{white-space:nowrap}.newslot{white-space:nowrap}.newtheme{white-space:nowrap;background:#c62828;color:#fff;font-weight:600;border-radius:6px;padding:0 8px;font-size:12.5px}
 .opts{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
 @media (max-width:760px){.opts{grid-template-columns:1fr}label.row{grid-template-columns:1fr}}
 #stepWrap[hidden]{display:none}#stepWrap{display:flex;flex-direction:column;gap:4px;margin:2px 0 0;font-size:12.5px;line-height:1.3}#stepWrap progress{width:100%;height:12px;accent-color:var(--accent,#2f6fdb)}#dlBar{background:var(--code);color:var(--codeink);font:12.5px/1.4 ui-monospace,Menlo,monospace;margin:0;padding:0 12px 12px;border-radius:0 0 10px 10px;white-space:pre;overflow:auto}#dlBar[hidden]{display:none}pre#log:has(+ #dlBar:not([hidden])){border-radius:10px 10px 0 0;padding-bottom:6px}
@@ -464,7 +465,7 @@ tr.rgrp.folded .gsum{display:inline}
 
 <script>
 "use strict";
-let layerReg = null, layerOsm = null;
+let layerReg = null, layerOsm = null, layerOut = null, outRects = {}, lastRes = null, fitOutNext = false;
 let S = null, ST = null, saveTimer = null, map = null, map2 = null, layerMenus = null, layerMenus2 = null, layerRect2 = null, layerTiles = null, layerExp = null, layerGrid = null, expRects = {}, locMarker = null;
 const $ = (q, r = document) => r.querySelector(q), $$ = (q, r = document) => [...r.querySelectorAll(q)];
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -751,6 +752,7 @@ function applyLayers() {
   if (!map) return;
   for (const [id, lay] of [["layExp", layerExp], ["layTiles", layerTiles]]) { if (layerOn(id)) lay.addTo(map); else map.removeLayer(lay); }
   if (!layerOn("layOsm")) map.removeLayer(layerOsm); else if (osmInfo) layerOsm.addTo(map); else drawOsmRegions();
+  if (document.body.classList.contains("step2") && lastRes) [layerTiles, layerReg, layerOsm, layerMenus].forEach(l => map.removeLayer(l));   // step 2 shows the files made
   renderLegend();
 }
 ["layExp", "layTiles", "layOsm"].forEach(id => $("#" + id).onchange = applyLayers);
@@ -761,7 +763,7 @@ async function drawOsmRegions(R) {                 // R: the /api/regions answer
   for (const r of R.downloaded) { const sh = regionShapes[r.key]; if (!sh) continue; const old = R.max_days > 0 && r.age_days > R.max_days; osmInfo[old ? "old" : "recent"]++;
     for (const ring of sh.rings) L.polygon(ring.map(([x, y]) => [y, x]), {color: old ? "#ef6c00" : "#2e7d32", weight: 2, dashArray: "10 6", fill: false})
       .bindTooltip(`${esc(sh.name)} · ${r.age_days} d${old ? " (WMC will renew it)" : ""}`, {sticky: true, className: "nm"}).addTo(layerOsm); }
-  if (layerOn("layOsm")) layerOsm.addTo(map);
+  if (layerOn("layOsm") && !(document.body.classList.contains("step2") && lastRes)) layerOsm.addTo(map);
   renderLegend();
 }
 
@@ -823,6 +825,7 @@ async function initMap() {
   layerReg = L.layerGroup().addTo(map); layerOsm = L.layerGroup();
   layerMenus = L.layerGroup().addTo(map);
   map.on("click", e => {
+    if (document.body.classList.contains("step2")) return;     // step 2 shows the files made: no tile choice there
     toManual();                                   // a click adjusts the tiles a mode chose: the selection is kept, as Manual
     const [x, y] = tileOf(e.latlng.lng, e.latlng.lat), k = x + "/" + y, i = S.tiles.indexOf(k);
     if (i >= 0) S.tiles.splice(i, 1); else S.tiles.push(k);
@@ -897,6 +900,11 @@ function ensurePatterns(layer) {
 const patFill = t => TYPE_PAT.hasOwnProperty(t) ? `url(#wd-p-${t})` : null;
 function renderLegend() {
   const parts = [], line = (c, txt) => `<span class="lsw" style="border-color:${c}"></span> ${txt}`;
+  if (document.body.classList.contains("step2") && lastRes) {
+    const box = (c, f, d) => `<span style="display:inline-block;width:16px;height:12px;border:2px ${d ? "dashed" : "solid"} ${c};background:${f};vertical-align:-2px"></span>`;
+    $("#mapLegend").innerHTML = `${box("#d99a00", "#ffcc3388")} tiles of the last run &nbsp;·&nbsp; ${box("#777", "#9991", true)} other tiles in your output folder &nbsp;·&nbsp; <span class="note">point at a tile or a line to see the other one</span>`;
+    return;
+  }
   const usedTypes = [...new Set(activeExports().map(e => e.activity || "?"))];
   if (usedTypes.length && (!map || layerOn("layExp"))) parts.push("Wandrer exports: " + usedTypes.map(t => `${legendSwatch(t)} ${esc(t)}`).join(" &nbsp; "));
   if (area().mode === "regions" && area().regions.length) parts.push(line("#6a3fb0", "chosen regions"));
@@ -1624,7 +1632,7 @@ const GARMIN_COPY = '<p>Copy the <b>gmapsupp.img</b> made by <span class="path">
   '<p class="note">Making it from this page, and the list of files here, come next.</p>';
 async function renderResults() {
   const box = $("#results");
-  if (isGarmin()) { box.innerHTML = GARMIN_COPY; return; }
+  if (isGarmin()) { box.innerHTML = GARMIN_COPY; lastRes = null; drawOutTiles(); return; }
   if (!S.folders.out) { box.innerHTML = NOTHING_YET; return; }
   let r;
   try { r = await api("/api/results"); } catch (e) { box.innerHTML = NOTHING_YET; return; }
@@ -1653,7 +1661,7 @@ async function renderResults() {
     let g = `<div class="rdir" data-fold="${esc(fk)}" style="font-weight:500">${foldBtn(!off, t.x + "/")}📁 ${t.x}/ ${newTag}<span style="flex:1"></span><button class="small" data-opendir="${esc(t.dir)}">Open folder</button></div><div class="rin"${off ? " hidden" : ""}>`;
     for (const it of t.items) {
       const extra = [dateOf(it.mtime), it.label || "", contourName(it.contour)];
-      g += `<div class="rtile">` + it.files.map(f => fileRow(f, extra, it.new, it.plain)).join("") + "</div>";
+      g += `<div class="rtile" data-tile="${t.x}/${it.y}">` + it.files.map(f => fileRow(f, extra, it.new, it.plain)).join("") + "</div>";
     }
     return g + "</div>";
   };
@@ -1664,7 +1672,48 @@ async function renderResults() {
   if (otherT.length) h += tileList("list:other", lastT.length ? "Other tiles" : "Tiles", `${lastT.length ? "3. Other tiles" : "2. Tiles"} <span class="note">${lastT.length ? "made by earlier runs" : "→ device: maps/tiles/8/"}</span>`, otherT);
   box.innerHTML = h;
   bindGzPrep();
+  lastRes = r; drawOutTiles(fitOutNext); fitOutNext = false;
 }
+// ---------- step 2: the tiles of the output folder on the map (the new ones in yellow), linked with the list
+const outStyle = (nw, hi) => nw ? {color: hi ? "#e8731a" : "#d99a00", weight: hi ? 4 : 2, fillColor: "#ffcc33", fillOpacity: hi ? .5 : .35, dashArray: null}
+                                : {color: hi ? "#e8731a" : "#777", weight: hi ? 4 : 1.5, fillColor: "#999", fillOpacity: hi ? .25 : .06, dashArray: hi ? null : "4 4"};
+function drawOutTiles(fit) {
+  if (!map) return;
+  if (!layerOut) layerOut = L.layerGroup();
+  layerOut.clearLayers(); outRects = {};
+  if (!document.body.classList.contains("step2") || !lastRes) {        // back to step 1: the usual layers
+    map.removeLayer(layerOut); layerReg.addTo(map); layerMenus.addTo(map); applyLayers(); return;
+  }
+  for (const t of lastRes.tiles) for (const it of t.items) {
+    const k = t.x + "/" + it.y;
+    const r = L.rectangle(tileBbox(t.x, it.y), outStyle(it.new)).addTo(layerOut);
+    r.bindTooltip(`${k}${it.label ? " · " + esc(it.label) : ""}${it.new ? " · new" : ""}`, {sticky: true, className: "nm"});
+    r.on("mouseover", () => hiTile(k, true)); r.on("mouseout", () => hiTile(k, false)); r.on("click", () => showTileRow(k));
+    r._new = it.new; outRects[k] = r;
+  }
+  [layerTiles, layerReg, layerOsm, layerMenus].forEach(l => map.removeLayer(l));
+  layerOut.addTo(map);
+  renderLegend();
+  if (fit) {
+    const keys = Object.keys(outRects), pick = keys.filter(k => outRects[k]._new);
+    const pts = (pick.length ? pick : keys).flatMap(k => { const [x, y] = k.split("/").map(Number); return tileBbox(x, y); });
+    if (pts.length) map.fitBounds(L.latLngBounds(pts), {maxZoom: 9, padding: [20, 20]});
+  }
+}
+function hiTile(k, on) {
+  const r = outRects[k]; if (r) { r.setStyle(outStyle(r._new, on)); if (on) r.bringToFront(); }
+  const row = $(`#results .rtile[data-tile="${k}"]`); if (row) row.classList.toggle("hi", on);
+}
+function showTileRow(k) {
+  const row = $(`#results .rtile[data-tile="${k}"]`); if (!row) return;
+  for (let el = row.parentElement; el && el.id !== "results"; el = el.parentElement)      // open the folded lists / folders
+    if (el.hidden) { el.hidden = false; const head = el.previousElementSibling;
+      if (head && head.dataset.fold) { setFolded(head.dataset.fold, false); const b = $("button.fold", head); if (b) b.setAttribute("aria-expanded", "true"); } }
+  row.scrollIntoView({block: "center", behavior: "smooth"});
+  row.classList.add("flash"); setTimeout(() => row.classList.remove("flash"), 1600);
+}
+$("#results").addEventListener("mouseover", e => { const row = e.target.closest && e.target.closest(".rtile[data-tile]"); if (row && !row.contains(e.relatedTarget)) hiTile(row.dataset.tile, true); });
+$("#results").addEventListener("mouseout", e => { const row = e.target.closest && e.target.closest(".rtile[data-tile]"); if (row && !row.contains(e.relatedTarget)) hiTile(row.dataset.tile, false); });
 // ---------- automatic copy to the Wahoo (adb), shown at the top of step 2
 let copyLines = [];
 async function renderDevCopy() {
@@ -1766,7 +1815,7 @@ $$("#devSeg button").forEach(b => b.onclick = async () => {
 function setStep(n) {
   document.body.classList.toggle("step2", n === 2);
   $$(".steps .step").forEach(b => { const on = +b.dataset.step === n; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current"); });
-  if (n === 2) { renderResults(); renderDevCopy(); }
+  if (n === 2) { fitOutNext = true; renderResults(); renderDevCopy(); } else drawOutTiles();
   setTimeout(() => { if (map) map.invalidateSize(); }, 0);
   window.scrollTo({top: 0});
 }

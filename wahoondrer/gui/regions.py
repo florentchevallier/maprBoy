@@ -1,7 +1,8 @@
 """OpenStreetMap regions (Geofabrik extracts) that WahooMapsCreator keeps on disk.
 
 WMC stores them in ~/wahooMapsCreatorData/_download/maps as <id>-latest.osm.pbf and
-deletes/re-downloads a file by itself when it is older than 14 days. This module lists
+deletes/re-downloads a file by itself when it is older than the chosen age (14 days by default,
+settings "osm_max_days"; 0 = never). This module lists
 them (name, size, date) and downloads or updates them, using the same Geofabrik index
 (_download/geofabrik.json) and the same file names, so WMC finds them afterwards.
 """

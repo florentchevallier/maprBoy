@@ -60,6 +60,7 @@ DEFAULTS = {
            "folded": {}},            # folded / open choices that differ from the default: {"sec:osm": false, "reg:Germany": true}
     "pois": {"overrides": {}, "custom": []},   # the user's POI choices, apart from the defaults in config/poi-rules.json
     "tools": {"mkgmap": ""},         # path of mkgmap.jar (Garmin maps)
+    "osm_max_days": 14,              # WMC renews the OSM regions older than this (days); 0 = never (shared by the devices)
 }
 
 
@@ -77,6 +78,15 @@ def _merge(base, new):
 
 
 # kept apart for each device; every other key of DEFAULTS is shared (the Squadrats file too, see below)
+OSM_MAX_DAYS = (7, 14, 30, 60, 90, 0)   # the choices of the page (0 = never renew)
+
+
+def osm_max_days(s):
+    """The OSM renewal age of the settings (days, 0 = never); anything unexpected falls back to 14."""
+    v = s.get("osm_max_days", 14)
+    return v if isinstance(v, int) and not isinstance(v, bool) and v in OSM_MAX_DAYS else 14
+
+
 DEVICE_KEYS = ("activity", "excluded_exports", "tiles", "area", "wandrer", "squadrats", "build", "pois")
 
 

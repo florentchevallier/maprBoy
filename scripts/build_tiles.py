@@ -253,6 +253,9 @@ class TolerantXYOsmData(XYOsmData):
             sys.exit(self.skipped[0][1])
 
 
+NEVER_DAYS = 365 * 100     # "never renew": WMC only compares the file age with a number of days
+
+
 def prepare(xy, args):
     inp = InputData()
     inp.xy_coordinates = xy
@@ -260,6 +263,7 @@ def prepare(xy, args):
     inp.save_cruiser = True
     inp.process_border_countries = True
     inp.force_download = args.force_download
+    inp.max_days_old = args.max_days if args.max_days > 0 else NEVER_DAYS     # 0 = never renew
     data = TolerantXYOsmData(inp)
     data.process_input_of_the_tool()
     return data
@@ -347,6 +351,8 @@ def main():
                     help="reuse the classic tiles of the last run (only the Wandrer part is redone); ignored with a message "
                          "if tiles, POIs, contour lines or OSM data changed since")
     ap.add_argument("--force-download", action="store_true")
+    ap.add_argument("--max-days", type=int, default=14,
+                    help="renew the downloaded OSM regions older than this many days (0 = never; default 14)")
     ap.add_argument("--contour", action="store_true", help="add contour lines (needs pyhgtmap, see --setup-contour)")
     ap.add_argument("--poi-rules", help="JSON file with the POIs to enable (written by the web page); "
                                         "default: config/poi-rules.json")
@@ -447,7 +453,9 @@ def main():
     if not args.skip_classic:
         print("\n=== PHASE 1: classic WMC ===")
         print("  Missing OSM regions are downloaded automatically (a few minutes, up to several hundred MB;"
-              " the lines below show it). Regions already on disk and younger than 14 days are kept.")
+              " the lines below show it). " + ("Regions already on disk are kept, however old (your setting)."
+                                                if args.max_days <= 0 else
+                                                f"Regions already on disk and younger than {args.max_days} days are kept."))
         steps.run("Download missing OSM data", data.get_downloader().download_files_if_needed)
         maps = OsmMaps(data)
         steps.run("Filter the OSM data", maps.filter_tags_from_country_osm_pbf_files)

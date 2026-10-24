@@ -155,6 +155,8 @@ td .old{color:var(--bad);white-space:nowrap;cursor:help;position:relative}td .ol
 body.maptall #colMap{position:static;max-height:none;overflow:visible}
 .leaflet-interactive:focus{outline:none}
 .notilelabels .tlabel{display:none}
+.pro label.row.maxdays{grid-template-columns:auto 250px 1fr;gap:12px 22px;align-items:center;margin:4px 0 10px}.mdwrap{display:flex;flex-direction:column;width:250px}#maxDaysRange{width:100%;margin:0;accent-color:var(--accent)}
+.mdlbl{display:flex;justify-content:space-between;font-size:11px;color:var(--mute);padding:0 8px}.mdlbl i{font-style:normal;width:0;display:flex;justify-content:center;white-space:nowrap}
 .lsw{display:inline-block;width:20px;height:0;border-top:2px dashed;vertical-align:3px}
 .regchips{display:inline-flex;gap:6px;flex-wrap:wrap}.regchip{display:inline-flex;align-items:center;gap:4px;padding:1px 4px 1px 10px;border-radius:99px;background:color-mix(in srgb,var(--viol) 16%,transparent);font-size:13px}
 .regchip button{border:0;background:transparent;padding:0 6px;font-size:14px;line-height:1;color:var(--mute)}#regPick{width:240px;padding:4px 8px;font-size:13px}
@@ -234,7 +236,9 @@ tr.rgrp.folded .gsum{display:inline}
   <p class="note simple-only" id="osmSimple">OpenStreetMap data: <span id="osmSum"></span>. Missing or old regions are downloaded when you make the maps.</p>
   <div id="regDl" style="display:none"><div class="note" id="regDlText"></div><div class="bar" id="regDlBar"><i></i></div><button class="small" id="regCancel">Cancel download</button></div>
   <div class="pro-only" id="osmPro">
-  <p class="hint">The base maps are built from OpenStreetMap extracts (Geofabrik regions) kept on your computer. WMC downloads missing regions by itself and renews those older than <span id="maxDays">14</span> days; here you can see them and update or add some yourself. Some are big (Austria ≈ 0.8 GB).</p>
+  <p class="hint">The base maps are built from OpenStreetMap extracts (Geofabrik regions) kept on your computer. WMC downloads missing regions by itself and <span id="renewTxt">renews those older than 14 days</span>; here you can see them and update or add some yourself. Some are big (Austria ≈ 0.8 GB).</p>
+  <label class="row maxdays">Renew OSM data older than<span class="mdwrap"><input type="range" id="maxDaysRange" min="0" max="5" step="1" list="maxDaysMarks" aria-describedby="maxDaysTxt"><span class="mdlbl" aria-hidden="true"><i>7 d</i><i>14 d</i><i>1 mo</i><i>2 mo</i><i>3 mo</i><i>never</i></span></span><span id="maxDaysTxt" class="note"></span></label>
+  <datalist id="maxDaysMarks"><option value="0"></option><option value="1"></option><option value="2"></option><option value="3"></option><option value="4"></option><option value="5"></option></datalist>
   <div id="regions"></div>
   <div class="actions" style="margin-top:10px"><button id="btnPlan2" title="Lists the tiles and the OSM regions they need">Check which regions my tiles need</button><span class="note" id="planStatus"></span></div>
   <div class="actions" style="margin-top:8px"><span class="note">Add a region:</span><span id="regTree" class="actions" style="gap:6px"></span><button id="regAdd" disabled>Download</button></div>
@@ -748,7 +752,7 @@ async function drawOsmRegions(R) {                 // R: the /api/regions answer
   if (!map) return;
   if (!R) try { R = await api("/api/regions"); } catch (e) { return; }
   await loadShapes(R.downloaded.map(r => r.key)); layerOsm.clearLayers(); osmInfo = {recent: 0, old: 0, days: R.max_days};
-  for (const r of R.downloaded) { const sh = regionShapes[r.key]; if (!sh) continue; const old = r.age_days > R.max_days; osmInfo[old ? "old" : "recent"]++;
+  for (const r of R.downloaded) { const sh = regionShapes[r.key]; if (!sh) continue; const old = R.max_days > 0 && r.age_days > R.max_days; osmInfo[old ? "old" : "recent"]++;
     for (const ring of sh.rings) L.polygon(ring.map(([x, y]) => [y, x]), {color: old ? "#ef6c00" : "#2e7d32", weight: 2, dashArray: "10 6", fill: false})
       .bindTooltip(`${esc(sh.name)} · ${r.age_days} d${old ? " (WMC will renew it)" : ""}`, {sticky: true, className: "nm"}).addTo(layerOsm); }
   if (layerOn("layOsm")) layerOsm.addTo(map);
@@ -893,7 +897,7 @@ function renderLegend() {
   if (map && osmInfo && layerOn("layOsm")) {
     const o = [];
     if (osmInfo.recent) o.push(line("#2e7d32", "up to date"));
-    if (osmInfo.old) o.push(line("#ef6c00", `older than ${osmInfo.days} days (WMC will renew them)`));
+    if (osmInfo.old) o.push(line("#ef6c00", `older than ${ageWords(osmInfo.days)} (WMC will renew them)`));
     if (o.length) parts.push("Downloaded OSM regions: " + o.join(" &nbsp; "));
   }
   $("#mapLegend").innerHTML = parts.join(" &nbsp;·&nbsp; ");
@@ -1119,17 +1123,33 @@ function fixRegCols() {
 }
 let regResizeTimer = null;
 window.addEventListener("resize", () => { clearTimeout(regResizeTimer); regResizeTimer = setTimeout(() => { regColsPending = true; if (fixRegCols()) regColsPending = false; }, 200); });
+// how old the OSM regions may get before WMC renews them (shared by the devices; 0 = never)
+const MAX_DAYS = [7, 14, 30, 60, 90, 0], MAX_DAYS_TXT = ["", "default", "", "", "", "never: old data is kept and used (handy with a limited connection)"];
+const ageWords = d => d === 30 ? "1 month" : d === 60 ? "2 months" : d === 90 ? "3 months" : d + " days";
+function renderMaxDays(d) {
+  const i = Math.max(0, MAX_DAYS.indexOf(d)), r = $("#maxDaysRange");
+  if (document.activeElement !== r) r.value = i;
+  $("#maxDaysTxt").textContent = MAX_DAYS_TXT[r.value];
+  $("#renewTxt").textContent = d ? `renews those older than ${ageWords(d)}` : "never renews them (your setting below)";
+}
+$("#maxDaysRange").addEventListener("input", e => { $("#maxDaysTxt").textContent = MAX_DAYS_TXT[e.target.value]; });
+$("#maxDaysRange").addEventListener("change", async e => {
+  S.osm_max_days = MAX_DAYS[e.target.value];
+  try { await api("/api/settings", S); } catch (err) { $("#regMsg").textContent = err.message; }
+  renderRegions();
+});
 async function renderRegions(fresh) {
   const R = await api("/api/regions"), box = $("#regions");
   drawOsmRegions(R);                               // the "OSM regions" map layer follows this list
-  $("#maxDays").textContent = R.max_days;
-  { const n = R.downloaded.length, old = R.downloaded.filter(r => r.age_days > R.max_days).length;   // shown in the heading while step 7 is folded
+  const isOld = r => R.max_days > 0 && r.age_days > R.max_days;          // max_days 0 = never renewed
+  renderMaxDays(R.max_days);
+  { const n = R.downloaded.length, old = R.downloaded.filter(isOld).length;   // shown in the heading while step 7 is folded
     const txt = n ? `${n} region${n > 1 ? "s" : ""} downloaded, ${mb(R.downloaded.reduce((t, r) => t + r.size, 0))}` + (old ? `, ${old} to renew` : "") : "no region downloaded yet";
     $("#osmSum").textContent = txt; $("#poleSumBase").textContent = $("#blkSumBase").textContent = "· " + txt; }
   let h = "";
   if (!R.downloaded.length) h += '<p class="note">No region downloaded yet: WMC will fetch what it needs at the first run.</p>';
   else {
-    h += `<div class="actions" style="margin:0 0 6px"><!--foldall--><span class="sp"></span><span class="note" id="regSelNote"></span><button class="small danger" id="regDelSel" disabled>Delete the ticked regions</button><button class="small danger" id="regDelAll" title="Delete every downloaded region">Delete all (${mb(R.downloaded.reduce((n, r) => n + r.size, 0))})</button></div>
+    h += `<div class="actions" style="margin:0 0 6px"><!--foldall--><span class="sp"></span><span class="note" id="regSelNote"></span><button class="small danger" id="regDelSel" disabled>Delete the ticked regions</button>${R.max_days > 0 ? `<button class="small danger" id="regDelOld" title="Delete the regions older than ${R.max_days} days (WMC would renew them anyway when a map needs them)" ${R.downloaded.some(isOld) ? "" : "disabled"}>Delete outdated (${R.downloaded.filter(isOld).length} · ${mb(R.downloaded.filter(isOld).reduce((n, r) => n + r.size, 0))})</button>` : ""}<button class="small danger" id="regDelAll" title="Delete every downloaded region">Delete all (${mb(R.downloaded.reduce((n, r) => n + r.size, 0))})</button></div>
     <table><tr><th><input type="checkbox" id="regSelAll" title="Tick / untick all"></th><th>Region</th><th class="n">Size</th><th>Downloaded</th><th class="n">Age</th><th>Needed by my tiles</th><th></th></tr>`;
     // tree: Country > (sub-regions) > region, taken from the name "Oberfranken (Bayern, Germany)"
     const pathOf = r => { const m = /^(.*) \(([^()]*)\)$/.exec(r.name); if (!m) return [r.name]; return [...m[2].split(", ").reverse(), m[1]]; };
@@ -1142,10 +1162,10 @@ async function renderRegions(fresh) {
     const ancOf = (p, n) => { const a = []; for (let d = 0; d < n; d++) a.push(gkey(p, d)); return a.join("\u0002"); };
     const hidAttr = anc => anc && anc.split("\u0002").some(a => isFolded(rk(a))) ? " hidden" : "";
     const gkeys = [];
-    const gstat = pre => { const k = items.filter(i => pre.every((v, q) => i.p[q] === v)), old = k.filter(i => i.r.age_days > R.max_days).length;
+    const gstat = pre => { const k = items.filter(i => pre.every((v, q) => i.p[q] === v)), old = k.filter(i => isOld(i.r)).length;
       return `${k.length} region${k.length > 1 ? "s" : ""}` + (R.plan_done ? `, ${k.filter(i => i.r.needed).length} needed` : "") + (old ? `, ⚠ ${old} to renew` : ""); };
     const grpRow = (p, d) => { const key = gkey(p, d), off = isFolded(rk(key)), anc = ancOf(p, d); gkeys.push(key);
-      return `<tr class="rgrp${off ? " folded" : ""}" data-gkey="${esc(key)}" data-anc="${esc(anc)}"${hidAttr(anc)}><td><input type="checkbox" data-grp="${esc(key)}" title="Tick / untick this whole group"></td><td style="padding-left:${8 + d * 20}px"><button type="button" class="fold sm" aria-expanded="${!off}" aria-label="${esc(p[d])}">${TRI}</button>${d === 0 ? "🌍" : "📁"} <b>${esc(p[d])}</b></td><td class="n">${mb(total(p.slice(0, d + 1)))}</td><td colspan="4"><span class="gsum">${esc(gstat(p.slice(0, d + 1)))}</span></td></tr>`; };
+      return `<tr class="rgrp${off ? " folded" : ""}" data-gkey="${esc(key)}" data-anc="${esc(anc)}"${hidAttr(anc)}><td><input type="checkbox" data-grp="${esc(key)}" title="Tick / untick this whole group"></td><td style="padding-left:${8 + d * 20}px"><button type="button" class="fold sm" aria-expanded="${!off}" aria-label="${esc(p[d])}">${TRI}</button>${d === 0 ? "🌍" : "📁"} <b>${esc(p[d])}</b></td><td class="n">${mb(total(p.slice(0, d + 1)))}</td><td colspan="3"><span class="gsum">${esc(gstat(p.slice(0, d + 1)))}</span></td><td style="white-space:nowrap"><button class="small" data-gupd="${esc(key)}" data-name="${esc(p[d])}" ${R.catalog_ready ? "" : "disabled"}>Update</button> <button class="small danger" data-gdel="${esc(key)}" data-name="${esc(p[d])}" title="Delete every region of this group from your disk">Delete</button></td></tr>`; };
     for (let k = 0; k < items.length; k++) {
       const {r, p} = items[k], nx = items[k + 1];
       const parent = !!nx && nx.p.length > p.length && p.every((v, i) => nx.p[i] === v);   // this file also has sub-regions (e.g. Germany and Bayern)
@@ -1155,7 +1175,7 @@ async function renderRegions(fresh) {
       if (parent) h += grpRow(p, p.length - 1);
       prev = p;
       const lanc = ancOf(p, p.length - 1 + (parent ? 1 : 0));
-      h += `<tr data-anc="${esc(lanc)}"${hidAttr(lanc)}><td><input type="checkbox" data-sel="${esc(r.key)}" data-size="${r.size}" data-p="${esc(p.join("\u0001"))}"></td><td style="padding-left:${8 + (p.length - 1 + (parent ? 1 : 0)) * 20}px">${p.length > 1 || parent ? "⌞ " : ""}${esc(p[p.length - 1])}${parent ? " <small>(the whole region)</small>" : ""}</td>` + `<td class="n">${mb(r.size)}</td><td>${r.date}</td><td class="n">${r.age_days > R.max_days ? `<span class="old" tabindex="0">${r.age_days}&nbsp;d<sup aria-hidden="true">ⓘ</sup><span class="tip" role="tooltip">Older than ${R.max_days} days: WMC will renew it at the next run</span></span>` : r.age_days + "&nbsp;d"}</td>
+      h += `<tr data-anc="${esc(lanc)}"${hidAttr(lanc)}><td><input type="checkbox" data-sel="${esc(r.key)}" data-size="${r.size}" data-p="${esc(p.join("\u0001"))}"></td><td style="padding-left:${8 + (p.length - 1 + (parent ? 1 : 0)) * 20}px">${p.length > 1 || parent ? "⌞ " : ""}${esc(p[p.length - 1])}${parent ? " <small>(the whole region)</small>" : ""}</td>` + `<td class="n">${mb(r.size)}</td><td>${r.date}</td><td class="n">${isOld(r) ? `<span class="old" tabindex="0">${r.age_days}&nbsp;d<sup aria-hidden="true">ⓘ</sup><span class="tip" role="tooltip">Older than ${R.max_days} days: WMC will renew it at the next run</span></span>` : r.age_days + "&nbsp;d"}</td>
       <td>${R.plan_done ? (r.needed ? "✓" : "–") : "?"}</td><td style="white-space:nowrap"><button class="small" data-upd="${esc(r.key)}" ${R.catalog_ready ? "" : "disabled"}>Update</button> <button class="small danger" data-del="${esc(r.key)}" data-name="${esc(r.name)}" data-size="${r.size}" title="Delete this file from your disk">Delete</button></td></tr>`;
     }
     h += "</table>";
@@ -1171,7 +1191,7 @@ async function renderRegions(fresh) {
     $$("tr[data-anc]", box).forEach(tr => { tr.hidden = !!tr.dataset.anc && tr.dataset.anc.split("\u0002").some(a => isFolded("reg:" + a.split("\u0001").join(" > "))); });
   };
   $$("tr.rgrp", box).forEach(tr => tr.addEventListener("click", e => {
-    if (e.target.closest("input")) return;                     // the tick box keeps its own job
+    if (e.target.closest("input, button:not(.fold)")) return;  // the tick box and the buttons keep their own job
     setFolded(rkOf(tr), !isFolded(rkOf(tr))); applyRegFolds();
   }));
   const foldAll = off => { $$("tr.rgrp", box).forEach(tr => setFolded(rkOf(tr), off)); applyRegFolds(); };
@@ -1194,11 +1214,18 @@ async function renderRegions(fresh) {
   };
   const under = g => $$("[data-sel]", box).filter(c => (c.dataset.p + "\u0001").startsWith(g.dataset.grp + "\u0001"));
   const updGrp = () => $$("[data-grp]", box).forEach(g => { const k = under(g), n = k.filter(c => c.checked).length; g.checked = n > 0 && n === k.length; g.indeterminate = n > 0 && n < k.length; });
+  const inGroup = key => $$("[data-sel]", box).filter(c => (c.dataset.p + "\u0001").startsWith(key + "\u0001"));
+  $$("[data-gdel]", box).forEach(b => b.onclick = () => { const k = inGroup(b.dataset.gdel);
+    delMany(k.map(c => c.dataset.sel), `Delete the ${k.length} region(s) of ${b.dataset.name} (${mb(k.reduce((t, c) => t + Number(c.dataset.size), 0))}) from your disk?`); });
+  $$("[data-gupd]", box).forEach(b => b.onclick = () => { const k = inGroup(b.dataset.gupd);
+    if (confirm(`Download again the ${k.length} region(s) of ${b.dataset.name} (about ${mb(k.reduce((t, c) => t + Number(c.dataset.size), 0))})?`)) startRegionDownload(k.map(c => c.dataset.sel), true); });
   $$("[data-grp]", box).forEach(g => g.onchange = () => { under(g).forEach(c => c.checked = g.checked); updSel(); });
   $$("[data-sel]", box).forEach(c => c.onchange = updSel);
   if ($("#regSelAll")) {
     $("#regSelAll").onchange = e => { $$("[data-sel]", box).forEach(c => c.checked = e.target.checked); updSel(); };
     $("#regDelSel").onclick = () => delMany(sels().map(c => c.dataset.sel), `Delete the ${sels().length} ticked region(s) (${mb(sels().reduce((t, c) => t + Number(c.dataset.size), 0))}) from your disk?`);
+    if ($("#regDelOld")) $("#regDelOld").onclick = () => { const o = R.downloaded.filter(isOld);
+      delMany(o.map(r => r.key), `Delete the ${o.length} region(s) older than ${R.max_days} days (${mb(o.reduce((n, r) => n + r.size, 0))}) from your disk?`); };
     $("#regDelAll").onclick = () => delMany(R.downloaded.map(r => r.key), `Delete ALL ${R.downloaded.length} downloaded regions (${mb(R.downloaded.reduce((n, r) => n + r.size, 0))}) from your disk?`);
   }
   const gm = $("#regGetMissing"); if (gm) gm.onclick = () => startRegionDownload(R.missing.map(m => m.key), false);
@@ -1605,8 +1632,9 @@ async function renderResults() {
   const dateOf = t => t ? new Date(t * 1000).toLocaleString("en-GB", {day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"}) : "";
   const foldBtn = (open, label) => `<button type="button" class="fold sm" aria-expanded="${open}" aria-label="${esc(label)}">${TRI}</button>`;
   const tileGroup = t => {
-    const fk = "tile:" + t.x, off = isFolded(fk);
-    let g = `<div class="rdir" data-fold="${esc(fk)}" style="font-weight:500">${foldBtn(!off, t.x + "/")}📁 ${t.x}/ <span style="flex:1"></span><button class="small" data-opendir="${esc(t.dir)}">Open folder</button></div><div class="rin"${off ? " hidden" : ""}>`;
+    const fk = "tile:" + t.x, off = isFolded(fk), nNew = t.items.filter(it => it.new).length;
+    const newTag = nNew ? `<span class="newtile" title="This folder holds tiles made by the last run">🌟 ${nNew} new tile${nNew === 1 ? "" : "s"} inside</span>` : "";
+    let g = `<div class="rdir" data-fold="${esc(fk)}" style="font-weight:500">${foldBtn(!off, t.x + "/")}📁 ${t.x}/ ${newTag}<span style="flex:1"></span><button class="small" data-opendir="${esc(t.dir)}">Open folder</button></div><div class="rin"${off ? " hidden" : ""}>`;
     for (const it of t.items) {
       const extra = [dateOf(it.mtime), it.label || "", contourName(it.contour)];
       g += `<div class="rtile">` + it.files.map(f => fileRow(f, extra, it.new, it.plain)).join("") + "</div>";

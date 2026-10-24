@@ -283,7 +283,7 @@ def build_commands(s, exports, squadrats_file, plan=False):
         cmds.append(("Convert the " + " / ".join(n for n, on in (("Wandrer", use_wandrer), ("Squadrats", use_squadrats)) if on) + " exports", a))
 
     b = [py, os.path.join(REPO, "scripts", "build_tiles.py"), "--xy", ",".join(tiles),
-         "--out", out]
+         "--out", out, "--max-days", str(settings_mod.osm_max_days(s))]
     if convert:
         b += ["--wandrer", osm]
     if s["build"]["skip_classic"]:

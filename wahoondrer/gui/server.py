@@ -179,7 +179,7 @@ def regions_state():
     missing = [{"key": k, "name": regions.pretty_name(k)} for k in sorted(needed - have)]
     return {"downloaded": down, "missing": missing, "plan_done": bool(plan),
             "catalog_ready": bool(regions.catalog()), "download": DOWNLOADER.status(),
-            "max_days": 14}
+            "max_days": settings.osm_max_days(settings.load())}   # 0 = never renewed
 
 
 class Handler(BaseHTTPRequestHandler):

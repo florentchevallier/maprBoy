@@ -450,6 +450,25 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(b[b.index("--xy") + 1], "135/88,136/88")
         self.assertIn("--wandrer", b)
 
+    def test_osm_max_days_is_passed(self):
+        b = jobs.build_commands(self.s(), ["/x/a.kmz"], None)[-1][1]
+        self.assertEqual(b[b.index("--max-days") + 1], "14")
+        s = self.s(); s["osm_max_days"] = 0
+        b = jobs.build_commands(s, ["/x/a.kmz"], None, plan=True)[-1][1]
+        self.assertEqual(b[b.index("--max-days") + 1], "0")          # never renew
+
+    def test_osm_max_days_values(self):
+        self.assertEqual(settings.osm_max_days({}), 14)
+        for v in settings.OSM_MAX_DAYS:
+            self.assertEqual(settings.osm_max_days({"osm_max_days": v}), v)
+        for bad in (5, "30", None, True, -1):
+            self.assertEqual(settings.osm_max_days({"osm_max_days": bad}), 14)
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            s = settings.load(p); s["osm_max_days"] = 60; s = settings.save(s, p)
+            s["device"] = "garmin"; g = settings.save(s, p)                # shared by the devices
+            self.assertEqual(g["osm_max_days"], 60)
+
     def test_squadrats_without_file_is_left_out(self):
         for plan in (False, True):
             cmds = jobs.build_commands(self.s(squadrats={"enabled": True}), [], None, plan=plan)

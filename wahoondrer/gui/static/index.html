@@ -157,6 +157,7 @@ body.maptall #colMap{position:static;max-height:none;overflow:visible}
 .notilelabels .tlabel{display:none}
 .pro label.row.maxdays{grid-template-columns:auto 250px 1fr;gap:12px 22px;align-items:center;margin:4px 0 10px}.mdwrap{display:flex;flex-direction:column;width:250px}#maxDaysRange{width:100%;margin:0;accent-color:var(--accent)}
 .mdlbl{display:flex;justify-content:space-between;font-size:11px;color:var(--mute);padding:0 8px}.mdlbl i{font-style:normal;width:0;display:flex;justify-content:center;white-space:nowrap}
+.devbox{display:flex;flex-direction:column;gap:4px;align-items:flex-start}select.model{width:auto;font-size:12.5px;padding:2px 6px;border-radius:7px}body.garmin #wahooModel{display:none}
 .lsw{display:inline-block;width:20px;height:0;border-top:2px dashed;vertical-align:3px}
 .regchips{display:inline-flex;gap:6px;flex-wrap:wrap}.regchip{display:inline-flex;align-items:center;gap:4px;padding:1px 4px 1px 10px;border-radius:99px;background:color-mix(in srgb,var(--viol) 16%,transparent);font-size:13px}
 .regchip button{border:0;background:transparent;padding:0 6px;font-size:14px;line-height:1;color:var(--mute)}#regPick{width:240px;padding:4px 8px;font-size:13px}
@@ -216,7 +217,8 @@ tr.rgrp.folded .gsum{display:inline}
 <div class="banner"><img src="banner.jpg" alt="" width="1600" height="457"><h1>maprBoy</h1></div>
 <header>
   <div class="tag"><span class="txt">custom OSM maps with POIs,<br>Wandrer &amp; Squadrats</span></div>
-  <div class="seg devseg" id="devSeg" role="group" aria-label="Device"><button type="button" data-device="wahoo">Wahoo</button><button type="button" data-device="garmin">Garmin</button></div>
+  <div class="devbox"><div class="seg devseg" id="devSeg" role="group" aria-label="Device"><button type="button" data-device="wahoo">Wahoo</button><button type="button" data-device="garmin">Garmin</button></div>
+  <select class="model" id="wahooModel" aria-label="Wahoo model" title="The ELEMNT Roam v1 gets its own files (.map.gz), in Output/roam_v1/"><option value="bolt2">ELEMNT Bolt v2</option><option value="roam2">ELEMNT Roam v2 (not tested yet)</option><option value="bolt1">ELEMNT Bolt v1 (not tested yet)</option><option value="roam1">ELEMNT Roam v1</option></select></div>
   <nav class="steps" aria-label="Steps"><button type="button" class="step" data-step="1"><span class="num">1</span>Prepare</button><span class="arrow" aria-hidden="true">→</span><button type="button" class="step" data-step="2"><span class="num">2</span><span id="step2Label">Copy to the Wahoo</span></button></nav>
   <div class="seg" id="modeSeg" title="Pro shows more options. Each section can also be set to Simple or Pro on its own.">
     <button data-mode="simple">Simple</button><button data-mode="pro">Pro</button>
@@ -1351,7 +1353,7 @@ async function renderMakeSum() {
   if (!n) { el.innerHTML = '<span class="note">No tile chosen yet: choose them on the map.</span>'; return; }
   const what = S.build.skip_classic && modeOf("make") === "pro" ? ["Wandrer part only"]
     : ["Base map" + (poiOn ? " + POIs" : "") + (S.build.contour ? " + contour lines" : ""), S.wandrer.enabled && "Wandrer", S.squadrats.enabled && "Squadrats"].filter(Boolean);
-  const parts = [`<span><b>${n}</b> tile${n === 1 ? "" : "s"}</span>`, `<span>${esc(what.join(" + "))}</span>`, `<span>for ${isGarmin() ? "Garmin" : "Wahoo"}</span>`];
+  const parts = [`<span><b>${n}</b> tile${n === 1 ? "" : "s"}</span>`, `<span>${esc(what.join(" + "))}</span>`, `<span>for ${isGarmin() ? "Garmin" : esc(modelName())}</span>`];
   const e = isGarmin() ? null : await perTile();
   if (e) parts.push(`<span title="From your last ${e.runs} comparable runs">≈ <b>${fmtMin(e.seconds_per_tile * n)}</b></span>`);
   el.innerHTML = parts.join("");
@@ -1621,8 +1623,15 @@ async function renderResults() {
   if (!S.folders.out) { box.innerHTML = NOTHING_YET; return; }
   let r;
   try { r = await api("/api/results"); } catch (e) { box.innerHTML = NOTHING_YET; return; }
-  if (!r.theme && !r.tiles.length) { box.innerHTML = NOTHING_YET; return; }
-  let h = '<h3>Files to copy</h3><p class="note">Copy them <b>one by one</b>, after a backup. Easiest: “Open folder”, then copy in your file manager (or Android File Transfer). In Chrome or Edge you can also drag a file from here to the device window; a folder cannot be dragged from a web page. Click a name to download it.</p>';
+  const roam = r.model === "roam1" ? r.roam : null;
+  let h = "";
+  if (roam && roam.missing.length) h += `<div class="warn roamprep">${roam.missing.length} tile(s) of your last maps are not prepared for the ELEMNT Roam v1 yet (.map.gz, a few seconds per tile). <button class="small" id="roamPrep">Prepare them</button> <span class="note" id="roamPrepMsg"></span></div>`;
+  if (!r.theme && !r.tiles.length) { box.innerHTML = h || NOTHING_YET; bindRoamPrep(); return; }
+  h += '<h3>Files to copy</h3><p class="note">Copy them <b>one by one</b>, after a backup. Easiest: “Open folder”, then copy in your file manager (or Android File Transfer). In Chrome or Edge you can also drag a file from here to the device window; a folder cannot be dragged from a web page. Click a name to download it.</p>';
+  if (roam) {
+    h += `<p class="note">ELEMNT Roam v1: everything is in <span class="path">${esc(roam.dir)}</span>, laid out like the device. Copy the files into the existing folders of the Roam, one by one: never paste a whole folder over one of the device (Android File Transfer would replace it, with everything else it holds).</p>`;
+    if (roam.cfg) h += `<div class="rdir">0. Once: switch on our maps <span class="note">→ device: the top folder (next to maps and factory)</span><span style="flex:1"></span><button class="small" data-opendir="${esc(roam.dir)}">Open folder</button></div><div class="rin">${fileRow(roam.cfg)}<p class="note" style="margin:2px 0 0">An empty file: it makes the Roam draw the maps with our theme (VTM). Copy it once; after changing the theme, empty maps/temp on the Roam, then restart it.</p></div>`;
+  }
   if (r.theme) {
     h += `<div class="rdir">1. Theme <span class="note">→ device: maps/vtm-elemnt/</span><span style="flex:1"></span><button class="small" data-opendir="${esc(r.theme.dir)}">Open folder</button></div><div class="rin">`;
     h += r.theme.files.map(f => fileRow(f, f.name === "vtm-elemnt.xml" ? ["", "", ""] : null, false, false, r.theme.new && f.name === "vtm-elemnt.xml")).join("");
@@ -1647,6 +1656,15 @@ async function renderResults() {
   if (lastT.length) h += tileList("list:last", "Tiles of the last run", `2. Tiles of the last run <span class="note">→ device: maps/tiles/8/</span>`, lastT);
   if (otherT.length) h += tileList("list:other", lastT.length ? "Other tiles" : "Tiles", `${lastT.length ? "3. Other tiles" : "2. Tiles"} <span class="note">${lastT.length ? "made by earlier runs" : "→ device: maps/tiles/8/"}</span>`, otherT);
   box.innerHTML = h;
+  bindRoamPrep();
+}
+function bindRoamPrep() {
+  const b = $("#roamPrep"); if (!b) return;
+  b.onclick = async () => {
+    b.disabled = true; $("#roamPrepMsg").textContent = "Working…";
+    try { await api("/api/roam_prepare", {}); since = 0; startPolling(); }
+    catch (e) { $("#roamPrepMsg").textContent = e.message; b.disabled = false; }
+  };
 }
 $("#results").addEventListener("dragstart", e => {
   const el = e.target.closest && e.target.closest(".rfile"); if (!el) return;
@@ -1668,8 +1686,17 @@ $("#results").addEventListener("click", async e => {
 
 // ---------- device (Wahoo / Garmin), steps (1 prepare, 2 copy), folders and settings panel
 const isGarmin = () => !!(S && S.device === "garmin");
+const MODEL_NAMES = {bolt2: "ELEMNT Bolt v2", roam2: "ELEMNT Roam v2", bolt1: "ELEMNT Bolt v1", roam1: "ELEMNT Roam v1"};
+const wahooModel = () => (S && MODEL_NAMES[S.wahoo_model]) ? S.wahoo_model : "bolt2";
+const modelName = () => MODEL_NAMES[wahooModel()];
+$("#wahooModel").addEventListener("change", async e => {
+  S.wahoo_model = e.target.value;
+  try { await api("/api/settings", S); } catch (err) { $("#runMsg").textContent = err.message; }
+  renderMakeSum(); renderResults(); fitHeader();
+});
 function renderDevice() {
   $$("#devSeg button").forEach(b => { const on = b.dataset.device === S.device; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
+  $("#wahooModel").value = wahooModel();
   const what = isGarmin() ? "Garmin" : "Wahoo";
   $("#step2Label").textContent = $("#filesTitle").textContent = "Copy to the " + what;
   $("#garminNote").hidden = !isGarmin();

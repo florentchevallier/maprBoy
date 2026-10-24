@@ -311,7 +311,20 @@ def build_commands(s, exports, squadrats_file, plan=False):
     if plan:
         b.append("--plan")
     cmds.append(("Plan: tiles and OSM regions" if plan else "Build the map tiles", b))
+    if not plan and s.get("device", "wahoo") == "wahoo" and settings_mod.wahoo_model(s) == "roam1":
+        cmds.append(roam_command(s, tiles))
     return cmds
+
+
+def roam_command(s, tiles=None):
+    """The step that writes the .map.gz files of the ELEMNT Roam v1 (Output/roam_v1/, laid out like the device)."""
+    out = os.path.abspath(os.path.expanduser(s["folders"]["out"] or ""))
+    if not s["folders"]["out"]:
+        raise SettingsError("Choose the output folder first (⚙).")
+    argv = [sys.executable, "-m", "wahoondrer.roam", "--out", out]
+    if tiles:
+        argv += ["--tiles", ",".join(tiles)]
+    return ("Prepare the files for the ELEMNT Roam v1", argv)
 
 
 # ------------------------------------------------------------------ run history (for the time estimate)

@@ -8,7 +8,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from .. import contour, poi_config
+from .. import contour, poi_config, roam
 from . import jobs, native, regions, scan, settings
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -93,16 +93,24 @@ def is_junk(name):
     return name.startswith(".") or name.lower() in ("thumbs.db", "ehthumbs.db", "desktop.ini")
 
 
-def results(out):
-    """What a build left in the output folder: the files to copy to the Bolt (theme, then tiles)."""
+def results(out, model="bolt2"):
+    """What a build left in the output folder: the files to copy to the device (theme, then tiles).
+    model "roam1": the files of Output/roam_v1/ (.map.gz, cfg file), laid out like an ELEMNT Roam v1."""
     out = os.path.abspath(os.path.expanduser(out or ""))
-    maps = os.path.join(out, "wahoondrer_maps", "maps")
+    is_roam = model == "roam1"
+    maps = os.path.join(out, roam.DIR if is_roam else "wahoondrer_maps", "maps")
+    names_dir = os.path.join(out, "wahoondrer_maps", "maps", "tiles", "8")      # the place names (.txt) stay there
+    tile_ext = (".map.gz",) if is_roam else (".map.lzma", ".map.lzma.17")
 
     def entry(path):
         return {"name": os.path.basename(path), "size": os.path.getsize(path),
                 "rel": os.path.relpath(path, out).replace(os.sep, "/")}
 
-    res = {"out": out, "theme": None, "tiles": [], "last_run": None}
+    res = {"out": out, "theme": None, "tiles": [], "last_run": None, "model": "roam1" if is_roam else "bolt2"}
+    if is_roam:
+        cfg = os.path.join(out, roam.DIR, roam.CFG)
+        res["roam"] = {"dir": os.path.join(out, roam.DIR), "cfg": entry(cfg) if os.path.isfile(cfg) else None,
+                       "missing": roam.missing(out), "made": bool(roam.tiles_in(out))}
     try:                                    # written by build_tiles.py at the end of each run
         with open(os.path.join(out, "last_run.json"), encoding="utf-8") as f:
             res["last_run"] = json.load(f)
@@ -130,13 +138,13 @@ def results(out):
             xdir = os.path.join(tiles, x)
             labels = {}
             files = []
-            for f in sorted(os.listdir(xdir)):
+            ndir = os.path.join(names_dir, x)
+            for f in sorted(os.listdir(ndir)) if os.path.isdir(ndir) else []:
                 m = re.match(r"^(\d+)(?: - |_)(.*)\.txt$", f)
-                if is_junk(f):
-                    continue
-                if m:
+                if m and not is_junk(f):
                     labels[m.group(1)] = m.group(2)
-                elif f.endswith((".map.lzma", ".map.lzma.17")):
+            for f in sorted(os.listdir(xdir)):
+                if not is_junk(f) and f.endswith(tile_ext):
                     files.append(entry(os.path.join(xdir, f)))
             items = {}
             for fe in files:
@@ -146,7 +154,7 @@ def results(out):
                                           "contour": (info.get(f"{x}/{y}") or {}).get("contour", ""),
                                           "plain": (info.get(f"{x}/{y}") or {}).get("wandrer") is False})
                 it["files"].append(fe)
-                if fe["name"].endswith(".map.lzma"):
+                if fe["name"].endswith((".map.lzma", ".map.gz")):
                     it["size"] = fe["size"]
                     it["mtime"] = int(os.path.getmtime(os.path.join(xdir, fe["name"])))
             res["tiles"].append({"x": int(x), "dir": xdir, "labels": labels, "files": files, "last": x in last_x,
@@ -155,10 +163,10 @@ def results(out):
 
 
 def result_file(out, rel):
-    """Absolute path of a built file, only inside wahoondrer_maps / wmc_classic of the output folder."""
+    """Absolute path of a built file, only inside wahoondrer_maps / wmc_classic / roam_v1 of the output folder."""
     out = os.path.realpath(os.path.expanduser(out or ""))
     full = os.path.realpath(os.path.join(out, rel))
-    allowed = [os.path.join(out, d) + os.sep for d in ("wahoondrer_maps", "wmc_classic")]
+    allowed = [os.path.join(out, d) + os.sep for d in ("wahoondrer_maps", "wmc_classic", roam.DIR)]
     if not out or not any(full.startswith(a) for a in allowed) or not os.path.isfile(full):
         return None
     return full
@@ -220,7 +228,9 @@ class Handler(BaseHTTPRequestHandler):
             if url.path == "/api/contour_status":
                 return self._send(200, contour_status())
             if url.path == "/api/results":
-                return self._send(200, results(settings.load()["folders"]["out"]))
+                s = settings.load()
+                model = settings.wahoo_model(s) if s.get("device", "wahoo") == "wahoo" else "bolt2"
+                return self._send(200, results(s["folders"]["out"], model))
             if url.path == "/api/file":
                 return self._file(q.get("rel", [""])[0])
             if url.path == "/api/poi_catalog":
@@ -353,6 +363,10 @@ class Handler(BaseHTTPRequestHandler):
                 except OSError as exc:
                     raise ValueError(f"Cannot create the link: {exc}")
                 return self._send(200, {"result": res, "info": regions.data_dir_info(base)})
+            if path == "/api/roam_prepare":         # make the Roam v1 files of the tiles already built
+                s = settings.load()
+                JOB.start([jobs.roam_command(s)], "roam")
+                return self._send(200, {"started": True})
             if path == "/api/regions_cancel":
                 DOWNLOADER.cancel()
                 return self._send(200, {"ok": True})

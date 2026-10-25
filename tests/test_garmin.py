@@ -11,15 +11,15 @@ JAR = os.environ.get("MKGMAP_JAR", "")
 class LookTest(unittest.TestCase):
     def test_default_is_complete(self):
         c = look.clean({})
-        self.assertEqual(c["day"]["unvisited"], {"color": "#FF00FF", "width": 4, "edge": True, "dash": None})
-        self.assertEqual(c["day"]["visited"], {"color": "#00E1FF", "width": 4, "edge": False, "dash": None})
+        self.assertEqual(c["day"]["unvisited"], {"color": "#00E1FF", "width": 4, "edge": True, "dash": None})
+        self.assertEqual(c["day"]["visited"], {"color": "#FF00FF", "width": 4, "edge": False, "dash": None})
         self.assertEqual(c["night"], c["day"])
 
     def test_partial_override_and_night_follows_day(self):
         c = look.clean({"day": {"unvisited": {"color": "#00ff00", "width": 3}}})
         self.assertEqual(c["day"]["unvisited"]["color"], "#00FF00")
         self.assertEqual(c["night"]["unvisited"]["width"], 3)
-        self.assertEqual(c["day"]["visited"]["color"], "#00E1FF")
+        self.assertEqual(c["day"]["visited"]["color"], "#FF00FF")
 
     def test_night_changes_colour_only(self):
         c = look.clean({"day": {"unvisited": {"width": 3}},
@@ -61,19 +61,19 @@ class StyleTypTest(unittest.TestCase):
     def test_default_typ_is_the_tested_one(self):
         text = typ.typ_text(look.clean({}))
         self.assertIn("FID=1299\nProductCode=1\n", text)
-        self.assertIn('Type=0x06\nString=Unvisited\nLineWidth=4\nBorderWidth=1\nXpm="0 0 2 0"\n"a c #FF00FF"\n"b c #FFFFFF"', text)
+        self.assertIn('Type=0x06\nString=Unvisited\nLineWidth=4\nBorderWidth=1\nXpm="0 0 2 0"\n"a c #00E1FF"\n"b c #FFFFFF"', text)
         self.assertNotIn("0 0 4 0", text)    # no night colours when night = day
 
     def test_night_colours_added_only_when_different(self):
         text = typ.typ_text(look.clean({"night": {"unvisited": {"color": "#FF55AA"}}}))
-        self.assertIn('Xpm="0 0 4 0"\n"a c #FF00FF"\n"b c #FFFFFF"\n"c c #FF55AA"\n"d c #FFFFFF"', text)
+        self.assertIn('Xpm="0 0 4 0"\n"a c #00E1FF"\n"b c #FFFFFF"\n"c c #FF55AA"\n"d c #FFFFFF"', text)
         self.assertNotIn("NightXpm", text)
 
     def test_unpaved_is_dashed_by_default(self):
         text = typ.typ_text(look.clean({}))
         block = text.split("String=Unvisited (unpaved)\n")[1].split("[end]")[0]
         row = '"' + ("a" * 8 + "." * 8) * 2 + '"\n'
-        self.assertEqual(block, 'Xpm="32 4 2 1"\n"a c #FF00FF"\n". c none"\n' + row * 4)
+        self.assertEqual(block, 'Xpm="32 4 2 1"\n"a c #00E1FF"\n". c none"\n' + row * 4)
 
     def test_dash_length_and_solid_option(self):
         c = look.clean({"day": {"visited_unpaved": {"dash": [12, 4], "width": 3},
@@ -83,8 +83,8 @@ class StyleTypTest(unittest.TestCase):
         self.assertTrue(block.startswith('Xpm="32 3 2 1"'))
         self.assertEqual(block.count('"' + "a" * 12 + "...." + "a" * 12 + "...." + '"'), 3)
         block = text.split("String=Unvisited (unpaved)\n")[1].split("[end]")[0]
-        self.assertEqual(block, 'LineWidth=2\nXpm="0 0 1 0"\n"a c #FF00FF"\n')
-        self.assertEqual(c["day"]["visited"]["color"], "#00E1FF")
+        self.assertEqual(block, 'LineWidth=2\nXpm="0 0 1 0"\n"a c #00E1FF"\n')
+        self.assertEqual(c["day"]["visited"]["color"], "#FF00FF")
 
     def test_bad_dashes(self):
         for dash in ([5, 2], [0, 8], [8, 0], "x", [1]):

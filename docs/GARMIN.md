@@ -47,7 +47,8 @@ Everything below was needed, each point cost an experiment:
 - Use the "Classic" map theme; the "high contrast" theme does not show these overlays.
 - Map > Information: enable the overlay next to the Garmin map; one `gmapsupp.img` at a time.
 - Orange (the Wahoo default) is hard to tell from the Garmin base map's own orange roads, and red from the track
-  the watch draws during an activity: magenta with a white edge stands out. Widths are whole pixels.
+  the watch draws during an activity. Cyan with a white edge stands out best for the unvisited roads (first magenta;
+  cyan was preferred after a test on the watch, October 2026), magenta is used for the visited ones. Widths are whole pixels.
 - Draw order: a lower line type is drawn OVER a higher one (as major roads over minor ones). The boundaries, a wide
   band meant to show around the roads, therefore have the highest type (0x07); with 0x02 they covered the roads.
 
@@ -62,7 +63,7 @@ python3 scripts/build_garmin.py --mkgmap /path/to/mkgmap.jar -o out/gmapsupp.img
 Same options as `kmz_to_osm.py` for the exports (`--radius-m`, `--unpaved-always`, `--paved-always`, `--simplify-m`,
 `--no-merge`), `--no-boundaries`, `--area LAT,LON,KM` (only the roads within KM km of a point, e.g.
 `48.136,11.555,5`) and `--keep-osm FILE`. Visited roads are always drawn.
-Default look: unvisited magenta (#FF00FF) 4 px with white edge, visited cyan 4 px, unpaved roads the same colour
+Default look: unvisited cyan (#00E1FF) 4 px with white edge, visited magenta (#FF00FF) 4 px, unpaved roads the same colour
 dashed (8 px drawn, 8 px empty), boundaries a purple (#B000FF) 8 px band under the roads. Unpaved roads have their own entries in the look
 (`unvisited_unpaved`, `visited_unpaved`); `"dash": [drawn, empty]` must add up to a divisor of 32 px, and
 `"dash": null` gives a solid line instead (for instance thinner, for a small watch screen).

@@ -23,7 +23,8 @@ def effective_activity(s, infos):
     """bike / foot / combined to use: the type chosen for this device, else the type of the newest export.
     'any' (all types mixed) is Pro only; it returns ''."""
     act = s["activity"]
-    if act == "any" and s["mode"] == "pro":
+    pole = ((s.get("ui") or {}).get("sections") or {}).get("wandrer")       # the Wandrer block may be Pro on its own
+    if act == "any" and (pole if pole in ("simple", "pro") else s["mode"]) == "pro":
         return ""
     if act in settings.ACTIVITIES:
         return act

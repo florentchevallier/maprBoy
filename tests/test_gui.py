@@ -111,6 +111,15 @@ class ActivityTests(unittest.TestCase):
         self.assertEqual(server.annotate(s, infos), "bike")
         self.assertEqual([i["active"] for i in infos], [False, True, False, False])
 
+    def test_any_follows_the_wandrer_block_mode(self):
+        s = settings.load(os.devnull); s["activity"] = "any"
+        s["ui"]["sections"] = {"wandrer": "pro"}                              # only the Wandrer block in Pro
+        infos = self.infos()
+        self.assertEqual(server.annotate(s, infos), "")
+        self.assertEqual([i["active"] for i in infos], [True, True, False, False])
+        s["mode"] = "pro"; s["ui"]["sections"] = {"wandrer": "simple"}       # Pro at the top, Simple for Wandrer
+        self.assertEqual(server.annotate(s, self.infos()), "combined")
+
     def test_any_is_pro_only(self):
         s = settings.load(os.devnull); s["activity"] = "any"
         self.assertEqual(server.annotate(s, self.infos()), "combined")      # simple mode: newest type

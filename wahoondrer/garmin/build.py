@@ -79,7 +79,7 @@ def wandrer_osm(exports, osm_path, opts, boundaries=True, area=None, log=print, 
     """Merge the exports (paths or read exports, any order, the most recent wins) and write the .osm, with the
     Squadrats outlines when given. Returns the write_osm statistics.
 
-    Visited roads are always written: the Garmin overlay draws them too (cyan by default).
+    Visited roads are always written: the Garmin overlay draws them too (magenta by default).
     `opts` is a process.Options. `area` = (lat, lon, km) keeps only what touches that circle.
     No exports: only the Squadrats lines are written."""
     from ..kmz import merge_exports

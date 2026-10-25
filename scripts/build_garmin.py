@@ -10,7 +10,7 @@ Usage:
              [--squadrats-small-scope explored-big|band|both]]
 
 The map is transparent: it is drawn over the Garmin map already on the device, which stays visible.
-Unvisited roads magenta 4 px with a white edge, visited roads cyan 4 px, unpaved roads the same colour dashed
+Unvisited roads cyan 4 px with a white edge, visited roads magenta 4 px, unpaved roads the same colour dashed
 (8 px drawn, 8 px empty), boundaries a purple 8 px band under the roads
 (defaults; change them with --look, a JSON file, see docs/GARMIN.md). Copy the result to the device as
 Garmin/gmapsupp.img (one such file at a time) and enable it in Map > Information.

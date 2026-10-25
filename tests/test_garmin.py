@@ -201,6 +201,11 @@ class SquadratsTest(unittest.TestCase):
             self.assertIn('k="squadrat" v="small"', text)
             self.assertNotIn('k="wandrer"', text)
 
+    def test_lines_are_cut_to_the_area(self):
+        lines = [[(10.0, 48.0), (12.0, 48.0)], [(11.0, 47.0), (11.0, 49.0)], [(10.0, 50.0), (12.0, 50.0)]]
+        self.assertEqual(build._clip_straight(lines, (10.5, 47.5, 11.5, 48.5)),
+                         [[(10.5, 48.0), (11.5, 48.0)], [(11.0, 47.5), (11.0, 48.5)]])
+
     def test_nothing_given(self):
         from wahoondrer.process import Options
         with self.assertRaises(build.GarminError):
@@ -225,6 +230,48 @@ class MkgmapTest(unittest.TestCase):
                 f.write(OSM.replace("wandrer", "other"))
             with self.assertRaises(build.GarminError):
                 build.build_img(osm, os.path.join(d, "g.img"), JAR, log=lambda *_: None)
+
+
+class UnexploredSquaresTest(unittest.TestCase):
+    """Every unexplored square of the tiles by default; the band and explored-big choices stay available."""
+    def brute(self, explored, level, tiles):
+        from wahoondrer import squadrats as sq
+        z = sq.LEVELS[level][1]; n = 2 ** (z - 8)
+        cells = {(x, y) for tx, ty in tiles for x in range(tx * n, (tx + 1) * n) for y in range(ty * n, (ty + 1) * n)}
+        h, v = {}, {}
+        for x, y in cells - explored:
+            for e in ((x, y), (x, y + 1)):
+                h.setdefault(e[1], set()).add(e[0])
+            for e in ((x, y), (x + 1, y)):
+                v.setdefault(e[0], set()).add(e[1])
+        return sq._merged_lines({k: list(x) for k, x in h.items()}, {k: list(x) for k, x in v.items()}, z)
+
+    def test_all_is_every_unexplored_square_merged(self):
+        import random
+        from wahoondrer import squadrats as sq
+        random.seed(3)
+        tiles = {(136, 88), (137, 88), (136, 89)}                     # shared borders between tiles
+        cells = [(x, y) for tx, ty in tiles for x in range(tx * 64, tx * 64 + 64) for y in range(ty * 64, ty * 64 + 64)]
+        explored = set(random.sample(cells, 4000))
+        norm = lambda ls: sorted(tuple(round(c, 7) for p in l for c in p) for l in ls)
+        got = sq.unexplored_outlines(explored, "big", 3, tiles)
+        self.assertEqual(norm(got), norm(self.brute(explored, "big", tiles)))
+        self.assertEqual(len(norm(got)), len(set(norm(got))))           # no line twice
+
+    def test_a_tile_never_ridden_is_a_plain_grid(self):
+        from wahoondrer import squadrats as sq
+        lines = sq.unexplored_outlines(set(), "big", 3, {(136, 88)})
+        self.assertEqual(len(lines), 2 * 65)                             # 65 long lines in each direction
+        self.assertEqual(sq.unexplored_outlines(set(), "big", 3, {(136, 88)}, scope="band"), [])
+
+    def test_scopes(self):
+        from wahoondrer import squadrats as sq
+        with self.assertRaises(ValueError):
+            sq.unexplored_outlines(set(), "big", 3, {(136, 88)}, scope="explored-big")
+        explored = {(136 * 64 + 5, 88 * 64 + 5)}
+        band = sq.unexplored_outlines(explored, "big", 1, None)          # no tiles: "all" falls back to the band
+        self.assertEqual(band, sq.unexplored_outlines(explored, "big", 1, None, scope="band"))
+        self.assertTrue(band)
 
 
 if __name__ == "__main__":

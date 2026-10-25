@@ -459,6 +459,16 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(b[b.index("--xy") + 1], "135/88,136/88")
         self.assertIn("--wandrer", b)
 
+    def test_squadrats_scopes_and_old_settings(self):
+        b = jobs.build_commands(self.s(squadrats={"enabled": True}), ["/x/a.kmz"], "/x/sq.kml")[0][1]
+        self.assertEqual((b[b.index("--squadrats-big-scope") + 1], b[b.index("--squadrats-small-scope") + 1]), ("all", "all"))
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            _write(p, json.dumps({"squadrats": {"small_scope": "explored-big", "buffer": 3}}))   # saved before "all"
+            self.assertEqual(settings.load(p)["squadrats"]["small_scope"], "all")
+            _write(p, json.dumps({"squadrats": {"small_scope": "explored-big", "big_scope": "band"}}))
+            self.assertEqual(settings.load(p)["squadrats"]["small_scope"], "explored-big")   # a choice made since
+
     def test_osm_max_days_is_passed(self):
         b = jobs.build_commands(self.s(), ["/x/a.kmz"], None)[-1][1]
         self.assertEqual(b[b.index("--max-days") + 1], "14")

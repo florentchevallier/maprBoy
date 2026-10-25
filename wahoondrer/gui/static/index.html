@@ -348,15 +348,21 @@ tr.rgrp.folded .gsum{display:inline}
         <label style="margin-left:10px"><input type="checkbox" data-level="big"> big squares (z14)</label>
         <label style="margin-left:10px"><input type="checkbox" data-level="small"> small squares (z17)</label></div>
     <div class="pro-only">
-      <label class="row" style="grid-template-columns:150px 110px 1fr">Band width (squares)<input type="number" min="0" step="1" data-path="squadrats.buffer" data-num="1"><small class="note">around what you explored</small></label>
+      <label class="row" style="grid-template-columns:1fr">Big squares to outline
+        <select data-path="squadrats.big_scope">
+          <option value="all">every unexplored one of my tiles (default)</option>
+          <option value="band">only a band around the ones I explored</option>
+        </select></label>
       <label class="row" style="grid-template-columns:1fr">Small squares to outline
         <select data-path="squadrats.small_scope">
-          <option value="explored-big">all those inside a big square I explored</option>
+          <option value="all">every unexplored one of my tiles (default)</option>
+          <option value="explored-big">only those inside a big square I explored</option>
           <option value="band">only a band around my small squares</option>
-          <option value="both">both</option>
+          <option value="both">inside my explored big squares + the band</option>
         </select></label>
+      <label class="row" style="grid-template-columns:150px 110px 1fr">Band width (squares)<input type="number" min="0" step="1" data-path="squadrats.buffer" data-num="1"><small class="note">for the "band" choices: around what you explored</small></label>
     </div>
-    <p class="note">Squadrats work with or without Wandrer: the outlines of the unexplored squares are drawn on every tile you chose.</p>
+    <p class="note">Squadrats work with or without Wandrer: by default every unexplored square of the tiles you chose gets an outline, so you see each new square wherever you ride. The small squares only show when you zoom in (from about 200 m on the Wahoo), so the map stays readable.</p>
   </div>
   <div class="blk" id="blkSqLook">
   <h3>Look on your device <span class="fsum" id="blkSumSqLook"></span></h3>

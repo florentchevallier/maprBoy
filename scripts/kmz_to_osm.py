@@ -19,11 +19,11 @@ Unvisited roads are kept only within --radius-m (250 m) of traveled roads;
 --radius-m 0 disables this filter.
 
 --squadrats adds the outlines of the UNEXPLORED Squadrats squares (big = z14,
-small = z17), only in a band of --squadrats-buffer squares around the explored
-ones and only in the z8 tiles touched by the Wandrer exports (plus --tiles). Squadrats work
-alone: with no export, give --tiles. Small squares: by
-default every unexplored small square inside an explored big square is outlined
-(--squadrats-small-scope explored-big); "band" uses the buffer instead.
+small = z17) in the z8 tiles touched by the Wandrer exports (plus --tiles). Squadrats work
+alone: with no export, give --tiles. By default every unexplored square of those tiles is
+outlined (--squadrats-big-scope all, --squadrats-small-scope all); "band" keeps only the
+squares within --squadrats-buffer squares of the explored ones, "explored-big" (small squares)
+the unexplored small squares inside the explored big ones, "both" these two.
 
 Also writes <output>.tiles.json (z8 tiles touched by the exports).
 Next step:  osmium cat wandrer.osm -o wandrer.osm.pbf --overwrite
@@ -41,7 +41,7 @@ from wahoondrer.kmz import read_export, merge_exports  # noqa: E402
 from wahoondrer.osmxml import write_osm  # noqa: E402
 from wahoondrer.process import Options, process  # noqa: E402
 from wahoondrer.tiles import tiles_for_bbox  # noqa: E402
-from wahoondrer.squadrats import SMALL_SCOPES, read_squadrats, unexplored_outlines  # noqa: E402
+from wahoondrer.squadrats import BIG_SCOPES, SMALL_SCOPES, read_squadrats, unexplored_outlines  # noqa: E402
 
 
 def main():
@@ -72,11 +72,13 @@ def main():
                     help="comma list of levels to draw: big (z14), small (z17)")
     ap.add_argument("--squadrats-buffer", type=int, default=3,
                     help="band width in squares around explored squares (default 3)")
-    ap.add_argument("--squadrats-small-scope", choices=SMALL_SCOPES,
-                    default="explored-big",
-                    help="small squares to outline: every unexplored one inside an "
-                         "explored big square (default), a band around explored "
-                         "small squares, or both")
+    ap.add_argument("--squadrats-big-scope", choices=BIG_SCOPES, default="all",
+                    help="big squares to outline: every unexplored one of the tiles (default) "
+                         "or a band around the explored ones")
+    ap.add_argument("--squadrats-small-scope", choices=SMALL_SCOPES, default="all",
+                    help="small squares to outline: every unexplored one of the tiles (default), "
+                         "every unexplored one inside an explored big square, a band around the "
+                         "explored small squares, or both of these two")
     args = ap.parse_args()
     if not args.kmz and not args.squadrats:
         ap.error("give at least one Wandrer export or --squadrats")
@@ -129,7 +131,8 @@ def main():
             lines = unexplored_outlines(explored[level], level,
                                         args.squadrats_buffer, set(tiles),
                                         parent_explored=explored.get("big"),
-                                        scope=args.squadrats_small_scope)
+                                        scope=args.squadrats_big_scope if level == "big"
+                                        else args.squadrats_small_scope)
             squadrats[level] = lines
             print(f"  {level}: {len(explored[level])} explored squares -> "
                   f"{len(lines)} outline ways")

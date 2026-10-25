@@ -7,11 +7,13 @@ into polygons (with holes), in several placemarks:
 (the other placemarks - yard, ubersquadrat... - are ignored). The declared
 `size` of each placemark equals the number of squares rebuilt here.
 
-Output: polylines that outline the unexplored squares, but only in a band of
-`buffer` squares around the explored ones (an unexplored square far from
-anything explored is of no use, and the world grid is infinite). Every grid
-edge is written once, and collinear edges are merged into one long straight
-way (2 nodes), so the layer stays light.
+Output: polylines that outline the unexplored squares. By default ("all") every
+unexplored square of the chosen z8 tiles is outlined, so that each new square is
+seen when riding somewhere new (as the Squadrats overlay of the Karoo does); the
+small squares only show from zoom 14 on the Wahoo (tag-mapping) and from a closer
+zoom on a Garmin. "band" keeps only the squares within `buffer` squares of the
+explored ones. Every grid edge is written once, and collinear edges are merged into
+one long straight way (2 nodes), so the layer stays light.
 """
 
 import math
@@ -77,11 +79,12 @@ def read_squadrats(path):
     return out
 
 
-SMALL_SCOPES = ("explored-big", "band", "both")
+BIG_SCOPES = ("all", "band")
+SMALL_SCOPES = ("all", "explored-big", "band", "both")
 
 
 def unexplored_outlines(explored, level, buffer_cells, tiles,
-                        parent_explored=None, scope="band"):
+                        parent_explored=None, scope="all"):
     """Polylines [(lon, lat), (lon, lat)] outlining unexplored squares.
 
     explored        set of explored cells at this level
@@ -89,21 +92,30 @@ def unexplored_outlines(explored, level, buffer_cells, tiles,
     tiles           set of allowed z8 (x, y) tiles (None = no restriction)
     parent_explored explored cells of the big level (z14), used by the
                     "explored-big" scope of the small level
-    scope           which unexplored squares get an outline (small level only):
+    scope           which unexplored squares get an outline:
+                    "all"           every unexplored square of the tiles (default;
+                                    without tiles, the band is used instead)
+                    "band"          squares within buffer_cells of an explored one
+                    small level only:
                     "explored-big"  every unexplored small square inside an
                                     explored big square (complete grid there)
-                    "band"          squares within buffer_cells of an explored one
-                    "both"          union of the two
-    The big level always uses the band.
+                    "both"          "explored-big" and "band"
     """
+    if scope not in (BIG_SCOPES if level == "big" else SMALL_SCOPES):
+        raise ValueError(f"unknown scope {scope!r} for the {level} squares")
+    if scope == "all" and tiles is None:
+        scope = "band"
     z = LEVELS[level][1]
     shift = z - TILE_ZOOM
 
     def allowed(c):
         return tiles is None or (c[0] >> shift, c[1] >> shift) in tiles
 
+    if scope == "all":                     # millions of small squares: scan the grid, no set of cells
+        horiz, vert = _all_edges(explored, tiles, shift)
+        return _merged_lines(horiz, vert, z)
     band = set()
-    if level == "big" or scope in ("band", "both"):
+    if scope in ("band", "both"):
         seed = {c for c in explored if allowed(c)}
         k = buffer_cells
         for (x, y) in seed:
@@ -131,7 +143,33 @@ def unexplored_outlines(explored, level, buffer_cells, tiles,
         horiz.setdefault(y, []).append(x)
     for x, y in vset:
         vert.setdefault(x, []).append(y)
+    return _merged_lines(horiz, vert, z)
 
+
+def _all_edges(explored, tiles, shift):
+    """Edges of every unexplored square of the z8 tiles: {y: [x...]} (horizontal), {x: [y...]} (vertical).
+    An edge is drawn when one of the two squares it separates is unexplored and inside the tiles."""
+    n = 2 ** shift
+
+    def unexplored(x, y):
+        return (x >> shift, y >> shift) in tiles and (x, y) not in explored
+
+    horiz, vert = {}, {}
+    for (tx, ty) in tiles:
+        x0, y0 = tx * n, ty * n
+        last_y = y0 + n + (0 if (tx, ty + 1) in tiles else 1)    # a shared border belongs to the tile below
+        for y in range(y0, last_y):
+            row = horiz.setdefault(y, [])
+            row.extend(x for x in range(x0, x0 + n) if unexplored(x, y - 1) or unexplored(x, y))
+        last_x = x0 + n + (0 if (tx + 1, ty) in tiles else 1)
+        for x in range(x0, last_x):
+            col = vert.setdefault(x, [])
+            col.extend(y for y in range(y0, y0 + n) if unexplored(x - 1, y) or unexplored(x, y))
+    return horiz, vert
+
+
+def _merged_lines(horiz, vert, z):
+    """Polylines of the edges, collinear neighbours merged into one straight way (2 nodes)."""
     lines = []
 
     def runs(values):
@@ -145,9 +183,13 @@ def unexplored_outlines(explored, level, buffer_cells, tiles,
         yield start, prev + 1
 
     for y, xs in horiz.items():
+        if not xs:
+            continue
         for a, b in runs(xs):
             lines.append([(_lon(a, z), _lat(y, z)), (_lon(b, z), _lat(y, z))])
     for x, ys in vert.items():
+        if not ys:
+            continue
         for a, b in runs(ys):
             lines.append([(_lon(x, z), _lat(a, z)), (_lon(x, z), _lat(b, z))])
     return lines

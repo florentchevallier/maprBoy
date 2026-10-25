@@ -279,6 +279,7 @@ def build_commands(s, exports, squadrats_file, plan=False):
                 raise SettingsError("Squadrats: the band width must be 0 or more.")
             a += ["--squadrats", squadrats_file, "--squadrats-levels", ",".join(levels),
                   "--squadrats-buffer", str(buffer),
+                  "--squadrats-big-scope", q.get("big_scope", "all"),
                   "--squadrats-small-scope", q["small_scope"]]
         cmds.append(("Convert the " + " / ".join(n for n, on in (("Wandrer", use_wandrer), ("Squadrats", use_squadrats)) if on) + " exports", a))
 

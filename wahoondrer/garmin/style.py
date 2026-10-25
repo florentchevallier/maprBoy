@@ -14,6 +14,7 @@ TYPE_SQUADRAT_BIG = 0x01
 TYPE_SQUADRAT_SMALL = 0x02
 
 RESOLUTION = 16   # visible at every zoom the device offers for an overlay
+RESOLUTION_SMALL_SQUARES = 21   # the Squadrats small squares only when zoomed in, as from zoom 14 on the Wahoo
 
 LINES = f"""wandrer=unvisited & surface=unpaved [0x{TYPE_UNVISITED_UNPAVED:02x} resolution {RESOLUTION}]
 wandrer=unvisited [0x{TYPE_UNVISITED:02x} resolution {RESOLUTION}]
@@ -21,7 +22,7 @@ wandrer=visited & surface=unpaved [0x{TYPE_VISITED_UNPAVED:02x} resolution {RESO
 wandrer=visited [0x{TYPE_VISITED:02x} resolution {RESOLUTION}]
 wandrer=boundary [0x{TYPE_BOUNDARY:02x} resolution {RESOLUTION}]
 squadrat=big [0x{TYPE_SQUADRAT_BIG:02x} resolution {RESOLUTION}]
-squadrat=small [0x{TYPE_SQUADRAT_SMALL:02x} resolution {RESOLUTION}]
+squadrat=small [0x{TYPE_SQUADRAT_SMALL:02x} resolution {RESOLUTION_SMALL_SQUARES}]
 """
 
 FILES = {

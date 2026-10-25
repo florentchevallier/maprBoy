@@ -49,8 +49,9 @@ DEFAULTS = {
         "enabled": False,
         "file": "",                  # file name; "" = the most recent one
         "levels": ["big", "small"],
-        "buffer": 3,
-        "small_scope": "explored-big",
+        "buffer": 3,                 # band width (squares) for the "band" choices
+        "big_scope": "all",          # big squares: "all" unexplored ones of the tiles | "band" around the explored ones
+        "small_scope": "all",        # small squares: "all" | "explored-big" | "band" | "both"
         "look": theme_style.sq_defaults(),   # colour, width and dashes of the outlines in the Wahoo theme, light and dark (Pro)
     },
     "build": {"skip_classic": False, "contour": False, "contour_spacing": "25-75-150",
@@ -124,6 +125,9 @@ def _split(raw):
 
 
 def _view(device, shared, block, sq_file):
+    sq = (block or {}).get("squadrats")
+    if isinstance(sq, dict) and "big_scope" not in sq and sq.get("small_scope") == "explored-big":
+        block = {**block, "squadrats": {**sq, "small_scope": "all"}}    # saved before "all" became the default
     if "tile_format" not in shared and shared.get("wahoo_model") == "roam1":   # the model menu of an earlier version
         shared = {**shared, "tile_format": "gz"}
     data = _merge(DEFAULTS, {**shared, **(block or {}), "device": device})

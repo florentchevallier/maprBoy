@@ -24,6 +24,23 @@ def _inside(coords, area):
     return any(((x - lon0) * kx) ** 2 + ((y - lat0) * 111.2) ** 2 <= km * km for x, y in coords)
 
 
+def _clip_straight(lines, bbox):
+    """The Squadrats lines are straight and horizontal or vertical (2 points), often longer than the area:
+    cut them to bbox (W, S, E, N) instead of keeping or dropping them whole."""
+    w, s, e, n = bbox
+    out = []
+    for (x1, y1), (x2, y2) in lines:
+        if y1 == y2 and s <= y1 <= n:
+            a, b = max(min(x1, x2), w), min(max(x1, x2), e)
+            if a < b:
+                out.append([(a, y1), (b, y1)])
+        elif x1 == x2 and w <= x1 <= e:
+            a, b = max(min(y1, y2), s), min(max(y1, y2), n)
+            if a < b:
+                out.append([(x1, a), (x1, b)])
+    return out
+
+
 def exports_bbox(exports):
     """(W, S, E, N) around read exports."""
     return (min(e.bbox[0] for e in exports), min(e.bbox[1] for e in exports),
@@ -51,11 +68,11 @@ def read_exports(paths, log=print):
     return exps
 
 
-def squadrat_lines(kml, bbox, levels=("big", "small"), buffer_cells=3, scope="explored-big", area=None,
-                   log=print):
+def squadrat_lines(kml, bbox, levels=("big", "small"), buffer_cells=3, scope="all", area=None,
+                   log=print, big_scope="all"):
     """{"big": [line, ...], "small": [...]}: outlines of the unexplored Squadrats squares in the z8 tiles that
-    touch bbox (W, S, E, N), within buffer_cells of the explored ones (see squadrats.py); with `area`, only the
-    lines that touch that circle."""
+    touch bbox (W, S, E, N): every unexplored square by default, or those within buffer_cells of the explored ones
+    (scope / big_scope "band", see squadrats.py); with `area`, the lines are cut to the square around that circle."""
     from ..squadrats import read_squadrats, unexplored_outlines
     from ..tiles import tiles_for_bbox
     log(f"Reading Squadrats {kml} ...")
@@ -67,9 +84,10 @@ def squadrat_lines(kml, bbox, levels=("big", "small"), buffer_cells=3, scope="ex
             log(f"  level {level}: not found in the file, skipped")
             continue
         lines = unexplored_outlines(explored[level], level, buffer_cells, tiles,
-                                    parent_explored=explored.get("big"), scope=scope)
+                                    parent_explored=explored.get("big"),
+                                    scope=big_scope if level == "big" else scope)
         if area:
-            lines = [l for l in lines if _inside(l, area)]
+            lines = _clip_straight(lines, area_bbox(area))
         out[level] = lines
         log(f"  {level}: {len(explored[level])} explored squares -> {len(lines)} outline lines")
     return out

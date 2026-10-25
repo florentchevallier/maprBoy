@@ -7,7 +7,7 @@ Usage:
             [--simplify-m 1.5] [--no-merge] [--no-boundaries] [--area LAT,LON,KM] [--keep-osm file.osm]
             [--pois --osm region.osm.pbf [--osm other.osm.pbf] [--poi-rules rules.json]] [--no-wandrer]
             [--squadrats squadrats.kml [--squadrats-levels big,small] [--squadrats-buffer 3]
-             [--squadrats-small-scope explored-big|band|both]]
+             [--squadrats-big-scope all|band] [--squadrats-small-scope all|explored-big|band|both]]
 
 The map is transparent: it is drawn over the Garmin map already on the device, which stays visible.
 Unvisited roads cyan 4 px with a white edge, visited roads magenta 4 px, unpaved roads the same colour dashed
@@ -21,8 +21,8 @@ Needs Java and the mkgmap jar (https://www.mkgmap.org.uk/). The exports are merg
 the user's choices), without names, taken from OSM extracts (--osm, e.g. the Geofabrik files WMC downloaded)
 cut to the area of the exports (or to --area). Needs osmium and cairosvg (both in environment.yml).
 --squadrats adds the outlines of the unexplored Squadrats squares (blue by default: big solid, small dashed),
-in a band of --squadrats-buffer squares around the explored ones, as for Wahoo, within the area of the exports
-(or --area).
+as for Wahoo: by default every unexplored square of the area of the exports (or --area); "band" keeps only
+those within --squadrats-buffer squares of the explored ones. The small squares only show when zoomed in.
 --no-wandrer: no Wandrer roads, only POIs and/or Squadrats (give --area, or exports to set the area).
 """
 import argparse
@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 from wahoondrer.garmin import build, look, pois as garmin_pois  # noqa: E402
 from wahoondrer.process import Options  # noqa: E402
-from wahoondrer.squadrats import SMALL_SCOPES  # noqa: E402
+from wahoondrer.squadrats import BIG_SCOPES, SMALL_SCOPES  # noqa: E402
 
 BBOX_MARGIN = 0.002   # degrees added around the exports for the POIs (about 200 m)
 
@@ -75,7 +75,9 @@ def main():
     ap.add_argument("--squadrats-levels", default="big,small", help="big (z14), small (z17), comma separated")
     ap.add_argument("--squadrats-buffer", type=int, default=3,
                     help="band width in squares around the explored ones (default 3)")
-    ap.add_argument("--squadrats-small-scope", choices=SMALL_SCOPES, default="explored-big",
+    ap.add_argument("--squadrats-big-scope", choices=BIG_SCOPES, default="all",
+                    help="big squares: every unexplored one of the area (default) or a band around the explored ones")
+    ap.add_argument("--squadrats-small-scope", choices=SMALL_SCOPES, default="all",
                     help="small squares: every unexplored one inside an explored big square (default), "
                          "a band around the explored small squares, or both")
     args = ap.parse_args()
@@ -99,7 +101,8 @@ def main():
             if args.squadrats:
                 levels = [l.strip() for l in args.squadrats_levels.split(",") if l.strip()]
                 squadrats = build.squadrat_lines(args.squadrats, bbox, levels, args.squadrats_buffer,
-                                                 args.squadrats_small_scope, area)
+                                                 args.squadrats_small_scope, area,
+                                                 big_scope=args.squadrats_big_scope)
             inputs = []
             if not args.no_wandrer or squadrats:
                 osm = args.keep_osm or os.path.join(tmp, "wandrer.osm")

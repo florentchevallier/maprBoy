@@ -882,8 +882,8 @@ function dataBounds() {
 const TYPE_COL = {bike: "#c2185b", foot: "#0b5cad", combined: "#222222"}, NO_TYPE_COL = "#888";
 const TYPE_PAT = {bike: "rotate(45)", foot: "rotate(-45)", combined: null};
 const patSize = z => Math.min(64, 7 * Math.pow(1.5, Math.max(0, z - 8)));   // spacing grows when zooming in: never too dense
-function fillPattern(p, t, size) {
-  const c = TYPE_COL[t], rot = TYPE_PAT[t], h = (rot ? size : Math.max(5, size * 0.72)).toFixed(1);   // dots a bit denser than hatching
+function fillPattern(p, t, size, c) {
+  c = c || TYPE_COL[t]; const rot = TYPE_PAT[t], h = (rot ? size : Math.max(5, size * 0.72)).toFixed(1);   // dots a bit denser than hatching
   p.setAttribute("width", h); p.setAttribute("height", h);
   if (rot) { p.setAttribute("patternTransform", rot);
     p.innerHTML = `<rect width="${h}" height="${h}" fill="${c}" fill-opacity=".07"/><line x1="0" y1="0" x2="0" y2="${h}" stroke="${c}" stroke-width="2" stroke-opacity=".75"/>`; }
@@ -892,18 +892,40 @@ function fillPattern(p, t, size) {
 function updatePatterns() {
   if (!map) return;
   const size = patSize(map.getZoom());
-  for (const t of Object.keys(TYPE_PAT)) { const p = document.getElementById("wd-p-" + t); if (p) fillPattern(p, t, size); }
+  document.querySelectorAll("pattern[data-t]").forEach(p => fillPattern(p, p.dataset.t, size, p.dataset.c));
 }
-function ensurePatterns(layer) {
-  const svg = layer._renderer && layer._renderer._container; if (!svg || svg.querySelector("#wd-p-bike")) return;
-  const NS = "http://www.w3.org/2000/svg", defs = document.createElementNS(NS, "defs");
-  for (const t of Object.keys(TYPE_PAT)) {
-    const p = document.createElementNS(NS, "pattern"); p.id = "wd-p-" + t; p.setAttribute("patternUnits", "userSpaceOnUse");
-    defs.appendChild(p);
+// one SVG pattern per (type, colour), made when first needed: the colour changes with the age of the export
+function patFill(layer, t, c) {
+  if (!TYPE_PAT.hasOwnProperty(t)) return null;
+  const svg = layer._renderer && layer._renderer._container; if (!svg) return null;
+  c = c || TYPE_COL[t];
+  const id = "wd-p-" + t + "-" + c.slice(1);
+  if (!svg.querySelector("#" + id)) {
+    const NS = "http://www.w3.org/2000/svg";
+    let defs = svg.querySelector("defs"); if (!defs) { defs = document.createElementNS(NS, "defs"); svg.insertBefore(defs, svg.firstChild); }
+    const p = document.createElementNS(NS, "pattern"); p.id = id; p.setAttribute("patternUnits", "userSpaceOnUse");
+    p.dataset.t = t; p.dataset.c = c; defs.appendChild(p);
+    fillPattern(p, t, patSize(map.getZoom()), c);
   }
-  svg.insertBefore(defs, svg.firstChild); updatePatterns();
+  return `url(#${id})`;
 }
-const patFill = t => TYPE_PAT.hasOwnProperty(t) ? `url(#wd-p-${t})` : null;
+// age of the exports, relative to the oldest and newest shown: the newest has the full colour of its type, the oldest a pale one
+const AGE_PALE = .7;
+const dayOf = e => { const d = Date.parse(e.date || ""); return isNaN(d) ? null : d; };
+function ageSpan(exs) {
+  const ds = exs.map(dayOf).filter(d => d !== null);
+  return ds.length ? [Math.min(...ds), Math.max(...ds)] : null;
+}
+const byAge = () => !!ST.activity_used;                   // one export type shown: colour by age; "All types": colour by type
+function mixWhite(hex, k) {
+  const n = parseInt(hex.slice(1), 16), ch = s => Math.round(((n >> s) & 255) + (255 - ((n >> s) & 255)) * k);
+  return "#" + [16, 8, 0].map(s => ch(s).toString(16).padStart(2, "0")).join("");
+}
+function exportCol(e, span) {
+  const c = typeCol(e.activity), d = dayOf(e);
+  if (!byAge() || !span || span[1] === span[0] || d === null) return c;
+  return mixWhite(c, AGE_PALE * (span[1] - d) / (span[1] - span[0]));
+}
 function renderLegend() {
   const parts = [], line = (c, txt) => `<span class="lsw" style="border-color:${c}"></span> ${txt}`;
   if (document.body.classList.contains("step2") && lastRes) {
@@ -911,8 +933,15 @@ function renderLegend() {
     $("#mapLegend").innerHTML = `${box("#d99a00", "#ffcc3388")} tiles of the last run &nbsp;·&nbsp; ${box("#777", "#9991", true)} other tiles in your output folder &nbsp;·&nbsp; <span class="note">point at a tile or a line to see the other one</span>`;
     return;
   }
-  const usedTypes = [...new Set(activeExports().map(e => e.activity || "?"))];
-  if (usedTypes.length && (!map || layerOn("layExp"))) parts.push("Wandrer exports: " + usedTypes.map(t => `${legendSwatch(t)} ${esc(t)}`).join(" &nbsp; "));
+  const exs = activeExports(), usedTypes = [...new Set(exs.map(e => e.activity || "?"))], span = ageSpan(exs);
+  if (usedTypes.length && (!map || layerOn("layExp"))) {
+    if (byAge() && span && span[1] > span[0]) {
+      const t = ST.activity_used, c = typeCol(t), day = d => new Date(d).toISOString().slice(0, 10);
+      parts.push(`Wandrer exports (${esc(t || "?")}): ${legendSwatch(t, mixWhite(c, AGE_PALE))} oldest ${day(span[0])} ` +
+                 `<span style="display:inline-block;width:40px;height:6px;background:linear-gradient(to right,${mixWhite(c, AGE_PALE)},${c});vertical-align:2px"></span> ` +
+                 `${legendSwatch(t)} newest ${day(span[1])}`);
+    } else parts.push("Wandrer exports: " + usedTypes.map(t => `${legendSwatch(t)} ${esc(t)}`).join(" &nbsp; "));
+  }
   if (area().mode === "regions" && area().regions.length) parts.push(line("#6a3fb0", "chosen regions"));
   if (map && osmInfo && layerOn("layOsm")) {
     const o = [];
@@ -922,20 +951,23 @@ function renderLegend() {
   }
   $("#mapLegend").innerHTML = parts.join(" &nbsp;·&nbsp; ");
 }
-const legendSwatch = t => {
-  const c = typeCol(t), bg = t === "bike" ? `repeating-linear-gradient(-45deg,${c} 0 2px,transparent 2px 5px)` : t === "foot" ? `repeating-linear-gradient(45deg,${c} 0 2px,transparent 2px 5px)` : t === "combined" ? `radial-gradient(${c} 1.2px,transparent 1.6px) 0 0/5px 5px` : c;
+const legendSwatch = (t, col) => {
+  const c = col || typeCol(t), bg = t === "bike" ? `repeating-linear-gradient(-45deg,${c} 0 2px,transparent 2px 5px)` : t === "foot" ? `repeating-linear-gradient(45deg,${c} 0 2px,transparent 2px 5px)` : t === "combined" ? `radial-gradient(${c} 1.2px,transparent 1.6px) 0 0/5px 5px` : c;
   return `<span style="display:inline-block;width:16px;height:12px;border:2px solid ${c};background:${bg};vertical-align:-2px"></span>`;
 };
 const typeCol = t => TYPE_COL[t] || NO_TYPE_COL;
 function drawMapLayers(fit) {
   if (!map) return;
   layerTiles.clearLayers(); layerExp.clearLayers(); expRects = {};
-  for (const e of activeExports()) if (e.bbox) {
-    const r = L.rectangle([[e.bbox[1], e.bbox[0]], [e.bbox[3], e.bbox[2]]], {color: typeCol(e.activity), weight: 2, fill: true, fillOpacity: .06, interactive: false}).addTo(layerExp);
-    r._base = typeCol(e.activity);
-    ensurePatterns(r); const pf = patFill(e.activity);
+  const exs = activeExports().filter(e => e.bbox), span = ageSpan(exs);
+  exs.sort((a, b) => (dayOf(a) ?? Infinity) - (dayOf(b) ?? Infinity));   // the newest drawn last, so on top
+  for (const e of exs) {
+    const col = exportCol(e, span);
+    const r = L.rectangle([[e.bbox[1], e.bbox[0]], [e.bbox[3], e.bbox[2]]], {color: col, weight: 2, fill: true, fillOpacity: .06, interactive: false}).addTo(layerExp);
+    r._base = col;
+    const pf = patFill(r, e.activity, col);
     if (pf) { r.setStyle({fillColor: pf, fillOpacity: 1}); r._pat = true; }
-    r.bindTooltip(esc(e.place ? e.place + " — " : "") + esc(e.name), {sticky: true, className: "nm"}); expRects[e.name] = r;
+    r.bindTooltip(esc(e.place ? e.place + " — " : "") + esc(e.name) + (e.date ? " · " + esc(e.date) : ""), {sticky: true, className: "nm"}); expRects[e.name] = r;
   }
   for (const k of S.tiles) { const [x, y] = k.split("/").map(Number);
     L.rectangle(tileBbox(x, y), {color: "#e8731a", weight: 2, fillOpacity: .18, interactive: false}).bindTooltip(k, {permanent: true, direction: "center", className: "tlabel"}).addTo(layerTiles); }

@@ -103,11 +103,12 @@ Needs osmium and cairosvg (both in `environment.yml`). Checked on the Forerunner
 ## Squadrats
 ```
 python3 scripts/build_garmin.py ... --squadrats squadrats.kml [--squadrats-levels big,small] [--squadrats-buffer 3]
-                                    [--squadrats-small-scope explored-big|band|both]
+                                    [--squadrats-big-scope all|band] [--squadrats-small-scope all|explored-big|band|both]
 python3 scripts/build_garmin.py ... --no-wandrer --squadrats squadrats.kml --area 48.136,11.555,5   # Squadrats only
 ```
-Same outlines as for Wahoo (`squadrats.py`): unexplored squares in a band around the explored ones, in the z8 tiles
-that touch the area of the exports (or `--area`; then only the lines that touch the circle). They are written into the
+Same outlines as for Wahoo (`squadrats.py`): by default every unexplored square of the z8 tiles that touch the area
+of the exports (or `--area`; then only the lines inside the circle's square); `band` keeps only a band of
+`--squadrats-buffer` squares around the explored ones. They are written into the
 same `.osm` as the Wandrer roads (`squadrat=big|small`) and drawn as line types 0x01 (big) and 0x02 (small), over
 the roads. Default look: blue #1E50FF 2 px, big solid, small dashed 8+8 px (`squadrat_big`, `squadrat_small` in the
 look); the red of the Wahoo theme would be read as unvisited roads. Checked on the Forerunner 955.

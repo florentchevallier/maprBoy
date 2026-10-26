@@ -138,7 +138,9 @@ north = 49.008535
 
 Copying to the Bolt is manual (file by file, never replacing a whole folder, after backing up `maps/tiles/8`). The themes live in `maps/vtm-elemnt/`.
 
-## ELEMNT ROAM v1 (tested October 2026 on a borrowed device, tile 136/88)
+## ELEMNT ROAM v1 (tested October 2026 on a borrowed device, firmware WR24-17071, tile 136/88)
+
+See also [docs/DEVICES.md](docs/DEVICES.md), which gathers what is known per device.
 
 - Tiles are `maps/tiles/8/<x>/<y>.map.gz`: the same mapsforge binary (v3) as our `.map.lzma`, only gzip-compressed (file name inside the gzip: `<y>.map`). No `.17` marker. The factory tiles held OSM data from 2015.
 - VTM rendering is switched on by an **empty file `cfg_BHomeActivity_VtmMaps` at the device root** (next to `maps` and `factory`). Our `maps/vtm-elemnt/vtm-elemnt.xml` and `icons/` are then used, with the theme's "ROAM" style layer (no building fills there).

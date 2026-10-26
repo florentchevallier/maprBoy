@@ -9,6 +9,7 @@ the maps are in [PIPELINE.md](PIPELINE.md) (Wahoo) and [GARMIN.md](GARMIN.md) (G
 | Wahoo ELEMNT BOLT v2 | in daily use | `maps/tiles/8/<x>/<y>.map.lzma` + `.map.lzma.17` | `maps/vtm-elemnt/` |
 | Wahoo ELEMNT ROAM v1 | tested once (borrowed device) | `maps/tiles/8/<x>/<y>.map.gz` | `maps/vtm-elemnt/` + switch file |
 | Garmin Forerunner 955 | tested (overlay) | `Garmin/gmapsupp.img` | TYP inside the `.img` |
+| Garmin Edge 830 | tested (overlay) | `Garmin/gmapsupp.img` | TYP inside the `.img` |
 
 ---
 
@@ -93,3 +94,13 @@ Details and the build recipe are in [GARMIN.md](GARMIN.md).
 - Checked: Wandrer roads, boundaries (a 1 px line is almost invisible, an 8 px band under the roads works), POIs
   with our own icons over the Garmin POIs, Squadrats. Dashes of 8 + 8 px are readable on the small screen.
 - Not checked yet: night colours, the small Squadrats at resolution 21.
+
+## Garmin Edge 830
+
+Firmware 9.75, with the same `gmapsupp.img` as on the Forerunner 955 (foot export, Wandrer roads, POIs, Squadrats).
+
+- The overlay shows over the Garmin map: the Garmin map's own POIs (restaurants, bike parking...) stay visible
+  next to ours.
+- Works in day and night mode.
+- The Garmin map draws paths as red dashed lines; our layers stay distinct from them: the small Squadrats squares
+  as blue dashed outlines, the Wandrer boundaries as a purple band.

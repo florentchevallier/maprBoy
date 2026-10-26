@@ -53,8 +53,7 @@ Everything below was needed, each point cost an experiment:
   band meant to show around the roads, therefore have the highest type (0x07); with 0x02 they covered the roads.
 
 ## To test later
-A full OSM base map instead of the overlay, contour lines, other family ids, other devices. On an Edge (bigger
-screen) the widths will probably need doubling: the lines are thin but right on the watch.
+A full OSM base map instead of the overlay, contour lines, other family ids, other devices.
 
 ## Command line
 ```

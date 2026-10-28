@@ -100,6 +100,32 @@ class SplitTest(unittest.TestCase):
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
+    def test_regions_of_different_dates_merge(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            def region(name, nodes, way):
+                p = os.path.join(tmp, name)
+                with open(p, "w") as f:
+                    f.write('<?xml version="1.0"?><osm version="0.6">' + nodes + way + "</osm>")
+                return p
+            old = region("old.osm",
+                         '<node id="1" version="1" timestamp="2026-10-15T00:00:00Z" lat="48.13" lon="11.45"/>'
+                         '<node id="2" version="1" timestamp="2026-10-15T00:00:00Z" lat="48.13" lon="11.46"/>',
+                         '<way id="10" version="1" timestamp="2026-10-15T00:00:00Z"><nd ref="1"/><nd ref="2"/>'
+                         '<tag k="highway" v="residential"/></way>')
+            new = region("new.osm",           # the same border node and way, edited in between
+                         '<node id="1" version="2" timestamp="2026-10-22T00:00:00Z" lat="48.131" lon="11.45"/>'
+                         '<node id="2" version="1" timestamp="2026-10-15T00:00:00Z" lat="48.13" lon="11.46"/>',
+                         '<way id="10" version="2" timestamp="2026-10-22T00:00:00Z"><nd ref="1"/><nd ref="2"/>'
+                         '<tag k="highway" v="tertiary"/></way>')
+            cells = base.tiles([old, new], (11.35, 48.10, 11.70, 48.16), tmp, log=lambda *a: None)
+            self.assertEqual(len(cells), 1)
+            out = subprocess.run(["osmium", "cat", cells[0], "-f", "opl"], capture_output=True, text=True).stdout
+            self.assertEqual(out.count("\nw") + out.startswith("w"), 1)
+            self.assertIn("highway=tertiary", out)           # the latest version is kept
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
 
 @unittest.skipUnless(JAR and os.path.isfile(JAR) and shutil.which("osmium"),
                      "set MKGMAP_JAR (and have osmium) to run the mkgmap test")

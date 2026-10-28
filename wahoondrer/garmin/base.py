@@ -132,8 +132,12 @@ def tiles(osm_files, bbox, work, log=print):
             parts.append(part)
         area = parts[0]
         if len(parts) > 1:
+            # Regions downloaded on different days can hold two versions of the same border object;
+            # merge keeps both and renumber refuses them: time-filter keeps the latest version of each.
+            merged = os.path.join(work, "merged.osm.pbf")
+            tiling.osmium(["osmium", "merge", *parts, "-o", merged, "--overwrite"])
             area = os.path.join(work, "area.osm.pbf")
-            tiling.osmium(["osmium", "merge", *parts, "-o", area, "--overwrite"])
+            tiling.osmium(["osmium", "time-filter", merged, "-o", area, "--overwrite"])
         log(f"Splitting the area into tiles of about 11 km ({len(tiling.grid(bbox))} cells) ...")
         return tiling.split(area, bbox, work)
     except tiling.TilingError as e:

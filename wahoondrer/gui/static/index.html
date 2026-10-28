@@ -153,7 +153,6 @@ td .old{color:var(--bad);white-space:nowrap;cursor:help;position:relative}td .ol
 .mapgrip{flex:none;height:9px;margin:-6px 0 4px;cursor:ns-resize;border-radius:0 0 8px 8px;background:linear-gradient(var(--line),var(--line)) center/36px 3px no-repeat;touch-action:none}
 .mapgrip:hover{background-color:color-mix(in srgb,var(--line) 45%,transparent)}
 #map.fixedh{flex:none !important}
-body.maptall #colMap{position:static;max-height:none;overflow:visible}
 .leaflet-interactive:focus{outline:none}
 .notilelabels .tlabel{display:none}
 .pro label.row.maxdays{grid-template-columns:auto 250px 1fr;gap:12px 22px;align-items:center;margin:4px 0 10px}.mdwrap{display:flex;flex-direction:column;width:250px}#maxDaysRange{width:100%;margin:0;accent-color:var(--accent)}
@@ -849,10 +848,11 @@ function tileLabels() {
   const tilePx = 256 * Math.pow(2, map.getZoom() - 8), longest = Math.max(0, ...S.tiles.map(k => k.length));
   map.getContainer().classList.toggle("notilelabels", (8 * longest + 18) * 26 > tilePx * tilePx / 3);
 }
-// the map height can be dragged with the grip under it (kept in this browser)
+// the map height can be dragged with the grip under it (kept in this browser); the column stays in view
+// (sticky under the header) and scrolls on its own when the map is taller than the window
 function initMapGrip() {
   const m = $("#map"), g = $("#mapGrip");
-  const setH = h => { m.style.height = h ? h + "px" : ""; m.classList.toggle("fixedh", !!h); document.body.classList.toggle("maptall", !!h); map.invalidateSize(); };
+  const setH = h => { m.style.height = h ? h + "px" : ""; m.classList.toggle("fixedh", !!h); map.invalidateSize(); };
   try { const h = +localStorage.getItem("mapH"); if (h >= 200) setH(h); } catch (e) {}
   g.addEventListener("pointerdown", e => {
     e.preventDefault(); g.setPointerCapture(e.pointerId);

@@ -12,7 +12,6 @@ Built as a separate, opaque map (maprboy-base.img) next to the transparent Wandr
 - a map tile holds at most 16 MB of drawing data (RGN), so the area is cut into a grid of tiles
   (a 10 km square of central Munich took 2.4 MB).
 """
-import math
 import os
 import re
 import shutil
@@ -20,7 +19,7 @@ import subprocess
 import tempfile
 import zipfile
 
-from . import build, pois as garmin_pois
+from . import build, ids, pois as garmin_pois, tiling
 
 FAMILY_ID = 6324               # another id than the overlay's (each map with a TYP has its own family)
 PRODUCT_ID = 1
@@ -28,7 +27,6 @@ MAPNAME = "63240001"           # mkgmap numbers the next tiles 63240002, ...
 POI_SHIFT = 3                  # resolution steps added to the POI rules (see above)
 DROPPED_POIS = {("railway", "stop")}
 ICON_SCALE = 0.65             # POI icons: 65 % of the overlay's (24 px -> 16 px)
-TILE_LAT, TILE_LON = 0.1, 0.15     # about 11 x 11 km at 48 N, well under the RGN limit even in a city
 NAMED_AREAS = ("natural!=water & water!=* & waterway!=* & leisure!=park & leisure!=garden"
                " & landuse!=forest & natural!=wood")
 STREET_RULE = "highway=* & name=* {set mkgmap:street='${name}'}"   # kept: address search
@@ -113,36 +111,12 @@ def write_style(mkgmap_jar, style_dir, rules, street_names=False):
     return style_dir
 
 
-def typ_text(icons):
-    return "\n".join(["[_id]", f"FID={FAMILY_ID}", f"ProductCode={PRODUCT_ID}", "CodePage=1252", "[end]"]
+def typ_text(icons, family_id=FAMILY_ID):
+    return "\n".join(["[_id]", f"FID={family_id}", f"ProductCode={PRODUCT_ID}", "CodePage=1252", "[end]"]
                      + garmin_pois.typ_points(icons)) + "\n"
 
 
 # ------------------------------------------------------------------ data
-def grid(bbox):
-    """[(W, S, E, N)] cells of TILE_LAT x TILE_LON covering bbox, aligned on the grid."""
-    w, s, e, n = bbox
-
-    def edges(lo, hi, step):
-        out, k = [lo], math.floor(lo / step + 1e-9) + 1
-        while round(k * step, 9) < hi:
-            out.append(round(k * step, 9))
-            k += 1
-        return out + [hi]
-
-    xs, ys = edges(w, e, TILE_LON), edges(s, n, TILE_LAT)
-    return [(xs[i], ys[j], xs[i + 1], ys[j + 1]) for j in range(len(ys) - 1) for i in range(len(xs) - 1)]
-
-
-def _osmium(cmd):
-    try:
-        r = subprocess.run(cmd, capture_output=True, text=True)
-    except FileNotFoundError:
-        raise build.GarminError("osmium not found (it comes with the maprBoy environment)")
-    if r.returncode != 0:
-        raise build.GarminError(f"osmium {cmd[1]} failed:\n{(r.stderr or r.stdout)[-1500:]}")
-
-
 def tiles(osm_files, bbox, work, log=print):
     """Cut the OSM extracts to bbox, merge them, split into grid cells. Returns the cell .osm.pbf paths."""
     for f in osm_files:
@@ -150,29 +124,27 @@ def tiles(osm_files, bbox, work, log=print):
             raise build.GarminError(f"OSM extract not found: {f}")
     box = ",".join(f"{v:.6f}" for v in bbox)
     parts = []
-    for i, f in enumerate(osm_files):
-        log(f"Cutting {os.path.basename(f)} to the area (osmium) ...")
-        part = os.path.join(work, f"cut{i}.osm.pbf")
-        _osmium(["osmium", "extract", "-b", box, "-s", "smart", f, "-o", part, "--overwrite"])
-        parts.append(part)
-    area = parts[0]
-    if len(parts) > 1:
-        area = os.path.join(work, "area.osm.pbf")
-        _osmium(["osmium", "merge", *parts, "-o", area, "--overwrite"])
-    cells = grid(bbox)
-    log(f"Splitting the area into {len(cells)} tile(s) ...")
-    out = []
-    for i, (w, s, e, n) in enumerate(cells):
-        p = os.path.join(work, f"tile{i:03d}.osm.pbf")
-        _osmium(["osmium", "extract", "-b", f"{w:.6f},{s:.6f},{e:.6f},{n:.6f}", "-s", "smart", area,
-                 "-o", p, "--overwrite"])
-        out.append(p)
-    return out
+    try:
+        for i, f in enumerate(osm_files):
+            log(f"Cutting {os.path.basename(f)} to the area (osmium) ...")
+            part = os.path.join(work, f"cut{i}.osm.pbf")
+            tiling.osmium(["osmium", "extract", "-b", box, "-s", "smart", f, "-o", part, "--overwrite"])
+            parts.append(part)
+        area = parts[0]
+        if len(parts) > 1:
+            area = os.path.join(work, "area.osm.pbf")
+            tiling.osmium(["osmium", "merge", *parts, "-o", area, "--overwrite"])
+        log(f"Splitting the area into tiles of about 11 km ({len(tiling.grid(bbox))} cells) ...")
+        return tiling.split(area, bbox, work)
+    except tiling.TilingError as e:
+        raise build.GarminError(str(e))
 
 
 # ------------------------------------------------------------------ build
-def build_base(osm_files, bbox, out_img, mkgmap_jar, poi_list, street_names=False, java="java", log=print):
-    """Write the base map (OSM + our POIs) of bbox (W, S, E, N) to out_img. Returns out_img."""
+def build_base(osm_files, bbox, out_img, mkgmap_jar, poi_list, street_names=False, java="java", log=print,
+               family_id=FAMILY_ID, mapname=MAPNAME, description="maprBoy base"):
+    """Write the base map (OSM + our POIs) of bbox (W, S, E, N) to out_img. Returns out_img.
+    family_id / mapname / description: see ids.py (several maprBoy maps on one device)."""
     if not os.path.isfile(mkgmap_jar):
         raise build.GarminError(f"mkgmap jar not found: {mkgmap_jar}")
     if shutil.which(java) is None:
@@ -185,12 +157,15 @@ def build_base(osm_files, bbox, out_img, mkgmap_jar, poi_list, street_names=Fals
         style_dir = write_style(mkgmap_jar, os.path.join(work, "style"), rules, street_names)
         typ_file = os.path.join(work, "base.txt")          # .txt: required, see typ.py
         with open(typ_file, "w", encoding="utf-8", newline="\n") as f:
-            f.write(typ_text(icons))
+            f.write(typ_text(icons, family_id))
         inputs = tiles(osm_files, bbox, work, log)
+        if not inputs:
+            raise build.GarminError("no OSM data in the area: is it covered by the OSM extracts?")
+        ids.check_tiles(len(inputs))
         out_dir = os.path.join(work, "out")
         cmd = [java, "-jar", os.path.abspath(mkgmap_jar), f"--style-file={style_dir}",
-               f"--family-id={FAMILY_ID}", f"--product-id={PRODUCT_ID}", "--family-name=maprBoy base",
-               "--series-name=maprBoy base", "--description=maprBoy base", f"--mapname={MAPNAME}",
+               f"--family-id={family_id}", f"--product-id={PRODUCT_ID}", f"--family-name={description}",
+               f"--series-name={description}", f"--description={description}", f"--mapname={mapname}",
                "--gmapsupp", "--latin1", "--add-pois-to-areas", f"--output-dir={out_dir}", typ_file] + inputs
         log(f"Running mkgmap ({len(inputs)} tile(s)) ...")
         r = subprocess.run(cmd, capture_output=True, text=True)

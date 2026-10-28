@@ -4,7 +4,8 @@
 Usage:
     python3 scripts/build_garmin.py --mkgmap /path/to/mkgmap.jar -o out/gmapsupp.img export1.kmz [export2.kmz ...]
             [--look look.json] [--radius-m 250] [--unpaved-always] [--paved-always]
-            [--simplify-m 1.5] [--no-merge] [--no-boundaries] [--area LAT,LON,KM] [--keep-osm file.osm]
+            [--simplify-m 1.5] [--no-merge] [--no-boundaries] [--area LAT,LON,KM | --bbox W,S,E,N] [--keep-osm file.osm]
+            [--name TEXT --family-id N --mapname NNNNNNNN]
             [--pois --osm region.osm.pbf [--osm other.osm.pbf] [--poi-rules rules.json]] [--no-wandrer]
             [--squadrats squadrats.kml [--squadrats-levels big,small] [--squadrats-buffer 3]
              [--squadrats-big-scope all|band] [--squadrats-small-scope all|explored-big|band|both]]
@@ -32,7 +33,7 @@ import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-from wahoondrer.garmin import build, look, pois as garmin_pois  # noqa: E402
+from wahoondrer.garmin import build, look, pois as garmin_pois, tiling, typ  # noqa: E402
 from wahoondrer.process import Options  # noqa: E402
 from wahoondrer.squadrats import BIG_SCOPES, SMALL_SCOPES  # noqa: E402
 
@@ -47,6 +48,13 @@ def parse_area(text):
     if not (-90 <= lat <= 90 and -180 <= lon <= 180 and km > 0):
         raise ValueError("--area: latitude, longitude or radius out of range")
     return lat, lon, km
+
+
+def check_ids(family_id, mapname):
+    if not 1 <= family_id <= 65535:
+        raise ValueError("--family-id: 1 to 65535")
+    if not (mapname.isdigit() and len(mapname) == 8):
+        raise ValueError("--mapname: 8 digits")
 
 
 def main():
@@ -65,6 +73,13 @@ def main():
     ap.add_argument("--no-boundaries", action="store_true", help="do not draw the Wandrer boundaries")
     ap.add_argument("--area", metavar="LAT,LON,KM",
                     help="only what lies within KM km of this point, e.g. 48.136,11.555,5")
+    ap.add_argument("--bbox", metavar="W,S,E,N",
+                    help="only this rectangle (degrees), e.g. 11.2,47.9,11.9,48.3 (instead of --area)")
+    ap.add_argument("--name", default="maprBoy Wandrer",
+                    help="name shown in the device's map list (default: maprBoy Wandrer)")
+    ap.add_argument("--family-id", type=int, default=typ.FAMILY_ID,
+                    help=f"Garmin family id (default {typ.FAMILY_ID}); give each map on a device its own")
+    ap.add_argument("--mapname", default=build.DEFAULT_MAPNAME, help="number of the first map tile (8 digits)")
     ap.add_argument("--keep-osm", metavar="FILE", help="also keep the intermediate Wandrer .osm here")
     ap.add_argument("--pois", action="store_true", help="add the POIs (needs --osm)")
     ap.add_argument("--osm", action="append", default=[], metavar="PBF",
@@ -87,22 +102,28 @@ def main():
             raise ValueError("--no-wandrer leaves nothing to draw: add --pois or --squadrats")
         if not args.no_wandrer and not args.kmz:
             raise ValueError("give at least one Wandrer export (or --no-wandrer with --pois / --squadrats)")
-        if not args.kmz and not args.area:
-            raise ValueError("give --area, or exports to set the area")
+        check_ids(args.family_id, args.mapname)
+        if not args.kmz and not args.area and not args.bbox:
+            raise ValueError("give --area or --bbox, or exports to set the area")
+        if args.area and args.bbox:
+            raise ValueError("give --area or --bbox, not both")
         area = parse_area(args.area) if args.area else None
+        box = tiling.parse_bbox(args.bbox) if args.bbox else None
         chosen = look.load(args.look) if args.look else look.defaults()
         poi_list = garmin_pois.load(args.poi_rules) if args.pois else []
         opts = Options(radius_m=args.radius_m, unpaved_always=args.unpaved_always,
                        paved_always=args.paved_always, simplify_m=args.simplify_m, merge=not args.no_merge)
         with tempfile.TemporaryDirectory(prefix="maprboy-garmin-") as tmp:
             exps = build.read_exports(args.kmz) if args.kmz else []
-            bbox = build.area_bbox(area) if area else build.exports_bbox(exps)
+            bbox = box or (build.area_bbox(area) if area else build.exports_bbox(exps))
             squadrats = None
             if args.squadrats:
                 levels = [l.strip() for l in args.squadrats_levels.split(",") if l.strip()]
                 squadrats = build.squadrat_lines(args.squadrats, bbox, levels, args.squadrats_buffer,
                                                  args.squadrats_small_scope, area,
                                                  big_scope=args.squadrats_big_scope)
+                if box:                         # the lines run across whole z8 tiles: keep the rectangle only
+                    squadrats = {k: build._clip_straight(v, box) for k, v in squadrats.items()}
             inputs = []
             if not args.no_wandrer or squadrats:
                 osm = args.keep_osm or os.path.join(tmp, "wandrer.osm")
@@ -112,14 +133,16 @@ def main():
             poi_rules, poi_typ = "", []
             if poi_list:
                 w, s, e, n = bbox
-                if not area:
+                if not area and not box:
                     w, s, e, n = w - BBOX_MARGIN, s - BBOX_MARGIN, e + BBOX_MARGIN, n + BBOX_MARGIN
                 inputs.append(garmin_pois.extract(args.osm, (w, s, e, n), poi_list, os.path.join(tmp, "pois")))
                 rules, icons = garmin_pois.plan(poi_list)
                 poi_rules, poi_typ = garmin_pois.points_file(rules), garmin_pois.typ_points(icons)
                 print(f"POIs: {len(poi_list)} kinds, {len(icons)} icons")
             build.build_img(inputs, args.output, args.mkgmap, chosen, java=args.java,
-                            poi_rules=poi_rules, poi_typ=poi_typ)
+                            poi_rules=poi_rules, poi_typ=poi_typ, family_id=args.family_id,
+                            mapname=args.mapname, description=args.name,
+                            split_bbox=bbox if (not args.no_wandrer or squadrats) else None)
     except (build.GarminError, ValueError) as e:
         sys.exit(f"Error: {e}")
 

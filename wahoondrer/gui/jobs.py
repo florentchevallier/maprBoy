@@ -317,6 +317,182 @@ def build_commands(s, exports, squadrats_file, plan=False):
     return cmds
 
 
+# ------------------------------------------------------------------ Garmin
+GARMIN_DIR = "garmin"            # Output/garmin/: maprboy-<place>-<date>-overlay.img and ...-base.img
+
+
+def garmin_missing(s):
+    """What the Garmin build needs and does not find: [message, ...]."""
+    import shutil
+    out = []
+    jar = os.path.expanduser((s.get("tools") or {}).get("mkgmap") or "")
+    if not jar:
+        out.append("mkgmap: give the path of mkgmap.jar in the settings (⚙), download it from mkgmap.org.uk")
+    elif not os.path.isfile(jar):
+        out.append(f"mkgmap: {jar} not found")
+    if not shutil.which("java"):
+        out.append("Java is not installed (mkgmap needs it)")
+    if not shutil.which("osmium"):
+        out.append("osmium is not found: start the page from the maprBoy environment")
+    if importlib.util.find_spec("cairosvg") is None:
+        out.append("the Python module cairosvg is missing (POI icons): "
+                   "micromamba install -n " + ENV_NAME + " -c conda-forge cairosvg")
+    return out
+
+
+def garmin_bbox(s, export_infos):
+    """(W, S, E, N) of the Garmin maps, from the area mode of the page:
+    manual = the chosen z8 tiles; exports = the exports; exports_km = the exports plus the margin;
+    regions = the chosen regions."""
+    from ..tiles import tile_bbox
+    from . import regions
+    mode = (s.get("area") or {}).get("mode", "manual")
+    boxes = []
+    if mode in ("exports", "exports_km"):
+        boxes = [tuple(i["bbox"]) for i in export_infos if i.get("bbox")]
+        if not boxes:
+            raise SettingsError("No ticked Wandrer export to set the area: tick exports or choose the tiles.")
+    elif mode == "regions":
+        cat = regions.catalog()
+        for k in (s.get("area") or {}).get("regions", []):
+            for ring in (cat.get(k) or {}).get("rings", []):
+                xs, ys = [p[0] for p in ring], [p[1] for p in ring]
+                boxes.append((min(xs), min(ys), max(xs), max(ys)))
+        if not boxes:
+            raise SettingsError("Choose at least one region.")
+    else:
+        tiles = parse_tiles(s.get("tiles") or [])
+        if not tiles:
+            raise SettingsError("Choose at least one tile.")
+        boxes = [tile_bbox(*(int(v) for v in t.split("/"))) for t in tiles]
+    w, so, e, n = (min(b[0] for b in boxes), min(b[1] for b in boxes),
+                   max(b[2] for b in boxes), max(b[3] for b in boxes))
+    if mode == "exports_km":
+        import math
+        km = float((s.get("area") or {}).get("km") or 0)
+        dlat, dlon = km / 111.2, km / (111.32 * math.cos(math.radians((so + n) / 2)))
+        w, so, e, n = w - dlon, so - dlat, e + dlon, n + dlat
+    return (round(w, 5), round(so, 5), round(e, 5), round(n, 5))
+
+
+def garmin_place(s, export_infos, bbox):
+    """A short place name for the Garmin file names and map list: the town most of the ticked exports are
+    near, else the chosen regions, else the town at the centre of the area (online, if allowed), else ""."""
+    from . import regions, scan
+    places = [i.get("place") for i in export_infos if i.get("place")]
+    mode = (s.get("area") or {}).get("mode", "manual")
+    if places and mode in ("exports", "exports_km"):
+        return max(set(places), key=places.count)
+    if mode == "regions" and (s.get("area") or {}).get("regions"):
+        return " ".join(regions.catalog().get(k, {}).get("name", k) for k in s["area"]["regions"][:2])
+    if s.get("geocode", True):
+        try:
+            return scan.lookup_place((bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2) or ""
+        except Exception:
+            return ""
+    return ""
+
+
+def garmin_names(s, export_infos, bbox, now=None):
+    """{"overlay"|"base": (file name, name shown on the device, family id, first map number)}."""
+    from ..garmin import ids
+    from . import scan
+    now = time.time() if now is None else now
+    import unicodedata
+    place = garmin_place(s, export_infos, bbox)
+    place = " ".join(unicodedata.normalize("NFKD", place).encode("ascii", "ignore").decode().split())   # Latin-1 maps
+    day = time.strftime("%Y-%m-%d", time.localtime(now))
+    tag = "-".join(p for p in (scan.slug(place), day) if p)
+    out = {}
+    for kind, (fid, mapname) in ids.build_ids(now).items():
+        label = "maprBoy " + ("Wandrer" if kind == "overlay" else "base") + (f" {place}" if place else "") + f" {day}"
+        out[kind] = (f"maprboy-{tag}-{kind}.img", label[:50], fid, mapname)
+    return out
+
+
+def garmin_commands(s, export_infos, squadrats_file):
+    """[(title, argv), ...] for the Garmin maps of Output/garmin/: the overlay (Wandrer, Squadrats, and the POIs
+    when there is no base map) and the OSM base map with the POIs. export_infos: the ticked exports (scan infos)."""
+    from . import regions
+    py = sys.executable
+    out = os.path.expanduser(s["folders"]["out"] or "")
+    if not out:
+        raise SettingsError("Choose an output folder.")
+    if _inside(out, REPO):
+        raise SettingsError("The output folder must be outside the repository.")
+    missing = garmin_missing(s)
+    if missing:
+        raise SettingsError("Garmin maps: " + "; ".join(missing) + ".")
+    jar = os.path.expanduser(s["tools"]["mkgmap"])
+    dest = os.path.join(out, GARMIN_DIR)
+    w, q, b = s["wandrer"], s["squadrats"], s["build"]
+    exports = [i["path"] for i in export_infos]
+    use_wandrer = bool(w["enabled"] and exports)
+    use_squadrats = bool(q["enabled"] and squadrats_file)
+    use_base = bool(b.get("garmin_base", True))
+    bbox = garmin_bbox(s, export_infos)
+    box = ",".join(str(v) for v in bbox)
+    names = garmin_names(s, export_infos, bbox)
+    cmds = []
+    if q["enabled"] and not squadrats_file:
+        cmds.append(("No Squadrats file: the layer is left out",
+                     [py, "-c", "print('! Squadrats: no KML file found in the Squadrats folder, so this layer is left out.')"]))
+    # the POIs need the OSM data, in the base map or in the overlay
+    try:
+        regions.ensure_catalog()
+    except OSError as exc:
+        raise SettingsError(f"Geofabrik's region list could not be downloaded: {exc}")
+    keys = regions.leaf_regions(bbox)
+    if not keys:
+        raise SettingsError("No OpenStreetMap region covers this area.")
+    osm = [regions.region_path(k) for k in keys]
+    cmds.append(("Get the OpenStreetMap data (" + ", ".join(regions.pretty_name(k) for k in keys) + ")",
+                 [py, "-m", "wahoondrer.gui.regions", "--fetch", *keys,
+                  "--max-days", str(settings_mod.osm_max_days(s))]))
+    pois = poi_args(s)
+    if use_wandrer or use_squadrats or not use_base:
+        f, label, fid, mapname = names["overlay"]
+        a = [py, os.path.join(REPO, "scripts", "build_garmin.py"), "--mkgmap", jar,
+             "-o", os.path.join(dest, f), "--bbox", box,
+             "--name", label, "--family-id", str(fid), "--mapname", mapname]
+        if use_wandrer:
+            a += [*exports, "--radius-m", str(w["radius_m"]), "--simplify-m", str(w["simplify_m"])]
+            if w["unpaved_always"]:
+                a.append("--unpaved-always")
+            if w["paved_always"]:
+                a.append("--paved-always")
+            if not w.get("merge", True):
+                a.append("--no-merge")
+            if not w["boundaries"]:
+                a.append("--no-boundaries")
+        else:
+            a.append("--no-wandrer")
+        if use_squadrats:
+            levels = [l for l in q["levels"] if l in ("big", "small")]
+            if not levels:
+                raise SettingsError("Squadrats: choose at least one level.")
+            a += ["--squadrats", squadrats_file, "--squadrats-levels", ",".join(levels),
+                  "--squadrats-buffer", str(int(q["buffer"])),
+                  "--squadrats-big-scope", q.get("big_scope", "all"), "--squadrats-small-scope", q["small_scope"]]
+        if not use_base:
+            a += ["--pois", *[x for f in osm for x in ("--osm", f)], *pois]
+        what = " + ".join(n for n, on in (("Wandrer", use_wandrer), ("Squadrats", use_squadrats),
+                                          ("POIs", not use_base)) if on)
+        cmds.append((f"Make the Garmin overlay ({what})", a))
+    if use_base:
+        f, label, fid, mapname = names["base"]
+        c = [py, os.path.join(REPO, "scripts", "build_garmin_base.py"), "--mkgmap", jar,
+             "-o", os.path.join(dest, f), "--bbox", box,
+             "--name", label, "--family-id", str(fid), "--mapname", mapname,
+             *[x for f in osm for x in ("--osm", f)], *pois]
+        if b.get("street_names"):
+            c.append("--street-names")
+        cmds.append(("Make the Garmin base map (OpenStreetMap + POIs)", c))
+    if not any(t.startswith("Make the Garmin") for t, _ in cmds):
+        raise SettingsError("Nothing to make: turn on Wandrer, Squadrats or the base map.")
+    return cmds
+
+
 def copy_command(s):
     """The step that copies the maps of the last run to the ELEMNT plugged in (adb, wahoondrer/devcopy.py)."""
     if not s["folders"]["out"]:

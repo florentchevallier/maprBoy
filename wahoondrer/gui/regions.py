@@ -369,3 +369,102 @@ class Unavailable(Exception):
 
 class Retry(Exception):
     """Temporary problem: trying again later usually works."""
+
+
+# ------------------------------------------------------------------ for the Garmin maps
+GEOFABRIK_INDEX = "https://download.geofabrik.de/index-v1.json"
+
+
+def ensure_catalog():
+    """Download Geofabrik's region list when WMC has not done it yet (a Garmin user may never run WMC)."""
+    if os.path.isfile(GEOFABRIK):
+        return
+    os.makedirs(DL_DIR, exist_ok=True)
+    req = urllib.request.Request(GEOFABRIK_INDEX, headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(req, timeout=60) as r, open(GEOFABRIK + ".part", "wb") as f:
+        shutil.copyfileobj(r, f)
+    os.replace(GEOFABRIK + ".part", GEOFABRIK)
+
+
+def leaf_regions(bbox):
+    """Keys of the smallest Geofabrik regions (those without sub-regions) touching bbox (W, S, E, N):
+    the OSM extracts a Garmin map of that rectangle needs."""
+    cat = catalog()
+    parents = {file_key(it["parent"]) for it in cat.values() if it.get("parent")}
+    out = []
+    for k, it in cat.items():
+        if k in parents:
+            continue
+        if any(_ring_touches_box(ring, bbox) or _box_in_ring(bbox, ring) for ring in it.get("rings", [])):
+            out.append(k)
+    return sorted(out)
+
+
+def _box_in_ring(box, ring):
+    w, s, e, n = box
+    xs, ys = [p[0] for p in ring], [p[1] for p in ring]
+    return min(xs) <= w and e <= max(xs) and min(ys) <= s and n <= max(ys) and _in_ring((w + e) / 2, (s + n) / 2, ring)
+
+
+def region_path(key):
+    return os.path.join(MAPS_DIR, key + SUFFIX)
+
+
+def to_fetch(keys, max_days):
+    """The regions of `keys` that are missing, or older than max_days (0 = never too old)."""
+    out = []
+    for k in keys:
+        p = region_path(k)
+        if not os.path.isfile(p):
+            out.append(k)
+        elif max_days and (time.time() - os.path.getmtime(p)) / 86400 > max_days:
+            out.append(k)
+    return out
+
+
+def main(argv=None):
+    """python3 -m wahoondrer.gui.regions --fetch KEY [KEY ...] [--max-days N]: download the missing regions
+    (and those older than N days) now, with progress lines; used by the Garmin build of the page."""
+    import argparse
+    import sys
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--fetch", nargs="+", required=True)
+    ap.add_argument("--max-days", type=int, default=0)
+    a = ap.parse_args(argv)
+    keys = to_fetch(a.fetch, a.max_days)
+    if not keys:
+        print("OSM data: every region is on disk and recent enough")
+        return
+    print("Downloading the OSM data of: " + ", ".join(pretty_name(k) for k in keys), flush=True)
+    d = Downloader()
+    old = [k for k in keys if os.path.isfile(region_path(k))]
+    t = threading.Thread(target=d._run, args=(keys, bool(old)), daemon=True)
+    d._state["running"] = True
+    t.start()
+    from ..progress import MARK, gui
+    bar, shown = gui(), 0
+    while t.is_alive():
+        t.join(1 if bar else 10)          # the page shows a bar; a terminal gets a line every 10 seconds
+        st = d.status()
+        if not st["current"]:
+            continue
+        name = pretty_name(st["current"].split(" ")[0])
+        got, total = st["bytes"] >> 20, st["total"] >> 20
+        text = f"{name}: {got} / {total} MB ({100 * got // total} %)" if total else f"{name}: {got} MB"
+        if bar:
+            print(f"{MARK}P|{text}", flush=True)
+        elif time.time() - shown >= 9:
+            print("  " + text, flush=True)
+            shown = time.time()
+    if bar:
+        print(f"{MARK}P|", flush=True)             # clears the bar
+    st = d.status()
+    if st["failed"] or st["error"]:
+        for k, why in st["failed"].items():
+            print(f"! {pretty_name(k)}: {why}", flush=True)
+        sys.exit("Some OSM regions could not be downloaded: " + (st["error"] or "see above"))
+    print(f"Downloaded {len(st['done'])} region(s)", flush=True)
+
+
+if __name__ == "__main__":
+    main()

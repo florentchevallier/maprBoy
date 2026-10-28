@@ -1,7 +1,24 @@
 # Garmin maps (mkgmap) — findings and recipe
 
 Status: the command lines `scripts/build_garmin.py` (Wandrer/Squadrats/POI overlay) and `scripts/build_garmin_base.py`
-(OSM base map), code in `wahoondrer/garmin/`; not wired into the app yet. Tested on a Forerunner 955, Edge 830 and 530.
+(OSM base map), code in `wahoondrer/garmin/`, also run by the web page (Garmin pill, "Make the maps").
+Tested on a Forerunner 955, Edge 830 and 530.
+
+## From the page
+With the Garmin pill on, "Make the maps" writes `Output/garmin/maprboy-<place>-<date>-overlay.img` and, unless
+"Make an OpenStreetMap base map" is unticked in the Basemap & POIs section, `...-base.img`; the POIs go into the
+base map, or into the overlay without it. The place is the town most ticked exports are near, else the chosen
+regions, else the town at the centre of the area (online lookup, if allowed). Each build gets its own family id
+and map numbers (`wahoondrer/garmin/ids.py`) and shows as "maprBoy base <place> <date>" in the device's map list,
+so that maps of several places can stay on one device: not checked on a device yet. A file name other than
+gmapsupp.img and a family id other than 1299 were seen working on the Edge 530; on the Forerunner 955 only
+gmapsupp.img was tried. The command lines keep the tested defaults unless `--name`, `--family-id` and `--mapname`
+are given. It needs the path of mkgmap.jar (settings ⚙), Java, osmium and
+cairosvg: the page says what is missing. The area follows the tile choice of the page: the chosen z8 tiles, the
+area of the ticked exports (plus the margin of "exports + km"), or the chosen regions; it is given to the scripts
+as `--bbox W,S,E,N`. The OSM extracts are the smallest Geofabrik regions touching that rectangle, in WMC's folder;
+missing ones (and those older than the renewal age) are downloaded first (`python3 -m wahoondrer.gui.regions
+--fetch KEY ...`). The look (colours, widths) is the default one for now.
 
 ## Principle
 Garmin devices read vector maps as `.img` files (`Garmin/gmapsupp.img`). They are built from OSM data with
@@ -61,7 +78,9 @@ python3 scripts/build_garmin.py --mkgmap /path/to/mkgmap.jar -o out/gmapsupp.img
 ```
 Same options as `kmz_to_osm.py` for the exports (`--radius-m`, `--unpaved-always`, `--paved-always`, `--simplify-m`,
 `--no-merge`), `--no-boundaries`, `--area LAT,LON,KM` (only the roads within KM km of a point, e.g.
-`48.136,11.555,5`) and `--keep-osm FILE`. Visited roads are always drawn.
+`48.136,11.555,5`) or `--bbox W,S,E,N` (only this rectangle), and `--keep-osm FILE`. Visited roads are always drawn.
+The Wandrer and Squadrats lines are cut into tiles of about 11 km like the base map (`wahoondrer/garmin/tiling.py`):
+the four large exports of a 230 x 120 km area went over mkgmap's 16 MB per tile in one piece.
 Default look: unvisited cyan (#00E1FF) 4 px with white edge, visited magenta (#FF00FF) 4 px, unpaved roads the same colour
 dashed (8 px drawn, 8 px empty), boundaries a purple (#B000FF) 8 px band under the roads. Unpaved roads have their own entries in the look
 (`unvisited_unpaved`, `visited_unpaved`); `"dash": [drawn, empty]` must add up to a divisor of 32 px, and

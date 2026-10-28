@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import unittest
 
-from wahoondrer.garmin import base, build, pois
+from wahoondrer.garmin import base, build, pois, tiling
 
 JAR = os.environ.get("MKGMAP_JAR", "")
 CAFE = {"key": "amenity", "value": "cafe", "zoom": 15, "icon": "cafe.svg"}
@@ -68,13 +68,37 @@ class StyleTest(unittest.TestCase):
 class GridTest(unittest.TestCase):
     def test_cells_cover_the_box_and_stay_inside(self):
         box = (11.30, 48.00, 11.80, 48.30)
-        cells = base.grid(box)
+        cells = tiling.grid(box)
         self.assertTrue(all(box[0] <= w < e <= box[2] and box[1] <= s < n <= box[3] for w, s, e, n in cells))
         area = sum((e - w) * (n - s) for w, s, e, n in cells)
         self.assertAlmostEqual(area, (box[2] - box[0]) * (box[3] - box[1]), places=9)
 
     def test_small_box_one_cell(self):
-        self.assertEqual(base.grid((11.50, 48.10, 11.55, 48.15)), [(11.50, 48.10, 11.55, 48.15)])
+        self.assertEqual(tiling.grid((11.50, 48.10, 11.55, 48.15)), [(11.50, 48.10, 11.55, 48.15)])
+
+    def test_parse_bbox(self):
+        self.assertEqual(tiling.parse_bbox("11.2,47.9,11.9,48.3"), (11.2, 47.9, 11.9, 48.3))
+        for bad in ("11.9,47.9,11.2,48.3", "1,2,3", "a,b,c,d"):
+            with self.assertRaises(ValueError):
+                tiling.parse_bbox(bad)
+
+
+@unittest.skipUnless(shutil.which("osmium"), "needs osmium")
+class SplitTest(unittest.TestCase):
+    def test_empty_cells_are_left_out(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            osm = os.path.join(tmp, "w.osm")
+            with open(osm, "w") as f:      # one short way near 11.45 E: only its cell is kept
+                f.write('<?xml version="1.0"?><osm version="0.6">'
+                        '<node id="50000000000" lat="48.13" lon="11.45"/><node id="50000000001" lat="48.13" lon="11.46"/>'
+                        '<way id="50000000002"><nd ref="50000000000"/><nd ref="50000000001"/>'
+                        '<tag k="wandrer" v="unvisited"/></way></osm>')
+            cells = tiling.split(osm, (11.35, 48.10, 11.70, 48.16), tmp)
+            self.assertEqual(len(tiling.grid((11.35, 48.10, 11.70, 48.16))), 3)
+            self.assertEqual(len(cells), 1)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 @unittest.skipUnless(JAR and os.path.isfile(JAR) and shutil.which("osmium"),

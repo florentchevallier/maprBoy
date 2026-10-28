@@ -178,7 +178,7 @@ table.exlist .tag{width:auto;padding:1px 8px;margin:1px 3px 2px 0;white-space:no
 .seg.types .n{font-weight:400;opacity:.75;margin-left:4px}
 .card h2 .onoff{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;margin-left:6px}
 .garmin-only{display:none}body.garmin .garmin-only{display:block}body.garmin #blkLook .pro-only,body.garmin #lookSimple{display:none}
-body.garmin #blkSqLook .pro-only,body.garmin #sqLookSimple{display:none}
+body.garmin #blkSqLook .pro-only,body.garmin #sqLookSimple{display:none}body.garmin #contourBox,body.garmin label.chk:has(> input[data-path="build.skip_classic"]){display:none}
 .pole .blk > h3{cursor:pointer;user-select:none}.pole .blk > h3 > button.fold{margin:0 -4px 0 -6px}
 .pole .blk.folded > .blk-body{display:none}.pole .blk.folded > h3{margin-bottom:0}.pole .blk.folded .fsum{display:inline}
 .pro button.pro-only.inline{display:inline-block}
@@ -250,6 +250,10 @@ tr.rgrp.folded .gsum{display:inline}
   <div class="note" id="regInfo"></div>
   <div class="warn" id="regMsg"></div>
   <div><button class="small" id="regRetry" style="display:none">Retry the failed regions</button></div>
+  </div>
+  <div class="garmin-only" id="garminBase" style="margin-top:10px">
+    <label class="chk"><input type="checkbox" data-path="build.garmin_base"><span>Make an OpenStreetMap base map with your POIs <small>maprboy-base.img, to use instead of the Garmin map (switch the Garmin maps off on the device). Off: only the overlay, with the POIs, drawn over the Garmin map</small></span></label>
+    <label class="chk" style="margin-left:26px"><input type="checkbox" data-path="build.street_names"><span>Street names <small>the names of places, water, parks and forests and the road numbers are always there</small></span></label>
   </div>
   <div id="contourBox" style="margin-top:10px">
     <label class="chk"><input type="checkbox" data-path="build.contour"><span>Add contour lines (relief) <small>needs <b>pyhgtmap</b> (one-time install); the first run is much longer and the tiles heavier</small></span></label>
@@ -330,7 +334,7 @@ tr.rgrp.folded .gsum{display:inline}
       <p><button class="small" id="btnLookReset" type="button">Reset the look of the roads</button></p>
       <p class="note">These settings change the <b>theme</b>, not the tiles: after a build, copy the new <b>vtm-elemnt.xml</b> to your device (step 2: a red warning marks it).</p>
     </div>
-    <p class="note garmin-only">On a Garmin, unvisited roads are magenta with a white edge, visited ones cyan, unpaved ones dashed, boundaries a purple band (see docs/GARMIN.md); choosing them here comes with the Garmin build from this page.</p>
+    <p class="note garmin-only">On a Garmin, unvisited roads are cyan with a white edge, visited ones magenta, unpaved ones dashed, boundaries a purple band (see docs/GARMIN.md); choosing them here comes later.</p>
   </div>
 </section>
 <section class="card pole" data-sec="squadrats">
@@ -381,7 +385,7 @@ tr.rgrp.folded .gsum{display:inline}
       <p><button class="small" id="btnSqLookReset" type="button">Reset the look of the squares</button></p>
       <p class="note">These settings change the <b>theme</b>, not the tiles: after a build, copy the new <b>vtm-elemnt.xml</b> to the Bolt.</p>
     </div>
-    <p class="note garmin-only">On a Garmin the squares are blue (big ones solid, small ones dashed, see docs/GARMIN.md); choosing them here comes with the Garmin build from this page.</p>
+    <p class="note garmin-only">On a Garmin the squares are blue (big ones solid, small ones dashed, see docs/GARMIN.md); choosing them here comes later.</p>
   </div>
 </section>
 </div>
@@ -424,7 +428,7 @@ tr.rgrp.folded .gsum{display:inline}
     <label title="A system notification when the maps are ready, or when a step failed (useful while you do something else)"><input type="checkbox" data-path="build.notify"> Notify me when done</label>
   </div>
   <label class="chk pro-only"><input type="checkbox" data-path="build.skip_classic"><span>Only redo the Wandrer part <small>faster: reuses the classic tiles of the last run. Ignored (with a message) if the tiles, POIs, contour lines or OSM data changed since</small></span></label>
-  <div class="envwarn envnote" id="garminNote" hidden>Garmin maps are made from the command line for now: <span class="path">python3 scripts/build_garmin.py</span> (see docs/GARMIN.md). Making them from this page comes next.</div>
+  <div class="envwarn" id="garminNote" hidden></div>
   <div class="runstate" id="runState" hidden><span id="status" class="pill">idle</span><span id="elapsed" class="note"></span><span id="runLeft" class="note"></span></div>
   <div id="stepWrap" hidden><progress id="stepBar" max="1" value="0"></progress><span id="stepTxt"></span></div>
   <div id="runMsg" class="warn"></div>
@@ -495,7 +499,7 @@ let unsaved = false;   // a change is waiting to be saved: a refresh must not ov
 function scheduleSave(reload) {
   clearTimeout(saveTimer); unsaved = true;
   saveTimer = setTimeout(async () => {
-    try { await api("/api/settings", S); unsaved = false; if (reload) await refresh(); else renderDerived(); } catch (e) { unsaved = false; $("#runMsg").textContent = e.message; }
+    try { await api("/api/settings", S); unsaved = false; if (reload || isGarmin()) await refresh(); else renderDerived(); } catch (e) { unsaved = false; $("#runMsg").textContent = e.message; }
   }, 350);
 }
 
@@ -1384,7 +1388,9 @@ function renderEnv() {
   const note = $("#envNote"), text = ST && ST.env && ST.env.notice;
   note.hidden = !text;
   note.textContent = text || "";
-  $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = bad || isGarmin() || (ST.job && ST.job.status === "running");
+  const busy = !!(ST.job && ST.job.status === "running");
+  $("#btnRun").disabled = bad || busy || garminBlocked();
+  $("#btnPlan").disabled = $("#btnPlan2").disabled = bad || busy || isGarmin();
 }
 
 // ---------- what the run will make, and how long it should take (only from comparable past runs)
@@ -1400,6 +1406,7 @@ async function perTile() {
 async function renderMakeSum() {
   if (!S || !S.build) return;
   const n = S.tiles.length, el = $("#makeSum");
+  if (isGarmin()) { el.innerHTML = garminSum(); return; }
   if (!n) { el.innerHTML = '<span class="note">No tile chosen yet: choose them on the map.</span>'; return; }
   const what = S.build.skip_classic && modeOf("make") === "pro" ? ["Wandrer part only"]
     : ["Base map" + (poiOn ? " + POIs" : "") + (S.build.contour ? " + contour lines" : ""), S.wandrer.enabled && "Wandrer", S.squadrats.enabled && "Squadrats"].filter(Boolean);
@@ -1468,11 +1475,13 @@ async function tick() {
   const st = $("#status"); st.textContent = j.status === "running" ? j.title : j.status; st.className = "pill " + j.status; st.title = st.textContent;
   $("#elapsed").textContent = j.seconds ? (j.status === "running" ? "" : "took ") + (j.seconds >= 3600 ? Math.floor(j.seconds / 3600) + " h " + String(Math.floor(j.seconds % 3600 / 60)).padStart(2, "0") + " min" : j.seconds >= 60 ? Math.floor(j.seconds / 60) + " min " + String(j.seconds % 60).padStart(2, "0") + " s" : j.seconds + " s") : "";
   const running = j.status === "running";
-  $("#btnRun").disabled = $("#btnPlan").disabled = $("#btnPlan2").disabled = running || envBad() || isGarmin();
+  $("#btnRun").disabled = running || envBad() || garminBlocked();
+  $("#btnPlan").disabled = $("#btnPlan2").disabled = running || envBad() || isGarmin();
   $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, under the map)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log under the map." : ""); $("#btnCancel").hidden = !running;
   if (!running) { clearInterval(poll); poll = null; $("#dlBar").hidden = true; renderRegions();
     if (warnLines.length && j.status === "done") { $("#runMsg").style.whiteSpace = "pre-line"; $("#runMsg").textContent = "To know:\n" + warnLines.map(l => "• " + l.slice(2)).join("\n"); }
-    if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to your device (one by one, after a backup), or use the list below.`; renderResults();
+    if (j.status === "done" && j.kind === "run" && isGarmin()) $("#doneNote").innerHTML = `Done. The Garmin maps are in <span class="path">${esc(S.folders.out)}/garmin</span>: see step 2 to put them on your device.`;
+    else if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to your device (one by one, after a backup), or use the list below.`; renderResults();
     if (j.status === "done" && j.kind === "run") { $("#btnSeeFiles").hidden = false; for (const k in estCache) delete estCache[k]; renderMakeSum(); }
     if (watchingRun && j.status === "done" && j.kind === "run") setStep(2);
     watchingRun = false; }
@@ -1664,10 +1673,14 @@ async function loadPois() {
 const fileUrl = rel => "/api/file?rel=" + encodeURIComponent(rel);
 const fileRow = (f, extra, newTile, plain, newTheme) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${plain ? '<span class="plaintile" title="No Wandrer data in this tile: plain map, no Wandrer or Squadrats lines">plain tile</span> ' : ""}${newTile ? '<span class="newtile">🌟 New tile!</span>' : ""}${newTheme ? '<span class="newtheme">🚨 NEW THEME: update the file on your device 🚨</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
 const NOTHING_YET = '<p class="note">Nothing built yet: make the maps in step 1, then come back here.</p>';
-const GARMIN_COPY = '<p>Copy the <b>gmapsupp.img</b> made by <span class="path">scripts/build_garmin.py</span> to the device (Edge or watch) as ' +
-  '<b>Garmin/gmapsupp.img</b>, one such file at a time, then enable it in the map settings (on a Forerunner 955: Map › Information, ' +
-  'with the <b>Classic</b> map theme).</p>' +
-  '<p class="note">Making it from this page, and the list of files here, come next.</p>';
+const GARMIN_COPY = '<p>The Garmin maps are in the <b>garmin</b> folder of your output folder, named after the place and the day. Copy them into the ' +
+  '<b>Garmin</b> folder of the device (not into Garmin/CustomMaps, which is not read):</p><ul><li><b>maprboy-…-overlay.img</b>: Wandrer roads and ' +
+  'Squadrats, drawn over any map;</li><li><b>maprboy-…-base.img</b>: the OpenStreetMap base map with your POIs.</li></ul>' +
+  '<p class="note">Each map gets its own ids so that maps of several places can stay on the device, listed by place and day (not checked on a device yet). ' +
+  'Seen on an Edge 530; on a watch only the name gmapsupp.img was tried: if a map does not show, rename it gmapsupp.img (one map only then).</p>' +
+  '<p>Then, in the activity profile you ride with (Navigation › Map): <b>Map Theme</b> = Classic (with High Contrast the overlay is drawn in grey), and in ' +
+  '<b>Map Information</b> switch “maprBoy base …” on and the Garmin maps off (Garmin DEM can stay on).</p>' +
+  '<p class="note">The list of files and the automatic copy come later.</p>';
 async function renderResults() {
   const box = $("#results");
   if (isGarmin()) { box.innerHTML = GARMIN_COPY; lastRes = null; drawOutTiles(); return; }
@@ -1826,6 +1839,20 @@ $("#results").addEventListener("click", async e => {
 
 // ---------- device (Wahoo / Garmin), steps (1 prepare, 2 copy), folders and settings panel
 const isGarmin = () => !!(S && S.device === "garmin");
+const garminBlocked = () => isGarmin() && !!(ST && ST.garmin_missing && ST.garmin_missing.length);
+function renderGarminNote() {
+  const box = $("#garminNote"), miss = isGarmin() && ST && ST.garmin_missing || [];
+  box.hidden = !miss.length;
+  box.innerHTML = miss.length ? "<b>To make Garmin maps:</b> " + miss.map(esc).join("; ") + "." : "";
+}
+function garminSum() {
+  const a = S.area || {}, km = a.km || 0;
+  const where = a.mode === "exports" ? "the area of the exports" : a.mode === "exports_km" ? `the area of the exports + ${km} km`
+    : a.mode === "regions" ? `${(a.regions || []).length} region(s)` : `${S.tiles.length} tile(s)`;
+  const what = [S.build.garmin_base && "Base map + POIs", S.wandrer.enabled && "Wandrer", S.squadrats.enabled && "Squadrats",
+    !S.build.garmin_base && "POIs"].filter(Boolean);
+  return `<span><b>${esc(where)}</b></span><span>${esc(what.join(" + "))}</span><span>for Garmin</span>`;
+}
 const tileFormat = () => (S && S.tile_format === "gz") ? "gz" : "lzma";
 $("#tileFormat").addEventListener("change", async e => {
   S.tile_format = e.target.value;
@@ -1838,7 +1865,7 @@ function renderDevice() {
   if (document.body.classList.contains("step2")) renderDevCopy();
   const what = isGarmin() ? "Garmin" : "Wahoo";
   $("#step2Label").textContent = $("#filesTitle").textContent = "Copy to the " + what;
-  $("#garminNote").hidden = !isGarmin();
+  renderGarminNote();
   document.body.classList.toggle("garmin", isGarmin());
 }
 $$("#devSeg button").forEach(b => b.onclick = async () => {

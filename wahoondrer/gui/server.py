@@ -70,7 +70,8 @@ def state(s):
             "activities": sorted({i["activity"] for i in infos if i.get("activity")}),
             "pending": sum(1 for i in infos if i.get("pending")),
             "squadrats": sq, "squadrats_used": chosen["name"] if chosen else "",
-            "scan": SCANNER.status(), "job": JOB.snapshot(0), "env": jobs.check_environment()}
+            "scan": SCANNER.status(), "job": JOB.snapshot(0), "env": jobs.check_environment(),
+            "garmin_missing": jobs.garmin_missing(s) if s.get("device") == "garmin" else []}
 
 
 def poi_catalog():
@@ -412,7 +413,12 @@ class Handler(BaseHTTPRequestHandler):
         annotate(s, infos)
         chosen = [i["path"] for i in infos if i["active"]]
         sq = pick_squadrats(s, scan.squadrats_files(s["folders"]["squadrats"]))
-        cmds = jobs.build_commands(s, chosen, sq["path"] if sq else None, plan=plan)
+        if s.get("device") == "garmin":
+            if plan:
+                raise jobs.SettingsError("\"Check first\" is for the Wahoo maps only.")
+            cmds = jobs.garmin_commands(s, [i for i in infos if i["active"]], sq["path"] if sq else None)
+        else:
+            cmds = jobs.build_commands(s, chosen, sq["path"] if sq else None, plan=plan)
         if s["folders"]["work"]:
             os.makedirs(os.path.expanduser(s["folders"]["work"]), exist_ok=True)
         os.makedirs(os.path.expanduser(s["folders"]["out"]), exist_ok=True)

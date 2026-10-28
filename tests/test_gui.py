@@ -1408,3 +1408,124 @@ class ProgressTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GarminCommandTests(unittest.TestCase):
+    GEO = {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "properties": {"id": "bayern", "name": "Bayern", "urls": {"pbf": "u"}},
+         "geometry": {"type": "Polygon", "coordinates": [[[9, 47], [14, 47], [14, 50.5], [9, 50.5], [9, 47]]]}},
+        {"type": "Feature", "properties": {"id": "oberbayern", "name": "Oberbayern", "parent": "bayern", "urls": {"pbf": "u"}},
+         "geometry": {"type": "Polygon", "coordinates": [[[10.7, 47.2], [13.1, 47.2], [13.1, 49.1], [10.7, 49.1], [10.7, 47.2]]]}},
+        {"type": "Feature", "properties": {"id": "austria", "name": "Austria", "urls": {"pbf": "u"}},
+         "geometry": {"type": "Polygon", "coordinates": [[[9.5, 46.3], [17.2, 46.3], [17.2, 47.6], [9.5, 47.6], [9.5, 46.3]]]}}]}
+    EXP = {"path": "/x/a.kmz", "bbox": [11.50, 48.10, 11.60, 48.15]}
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        geo = os.path.join(self.tmp, "geofabrik.json")
+        _write(geo, json.dumps(self.GEO))
+        jar = os.path.join(self.tmp, "mkgmap.jar")
+        _write(jar, "")
+        self.jar = jar
+        self.p = [mock.patch.object(regions, "GEOFABRIK", geo), mock.patch.object(regions, "MAPS_DIR", self.tmp),
+                  mock.patch.object(jobs, "garmin_missing", lambda s: []),
+                  mock.patch.object(scan, "lookup_place", lambda lon, lat: "Teststadt")]
+        for p in self.p:
+            p.start()
+        regions._catalog.update(mtime=None, items={})
+
+    def tearDown(self):
+        for p in self.p:
+            p.stop()
+        regions._catalog.update(mtime=None, items={})
+
+    def s(self, **over):
+        s = settings.load(os.devnull)
+        s["device"] = "garmin"
+        s["tiles"] = ["136/88"]
+        s["folders"]["out"] = os.path.join(tempfile.gettempdir(), "wd-out-test")
+        s["tools"]["mkgmap"] = self.jar
+        s["area"] = {"mode": "exports", "km": 5, "regions": []}
+        for k, v in over.items():
+            s[k].update(v)
+        return s
+
+    def test_leaf_regions_only(self):
+        self.assertEqual(regions.leaf_regions((11.5, 48.1, 11.6, 48.15)), ["oberbayern"])
+        self.assertEqual(regions.leaf_regions((12.0, 47.4, 12.2, 47.7)), ["austria", "oberbayern"])
+
+    def test_bbox_by_area_mode(self):
+        self.assertEqual(jobs.garmin_bbox(self.s(), [self.EXP]), (11.5, 48.1, 11.6, 48.15))
+        w, s_, e, n = jobs.garmin_bbox(self.s(area={"mode": "exports_km", "km": 10}), [self.EXP])
+        self.assertAlmostEqual(48.1 - s_, 10 / 111.2, places=3)
+        self.assertLess(w, 11.5 - 0.13)
+        manual = jobs.garmin_bbox(self.s(area={"mode": "manual"}), [self.EXP])
+        self.assertEqual(manual[0], 11.25)
+        with self.assertRaises(jobs.SettingsError):
+            jobs.garmin_bbox(self.s(), [])
+
+    def test_commands_base_map_on(self):
+        cmds = jobs.garmin_commands(self.s(squadrats={"enabled": True}), [self.EXP], "/x/sq.kml")
+        titles = [t for t, _ in cmds]
+        self.assertTrue(titles[0].startswith("Get the OpenStreetMap data (Oberbayern"))
+        fetch, overlay, base = (a for _, a in cmds)
+        self.assertEqual(fetch[2:5], ["wahoondrer.gui.regions", "--fetch", "oberbayern"])
+        self.assertIn("/x/a.kmz", overlay)
+        self.assertIn("--squadrats", overlay)
+        self.assertNotIn("--pois", overlay)                    # the POIs are in the base map
+        self.assertEqual(overlay[overlay.index("--bbox") + 1], "11.5,48.1,11.6,48.15")
+        day = time.strftime("%Y-%m-%d")
+        self.assertEqual(os.path.basename(overlay[overlay.index("-o") + 1]), f"maprboy-Teststadt-{day}-overlay.img")
+        self.assertEqual(os.path.basename(base[base.index("-o") + 1]), f"maprboy-Teststadt-{day}-base.img")
+        self.assertEqual(overlay[overlay.index("--name") + 1], f"maprBoy Wandrer Teststadt {day}")
+        fo, fb = int(overlay[overlay.index("--family-id") + 1]), int(base[base.index("--family-id") + 1])
+        self.assertEqual(fb, fo + 1)
+        self.assertEqual(base[base.index("--mapname") + 1], f"{fb}001")
+        self.assertIn(os.path.join(self.tmp, "oberbayern-latest.osm.pbf"), base)
+        self.assertNotIn("--street-names", base)
+
+    def test_commands_without_base_map(self):
+        cmds = jobs.garmin_commands(self.s(build={"garmin_base": False}), [self.EXP], None)
+        overlay = cmds[-1][1]
+        self.assertIn("--pois", overlay)
+        self.assertIn("--osm", overlay)
+        self.assertFalse(any("base" in t for t, _ in cmds))
+
+    def test_street_names_and_nothing_to_make(self):
+        base = jobs.garmin_commands(self.s(build={"street_names": True}, wandrer={"enabled": False}), [self.EXP], None)
+        self.assertEqual(len(base), 2)                         # no overlay: only OSM data and the base map
+        self.assertIn("--street-names", base[-1][1])
+
+    def test_missing_tools_stop_the_run(self):
+        with mock.patch.object(jobs, "garmin_missing", lambda s: ["Java is not installed"]):
+            with self.assertRaises(jobs.SettingsError):
+                jobs.garmin_commands(self.s(), [self.EXP], None)
+
+    def test_place_from_exports_then_regions(self):
+        exps = [dict(self.EXP, place="Athens"), dict(self.EXP, place="Athens"), dict(self.EXP, place="Piraeus")]
+        self.assertEqual(jobs.garmin_place(self.s(), exps, (0, 0, 1, 1)), "Athens")
+        self.assertEqual(jobs.garmin_place(self.s(area={"mode": "regions", "regions": ["oberbayern"]}), exps,
+                                           (0, 0, 1, 1)), "Oberbayern")
+        self.assertEqual(jobs.garmin_place(self.s(area={"mode": "manual"}), exps, (0, 0, 1, 1)), "Teststadt")
+        n = jobs.garmin_names(self.s(area={"mode": "manual"}), [], (0, 0, 1, 1))
+        self.assertTrue(n["base"][0].startswith("maprboy-Teststadt-"))
+
+    def test_ids_differ_between_builds(self):
+        from wahoondrer.garmin import ids
+        a, b = ids.build_ids(1_000_000_000), ids.build_ids(1_000_000_060)
+        self.assertNotEqual(a["overlay"][0], b["overlay"][0])
+        self.assertNotEqual(b["overlay"][0], a["base"][0])
+        for fid, mapname in list(a.values()) + list(b.values()):
+            self.assertTrue(10000 <= fid <= 99999 and len(mapname) == 8)
+        with self.assertRaises(ValueError):
+            ids.check_tiles(1000)
+
+    def test_to_fetch_missing_and_old(self):
+        p = os.path.join(self.tmp, "oberbayern-latest.osm.pbf")
+        self.assertEqual(regions.to_fetch(["oberbayern"], 14), ["oberbayern"])
+        _write(p, "x")
+        self.assertEqual(regions.to_fetch(["oberbayern"], 14), [])
+        old = time.time() - 20 * 86400
+        os.utime(p, (old, old))
+        self.assertEqual(regions.to_fetch(["oberbayern"], 14), ["oberbayern"])
+        self.assertEqual(regions.to_fetch(["oberbayern"], 0), [])

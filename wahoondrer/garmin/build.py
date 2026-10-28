@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 
 from . import look as looks
-from . import style, typ
+from . import ids, style, tiling, typ
 
 MIN_RGN_BYTES = 130     # an empty map (nothing matched the style) has an RGN of 125 bytes; one POI 143
 DEFAULT_MAPNAME = "12990001"
@@ -169,9 +169,13 @@ NO_LABEL_TAG = "maprboy:nolabel"   # mkgmap reads labels from this tag only: it 
 
 
 def build_img(osm_path, out_img, mkgmap_jar, look=None, mapname=DEFAULT_MAPNAME, description="maprBoy Wandrer",
-              java="java", keep_dir=None, log=print, poi_rules="", poi_typ=()):
+              java="java", keep_dir=None, log=print, poi_rules="", poi_typ=(), split_bbox=None,
+              family_id=typ.FAMILY_ID):
     """Run mkgmap on `osm_path` (a path or a list: Wandrer .osm, POI .osm.pbf) and put the checked
-    gmapsupp.img at `out_img`. poi_rules / poi_typ: the points style and the TYP [_point] lines (pois.py)."""
+    gmapsupp.img at `out_img`. poi_rules / poi_typ: the points style and the TYP [_point] lines (pois.py).
+    split_bbox (W, S, E, N): the FIRST input (the Wandrer/Squadrats .osm) is cut into tiles of that area
+    (tiling.py), so a large area does not go over mkgmap's 16 MB per tile.
+    family_id / mapname / description: see ids.py (several maprBoy maps on one device)."""
     inputs = [osm_path] if isinstance(osm_path, str) else list(osm_path)
     if not os.path.isfile(mkgmap_jar):
         raise GarminError(f"mkgmap jar not found: {mkgmap_jar}")
@@ -184,10 +188,20 @@ def build_img(osm_path, out_img, mkgmap_jar, look=None, mapname=DEFAULT_MAPNAME,
         style_dir = style.write_style(os.path.join(work, "style"), points=poi_rules)
         typ_file = os.path.join(work, "wandrer.txt")      # .txt: required, see typ.py
         with open(typ_file, "w", encoding="utf-8", newline="\n") as f:
-            f.write(typ.typ_text(look, points=poi_typ))
+            f.write(typ.typ_text(look, family_id=family_id, points=poi_typ))
+        if split_bbox and inputs:
+            try:
+                cells = tiling.split(inputs[0], split_bbox, work, prefix="wandrer")
+            except tiling.TilingError as e:
+                raise GarminError(str(e))
+            log(f"Wandrer / Squadrats data cut into {len(cells)} tile(s)")
+            inputs = cells + inputs[1:]
+            if not inputs:
+                raise GarminError("nothing to draw in the area")
+        ids.check_tiles(len(inputs))
         out_dir = os.path.join(work, "out")
         cmd = [java, "-jar", os.path.abspath(mkgmap_jar), f"--style-file={style_dir}",
-               f"--family-id={typ.FAMILY_ID}", f"--product-id={typ.PRODUCT_ID}", "--family-name=maprBoy",
+               f"--family-id={family_id}", f"--product-id={typ.PRODUCT_ID}", f"--family-name={description}",
                "--gmapsupp", "--latin1", "--transparent", "--draw-priority=10000",
                "--add-pois-to-areas", f"--name-tag-list={NO_LABEL_TAG}",
                f"--series-name={description}", f"--mapname={mapname}", f"--description={description}",

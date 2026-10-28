@@ -376,21 +376,27 @@ def garmin_bbox(s, export_infos):
 
 
 def garmin_place(s, export_infos, bbox):
-    """A short place name for the Garmin file names and map list: the town most of the ticked exports are
-    near, else the chosen regions, else the town at the centre of the area (online, if allowed), else ""."""
+    """A short place name for the Garmin file names and map list, whatever the area mode:
+    1. the town that comes most often among the ticked exports whose extent overlaps the area;
+    2. else the town at the centre of the area (online, if allowed);
+    3. else the OSM region(s): the chosen ones, or those the area needs (e.g. "Greece"); else ""."""
     from . import regions, scan
-    places = [i.get("place") for i in export_infos if i.get("place")]
-    mode = (s.get("area") or {}).get("mode", "manual")
-    if places and mode in ("exports", "exports_km"):
-        return max(set(places), key=places.count)
-    if mode == "regions" and (s.get("area") or {}).get("regions"):
-        return " ".join(regions.catalog().get(k, {}).get("name", k) for k in s["area"]["regions"][:2])
+    w, so, e, n = bbox
+    places = [i.get("place") for i in export_infos
+              if i.get("place") and i.get("bbox") and i["bbox"][0] <= e and i["bbox"][2] >= w
+              and i["bbox"][1] <= n and i["bbox"][3] >= so]
+    if places:
+        return max(sorted(set(places)), key=places.count)
     if s.get("geocode", True):
         try:
-            return scan.lookup_place((bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2) or ""
+            name = scan.lookup_place((w + e) / 2, (so + n) / 2)
         except Exception:
-            return ""
-    return ""
+            name = ""
+        if name:
+            return name
+    area = s.get("area") or {}
+    keys = area.get("regions") if area.get("mode") == "regions" and area.get("regions") else regions.leaf_regions(bbox)
+    return " ".join(regions.catalog().get(k, {}).get("name", k) for k in (keys or [])[:2])
 
 
 def garmin_names(s, export_infos, bbox, now=None):

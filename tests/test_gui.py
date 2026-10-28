@@ -1501,13 +1501,17 @@ class GarminCommandTests(unittest.TestCase):
             with self.assertRaises(jobs.SettingsError):
                 jobs.garmin_commands(self.s(), [self.EXP], None)
 
-    def test_place_from_exports_then_regions(self):
-        exps = [dict(self.EXP, place="Athens"), dict(self.EXP, place="Athens"), dict(self.EXP, place="Piraeus")]
-        self.assertEqual(jobs.garmin_place(self.s(), exps, (0, 0, 1, 1)), "Athens")
-        self.assertEqual(jobs.garmin_place(self.s(area={"mode": "regions", "regions": ["oberbayern"]}), exps,
-                                           (0, 0, 1, 1)), "Oberbayern")
-        self.assertEqual(jobs.garmin_place(self.s(area={"mode": "manual"}), exps, (0, 0, 1, 1)), "Teststadt")
-        n = jobs.garmin_names(self.s(area={"mode": "manual"}), [], (0, 0, 1, 1))
+    def test_place_exports_then_centre_then_region(self):
+        far = dict(self.EXP, place="Munich", bbox=[11.0, 47.0, 11.1, 47.1])      # ticked, but outside the area
+        exps = [dict(self.EXP, place="Athens"), dict(self.EXP, place="Athens"), dict(self.EXP, place="Piraeus"),
+                far, far, far]
+        area = (11.4, 48.0, 11.7, 48.2)
+        for mode in ("manual", "exports", "regions"):
+            self.assertEqual(jobs.garmin_place(self.s(area={"mode": mode}), exps, area), "Athens")
+        self.assertEqual(jobs.garmin_place(self.s(area={"mode": "manual"}), [far], area), "Teststadt")
+        with mock.patch.object(scan, "lookup_place", lambda lon, lat: ""):     # e.g. the centre is in the sea
+            self.assertEqual(jobs.garmin_place(self.s(area={"mode": "manual"}), [far], area), "Oberbayern")
+        n = jobs.garmin_names(self.s(area={"mode": "manual"}), [], area)
         self.assertTrue(n["base"][0].startswith("maprboy-Teststadt-"))
 
     def test_ids_differ_between_builds(self):

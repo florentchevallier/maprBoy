@@ -395,7 +395,7 @@ def garmin_place(s, export_infos, bbox):
         if name:
             return name
     area = s.get("area") or {}
-    keys = area.get("regions") if area.get("mode") == "regions" and area.get("regions") else regions.leaf_regions(bbox)
+    keys = area.get("regions") if area.get("mode") == "regions" and area.get("regions") else regions.regions_for_bbox(bbox)
     return " ".join(regions.catalog().get(k, {}).get("name", k) for k in (keys or [])[:2])
 
 
@@ -448,7 +448,7 @@ def garmin_commands(s, export_infos, squadrats_file):
         regions.ensure_catalog()
     except OSError as exc:
         raise SettingsError(f"Geofabrik's region list could not be downloaded: {exc}")
-    keys = regions.leaf_regions(bbox)
+    keys = regions.regions_for_bbox(bbox)
     if not keys:
         raise SettingsError("No OpenStreetMap region covers this area.")
     osm = [regions.region_path(k) for k in keys]

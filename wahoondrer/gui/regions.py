@@ -386,18 +386,34 @@ def ensure_catalog():
     os.replace(GEOFABRIK + ".part", GEOFABRIK)
 
 
-def leaf_regions(bbox):
-    """Keys of the smallest Geofabrik regions (those without sub-regions) touching bbox (W, S, E, N):
-    the OSM extracts a Garmin map of that rectangle needs."""
+SAMPLES = 40        # points per side of the area when choosing its regions (about 2.5 km apart on a z8 tile)
+
+
+def _area(rings):
+    """Rough surface of a region (square degrees, shoelace), to tell a small region from a large one."""
+    return sum(abs(sum(x1 * y2 - x2 * y1 for (x1, y1), (x2, y2) in zip(r, r[1:] + r[:1]))) / 2 for r in rings)
+
+
+def regions_for_bbox(bbox):
+    """Keys of the OSM extracts a Garmin map of bbox (W, S, E, N) needs: for each point of the area, the
+    SMALLEST Geofabrik region containing it (Oberbayern rather than Bayern, Germany or the "Germany, Austria,
+    Switzerland" extract). A small region touching the edge of the area between two points is added too."""
     cat = catalog()
+    touching = {k: it for k, it in cat.items()
+                if any(_ring_touches_box(r, bbox) or _box_in_ring(bbox, r) for r in it.get("rings", []))}
+    size = {k: _area(it["rings"]) for k, it in touching.items()}
     parents = {file_key(it["parent"]) for it in cat.values() if it.get("parent")}
-    out = []
-    for k, it in cat.items():
-        if k in parents:
-            continue
-        if any(_ring_touches_box(ring, bbox) or _box_in_ring(bbox, ring) for ring in it.get("rings", [])):
-            out.append(k)
-    return sorted(out)
+    w, s, e, n = bbox
+    chosen, sampled = set(), set()
+    for i in range(SAMPLES):
+        for j in range(SAMPLES):
+            x, y = w + (i + 0.5) * (e - w) / SAMPLES, s + (j + 0.5) * (n - s) / SAMPLES
+            inside = [k for k, it in touching.items() if any(_in_ring(x, y, r) for r in it["rings"])]
+            sampled.update(inside)
+            if inside:
+                chosen.add(min(inside, key=lambda k: size[k]))
+    chosen |= {k for k in touching if k not in sampled and k not in parents}      # slivers at the edge
+    return sorted(chosen)
 
 
 def _box_in_ring(box, ring):
@@ -436,6 +452,20 @@ def main(argv=None):
         print("OSM data: every region is on disk and recent enough")
         return
     print("Downloading the OSM data of: " + ", ".join(pretty_name(k) for k in keys), flush=True)
+    import signal
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit("Stopped: the unfinished download was removed."))
+    try:
+        _fetch_now(keys)
+    finally:                              # stopped from the page: never leave a half file (.part) behind
+        for k in keys:
+            try:
+                os.remove(region_path(k) + ".part")
+            except OSError:
+                pass
+
+
+def _fetch_now(keys):
+    import sys
     d = Downloader()
     old = [k for k in keys if os.path.isfile(region_path(k))]
     t = threading.Thread(target=d._run, args=(keys, bool(old)), daemon=True)

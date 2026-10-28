@@ -1416,6 +1416,8 @@ class GarminCommandTests(unittest.TestCase):
          "geometry": {"type": "Polygon", "coordinates": [[[9, 47], [14, 47], [14, 50.5], [9, 50.5], [9, 47]]]}},
         {"type": "Feature", "properties": {"id": "oberbayern", "name": "Oberbayern", "parent": "bayern", "urls": {"pbf": "u"}},
          "geometry": {"type": "Polygon", "coordinates": [[[10.7, 47.2], [13.1, 47.2], [13.1, 49.1], [10.7, 49.1], [10.7, 47.2]]]}},
+        {"type": "Feature", "properties": {"id": "dach", "name": "Germany, Austria, Switzerland", "urls": {"pbf": "u"}},
+         "geometry": {"type": "Polygon", "coordinates": [[[5.8, 45.8], [17.2, 45.8], [17.2, 55.1], [5.8, 55.1], [5.8, 45.8]]]}},
         {"type": "Feature", "properties": {"id": "austria", "name": "Austria", "urls": {"pbf": "u"}},
          "geometry": {"type": "Polygon", "coordinates": [[[9.5, 46.3], [17.2, 46.3], [17.2, 47.6], [9.5, 47.6], [9.5, 46.3]]]}}]}
     EXP = {"path": "/x/a.kmz", "bbox": [11.50, 48.10, 11.60, 48.15]}
@@ -1450,9 +1452,11 @@ class GarminCommandTests(unittest.TestCase):
             s[k].update(v)
         return s
 
-    def test_leaf_regions_only(self):
-        self.assertEqual(regions.leaf_regions((11.5, 48.1, 11.6, 48.15)), ["oberbayern"])
-        self.assertEqual(regions.leaf_regions((12.0, 47.4, 12.2, 47.7)), ["austria", "oberbayern"])
+    def test_smallest_regions_only(self):
+        # not Bayern (its sub-region is enough) nor the "Germany, Austria, Switzerland" block that covers it all
+        self.assertEqual(regions.regions_for_bbox((11.5, 48.1, 11.6, 48.15)), ["oberbayern"])
+        self.assertEqual(regions.regions_for_bbox((12.0, 47.0, 12.2, 47.4)), ["austria", "oberbayern"])
+        self.assertEqual(regions.regions_for_bbox((9.2, 47.8, 9.4, 48.0)), ["bayern"])    # no sub-region there
 
     def test_bbox_by_area_mode(self):
         self.assertEqual(jobs.garmin_bbox(self.s(), [self.EXP]), (11.5, 48.1, 11.6, 48.15))

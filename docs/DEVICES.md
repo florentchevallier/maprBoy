@@ -10,6 +10,7 @@ the maps are in [PIPELINE.md](PIPELINE.md) (Wahoo) and [GARMIN.md](GARMIN.md) (G
 | Wahoo ELEMNT ROAM v1 | tested once (borrowed device) | `maps/tiles/8/<x>/<y>.map.gz` | `maps/vtm-elemnt/` + switch file |
 | Garmin Forerunner 955 | tested (overlay) | `Garmin/gmapsupp.img` | TYP inside the `.img` |
 | Garmin Edge 830 | tested (overlay) | `Garmin/gmapsupp.img` | TYP inside the `.img` |
+| Garmin Edge 530 | tested (overlay) | `Garmin/gmapsupp.img` | TYP inside the `.img` |
 
 ---
 
@@ -83,6 +84,8 @@ Details and the build recipe are in [GARMIN.md](GARMIN.md).
 - One file, `Garmin/gmapsupp.img`, built with mkgmap. maprBoy's map is a **transparent overlay**: the Garmin map
   stays visible under it. Only one `gmapsupp.img` at a time.
 - In the map settings, enable the overlay next to the Garmin map.
+- The file goes in the `Garmin` folder itself: copied into `Garmin/CustomMaps`, it is not read (Edge 530 and 830).
+- The map theme is set per activity profile (Navigation > Map > Map Theme): use **Classic**.
 - Default look: unvisited roads cyan `#00E1FF` with a white edge, visited roads magenta `#FF00FF`, unpaved roads
   dashed, boundaries a purple band under the roads, Squadrats blue. Visited roads are always drawn.
 
@@ -104,3 +107,15 @@ Firmware 9.75, with the same `gmapsupp.img` as on the Forerunner 955 (foot expor
 - Works in day and night mode.
 - The Garmin map draws paths as red dashed lines; our layers stay distinct from them: the small Squadrats squares
   as blue dashed outlines, the Wandrer boundaries as a purple band.
+
+## Garmin Edge 530
+
+Borrowed device, same generation as the Edge 830 without a touch screen.
+
+- With the **"High Contrast"** map theme, our lines are drawn in grey (the TYP colours are not used) and Wandrer's
+  own `.img` overlays do not show; with **"Classic"** our colours show. Our POIs show in both themes.
+- Two other maps already on the device (`gmapsupp-alps.img`, `gmapsupp-germany.img`) changed nothing: the overlay
+  showed the same with and without them.
+- maprBoy's OSM base map (`maprboy-base.img`, see GARMIN.md) shows with the Garmin maps switched off in Map
+  Information, and the overlay is drawn over it. POIs at resolution 22 showed from the 800 m scale, at 24 from
+  about 200 m.

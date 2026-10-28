@@ -1,7 +1,7 @@
 # Garmin maps (mkgmap) — findings and recipe
 
-Status: the command line `scripts/build_garmin.py` (code in `wahoondrer/garmin/`) builds the Wandrer overlay;
-not wired into the app yet. Tested on a Forerunner 955.
+Status: the command lines `scripts/build_garmin.py` (Wandrer/Squadrats/POI overlay) and `scripts/build_garmin_base.py`
+(OSM base map), code in `wahoondrer/garmin/`; not wired into the app yet. Tested on a Forerunner 955, Edge 830 and 530.
 
 ## Principle
 Garmin devices read vector maps as `.img` files (`Garmin/gmapsupp.img`). They are built from OSM data with
@@ -53,7 +53,7 @@ Everything below was needed, each point cost an experiment:
   band meant to show around the roads, therefore have the highest type (0x07); with 0x02 they covered the roads.
 
 ## To test later
-A full OSM base map instead of the overlay, contour lines, other family ids, other devices.
+Routing with the base map, contour lines, other family ids, other devices.
 
 ## Command line
 ```
@@ -111,3 +111,23 @@ of the exports (or `--area`; then only the lines inside the circle's square); `b
 same `.osm` as the Wandrer roads (`squadrat=big|small`) and drawn as line types 0x01 (big) and 0x02 (small), over
 the roads. Default look: blue #1E50FF 2 px, big solid, small dashed 8+8 px (`squadrat_big`, `squadrat_small` in the
 look); the red of the Wahoo theme would be read as unvisited roads. Checked on the Forerunner 955.
+
+## OSM base map (maprboy-base.img)
+```
+python3 scripts/build_garmin_base.py --mkgmap /path/to/mkgmap.jar -o out/maprboy-base.img \
+        --osm oberbayern-latest.osm.pbf [--osm other.osm.pbf] --area 48.136,11.555,20 [--poi-rules FILE] [--street-names]
+```
+An opaque map built from OSM with mkgmap's own default style (copied from the jar), so the device draws the
+standard Garmin types with its own look. It is a separate file next to the overlay: copy both into the `Garmin`
+folder, build the overlay without `--pois`, and in the activity profile (Navigation > Map > Map Information)
+switch the Garmin maps off and "maprBoy base" on. Changes to the default style (`wahoondrer/garmin/base.py`):
+- Our POIs replace the default style's POIs (places and peaks stay). They come 3 resolution steps later than on
+  the overlay: on an Edge 530, resolution 22 showed from the 800 m scale, 24 from about 200 m. Icons are 65 %
+  of the overlay's size, without names. Train stops (`railway=stop`) are left out, stations only.
+- Labels: places (cities, villages, suburbs...), water, parks, gardens, forests and road numbers; street names
+  only with `--street-names`. No default names (mkgmap labels fences "Fence", areas "Building"...).
+- The area is cut with osmium into tiles of 0.15 x 0.1 degrees (about 11 km): a map tile holds at most 16 MB of
+  drawing data (RGN) and mkgmap stops with "RGN section ... too big" above it. 10 km of central Munich took 2.4 MB.
+- Family id 6324 (the overlay keeps 1299), map names 63240001, 63240002... one per tile.
+Seen on the Edge 530 with the Garmin maps switched off: the base map shows, the overlay is drawn over it.
+Not tested yet: keeping the Garmin map switched on under the base map (for routing).

@@ -168,9 +168,17 @@ def _all_edges(explored, tiles, shift):
     return horiz, vert
 
 
+def _stops(a, b, step):
+    """a, the multiples of step between a and b, b."""
+    return [a] + [i for i in range((a // step + 1) * step, b, step)] + [b]
+
+
 def _merged_lines(horiz, vert, z):
-    """Polylines of the edges, collinear neighbours merged into one straight way (2 nodes)."""
+    """Polylines of the edges, collinear neighbours merged into one straight way, with a node at every
+    big-square (z14) corner: a line then has nodes in every map tile or cut it crosses (a 2-node line
+    crossing a Garmin tile of the area grid, or the edge of a Karoo area, with no node inside was dropped)."""
     lines = []
+    step = 2 ** (z - LEVELS["big"][1]) if z >= LEVELS["big"][1] else 1
 
     def runs(values):
         values.sort()
@@ -186,10 +194,10 @@ def _merged_lines(horiz, vert, z):
         if not xs:
             continue
         for a, b in runs(xs):
-            lines.append([(_lon(a, z), _lat(y, z)), (_lon(b, z), _lat(y, z))])
+            lines.append([(_lon(i, z), _lat(y, z)) for i in _stops(a, b, step)])
     for x, ys in vert.items():
         if not ys:
             continue
         for a, b in runs(ys):
-            lines.append([(_lon(x, z), _lat(a, z)), (_lon(x, z), _lat(b, z))])
+            lines.append([(_lon(x, z), _lat(i, z)) for i in _stops(a, b, step)])
     return lines

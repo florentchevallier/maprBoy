@@ -1,4 +1,6 @@
+import math
 import os
+import shutil
 import struct
 import tempfile
 import unittest
@@ -205,6 +207,9 @@ class SquadratsTest(unittest.TestCase):
         lines = [[(10.0, 48.0), (12.0, 48.0)], [(11.0, 47.0), (11.0, 49.0)], [(10.0, 50.0), (12.0, 50.0)]]
         self.assertEqual(build._clip_straight(lines, (10.5, 47.5, 11.5, 48.5)),
                          [[(10.5, 48.0), (11.5, 48.0)], [(11.0, 47.5), (11.0, 48.5)]])
+        inner = [[(10.0, 48.0), (10.6, 48.0), (11.0, 48.0), (11.4, 48.0), (12.0, 48.0)]]   # inner nodes kept
+        self.assertEqual(build._clip_straight(inner, (10.5, 47.5, 11.5, 48.5)),
+                         [[(10.5, 48.0), (10.6, 48.0), (11.0, 48.0), (11.4, 48.0), (11.5, 48.0)]])
 
     def test_nothing_given(self):
         from wahoondrer.process import Options
@@ -264,7 +269,30 @@ class UnexploredSquaresTest(unittest.TestCase):
         self.assertEqual(len(lines), 2 * 65)                             # 65 long lines in each direction
         self.assertEqual(sq.unexplored_outlines(set(), "big", 3, {(136, 88)}, scope="band"), [])
 
-    def test_scopes(self):
+    def test_a_node_at_every_big_square_corner(self):
+        from wahoondrer import squadrats as sq
+        big = sq.unexplored_outlines(set(), "big", 3, {(136, 88)})
+        self.assertTrue(all(len(line) == 65 for line in big))          # 64 squares: a node at each of the 65 edges
+        small = sq.unexplored_outlines(set(), "small", 3, {(136, 88)})
+        self.assertTrue(all(len(line) == 65 for line in small))        # 512 small squares, a node every 8
+        self.assertEqual(sq._stops(3, 21, 8), [3, 8, 16, 21])
+
+    @unittest.skipUnless(shutil.which("osmium"), "needs osmium")
+    def test_a_line_crossing_a_tile_of_the_area_grid_is_kept(self):
+        from wahoondrer import squadrats as sq
+        from wahoondrer.garmin import tiling
+        from wahoondrer.osmxml import write_osm
+        n = 2 ** 14
+        x = int((11.555 + 180) / 360 * n)                                 # one column of big squares, 48.0 to 48.4 N
+        lat_y = lambda lat: int((1 - math.log(math.tan(math.radians(lat)) + 1 / math.cos(math.radians(lat))) / math.pi) / 2 * n)
+        ys = list(range(lat_y(48.4), lat_y(48.0)))
+        line = sq._merged_lines({}, {x: ys}, 14)[0]
+        with tempfile.TemporaryDirectory() as d:
+            osm = os.path.join(d, "sq.osm")
+            write_osm(osm, {}, {}, squadrats={"big": [line]})
+            box = (line[0][0] - 0.001, line[-1][1], line[0][0] + 0.001, line[0][1])   # one column of 4-5 cells
+            cells = tiling.split(osm, box, d)
+            self.assertEqual(len(cells), len(tiling.grid(box)))            # the line is in every row of cells
         from wahoondrer import squadrats as sq
         with self.assertRaises(ValueError):
             sq.unexplored_outlines(set(), "big", 3, {(136, 88)}, scope="explored-big")

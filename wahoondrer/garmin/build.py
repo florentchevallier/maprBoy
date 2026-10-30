@@ -25,19 +25,26 @@ def _inside(coords, area):
 
 
 def _clip_straight(lines, bbox):
-    """The Squadrats lines are straight and horizontal or vertical (2 points), often longer than the area:
-    cut them to bbox (W, S, E, N) instead of keeping or dropping them whole."""
+    """The Squadrats lines are straight and horizontal or vertical (a node at each big-square corner, see
+    squadrats._merged_lines), often longer than the area: cut them to bbox (W, S, E, N) instead of keeping or
+    dropping them whole. The inner nodes are kept: the area is later cut into tiles (tiling.py)."""
     w, s, e, n = bbox
+
+    def cut(values, lo, hi):
+        a, b = max(min(values), lo), min(max(values), hi)
+        return [a] + sorted(v for v in set(values) if a < v < b) + [b] if a < b else None
+
     out = []
-    for (x1, y1), (x2, y2) in lines:
-        if y1 == y2 and s <= y1 <= n:
-            a, b = max(min(x1, x2), w), min(max(x1, x2), e)
-            if a < b:
-                out.append([(a, y1), (b, y1)])
-        elif x1 == x2 and w <= x1 <= e:
-            a, b = max(min(y1, y2), s), min(max(y1, y2), n)
-            if a < b:
-                out.append([(x1, a), (x1, b)])
+    for line in lines:
+        xs, ys = [p[0] for p in line], [p[1] for p in line]
+        if len(set(ys)) == 1 and s <= ys[0] <= n:
+            kept = cut(xs, w, e)
+            if kept:
+                out.append([(x, ys[0]) for x in kept])
+        elif len(set(xs)) == 1 and w <= xs[0] <= e:
+            kept = cut(ys, s, n)
+            if kept:
+                out.append([(xs[0], y) for y in kept])
     return out
 
 

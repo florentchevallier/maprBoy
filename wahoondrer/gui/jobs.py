@@ -503,9 +503,31 @@ def garmin_commands(s, export_infos, squadrats_file):
         if b.get("street_names"):
             c.append("--street-names")
         cmds.append(("Make the Garmin base map (OpenStreetMap + POIs)", c))
-    if not any(t.startswith("Make the Garmin") for t, _ in cmds):
+    made = [a[a.index("-o") + 1] for t, a in cmds if t.startswith("Make the Garmin")]
+    if not made:
         raise SettingsError("Nothing to make: turn on Wandrer, Squadrats or the base map.")
+    cmds.append(("Note the maps of this run", [py, "-m", "wahoondrer.garmin.device", "mark", "--out", dest,
+                                               *[os.path.basename(m) for m in made]]))
     return cmds
+
+
+def garmin_copy_command(s, names, target):
+    """The step that copies the chosen maps of Output/garmin/ to the Garmin plugged in: target "disk:<volume>" or
+    "mtp" (wahoondrer/garmin/device.py)."""
+    if not s["folders"]["out"]:
+        raise SettingsError("Choose the output folder first (⚙).")
+    folder = os.path.join(os.path.abspath(os.path.expanduser(s["folders"]["out"])), GARMIN_DIR)
+    if not names:
+        raise SettingsError("Tick the maps to copy.")
+    files = []
+    for n in names:
+        if not isinstance(n, str) or os.path.basename(n) != n or not n.endswith(".img"):
+            raise SettingsError(f"Not a map of the garmin folder: {n}")
+        files.append(os.path.join(folder, n))
+    if not (target == "mtp" or (isinstance(target, str) and target.startswith("disk:/"))):
+        raise SettingsError("No Garmin chosen.")
+    return ("Copy the maps to the Garmin", [sys.executable, "-m", "wahoondrer.garmin.device", "copy",
+                                            "--target", target, *files])
 
 
 KAROO_DIR = "karoo"              # Output/karoo/: maprboy-<place>-<date>.map, maprboy-theme-block.xml, maprboy-icons/

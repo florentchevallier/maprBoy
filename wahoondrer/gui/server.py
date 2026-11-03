@@ -10,6 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from .. import contour, devcopy, gztiles, poi_config
+from ..garmin import device as garmin_device
 from . import jobs, native, regions, scan, settings
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -189,12 +190,36 @@ def karoo_results(out):
     return res
 
 
+def garmin_results(out):
+    """The Garmin maps of Output/garmin/: those of the last run, then the others (newest first)."""
+    out = os.path.abspath(os.path.expanduser(out or ""))
+    folder = os.path.join(out, jobs.GARMIN_DIR)
+    res = {"out": out, "dir": folder, "last": [], "other": []}
+    if not os.path.isdir(folder):
+        return res
+    try:                                    # written by the last step of a Garmin build
+        with open(os.path.join(folder, "last_run.json"), encoding="utf-8") as f:
+            last = set(json.load(f).get("maps", []))
+    except (OSError, ValueError, AttributeError, TypeError):
+        last = set()
+    maps = []
+    for name in os.listdir(folder):
+        path = os.path.join(folder, name)
+        if name.endswith(".img") and not is_junk(name) and os.path.isfile(path):
+            maps.append({"name": name, "size": os.path.getsize(path), "mtime": int(os.path.getmtime(path)),
+                         "rel": f"{jobs.GARMIN_DIR}/{name}"})
+    for m in sorted(maps, key=lambda m: (-m["mtime"], m["name"])):
+        res["last" if m["name"] in last else "other"].append(m)
+    return res
+
+
 def result_file(out, rel):
     """Absolute path of a built file, only inside wahoondrer_maps / wmc_classic / wahoondrer_maps_gz / karoo of the
     output folder."""
     out = os.path.realpath(os.path.expanduser(out or ""))
     full = os.path.realpath(os.path.join(out, rel))
-    allowed = [os.path.join(out, d) + os.sep for d in ("wahoondrer_maps", "wmc_classic", gztiles.DIR, jobs.KAROO_DIR)]
+    allowed = [os.path.join(out, d) + os.sep
+               for d in ("wahoondrer_maps", "wmc_classic", gztiles.DIR, jobs.KAROO_DIR, jobs.GARMIN_DIR)]
     if not out or not any(full.startswith(a) for a in allowed) or not os.path.isfile(full):
         return None
     return full
@@ -259,6 +284,8 @@ class Handler(BaseHTTPRequestHandler):
                 s = settings.load()
                 if s.get("device") == "karoo":
                     return self._send(200, karoo_results(s["folders"]["out"]))
+                if s.get("device") == "garmin":
+                    return self._send(200, garmin_results(s["folders"]["out"]))
                 fmt = settings.tile_format(s) if s.get("device", "wahoo") == "wahoo" else "lzma"
                 return self._send(200, results(s["folders"]["out"], fmt))
             if url.path == "/api/file":
@@ -280,6 +307,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return
+            if url.path == "/api/garmin_device":    # a Garmin plugged in, as a disk or by MTP
+                return self._send(200, garmin_device.status())
             if url.path == "/api/device":           # adb and the ELEMNT plugged in (automatic copy)
                 return self._send(200, devcopy.status((settings.load().get("tools") or {}).get("adb") or ""))
             if url.path == "/api/estimate":
@@ -407,10 +436,24 @@ class Handler(BaseHTTPRequestHandler):
                 if s.get("device", "wahoo") == "karoo":
                     JOB.start([jobs.karoo_copy_command(s, "copy")], "copy")
                     return self._send(200, {"started": True})
+                if s.get("device") == "garmin":
+                    if JOB.running():
+                        raise jobs.SettingsError("A job is running: wait for it to finish.")
+                    JOB.start([jobs.garmin_copy_command(s, body.get("maps") or [], body.get("target", ""))], "copy")
+                    return self._send(200, {"started": True})
                 if s.get("device", "wahoo") != "wahoo":
                     raise jobs.SettingsError("The automatic copy is for the Wahoo ELEMNT and the Karoo.")
                 JOB.start([jobs.copy_command(s)], "copy")
                 return self._send(200, {"started": True})
+            if path == "/api/device_eject":         # Garmin seen as a disk: unmount it before unplugging
+                vol = body.get("volume", "")
+                if not any(d["path"] == vol for d in garmin_device.disks()):
+                    raise jobs.SettingsError("This Garmin is not mounted any more.")
+                try:
+                    garmin_device.eject(vol)
+                except (garmin_device.DeviceError, OSError, subprocess.SubprocessError) as exc:
+                    raise jobs.SettingsError(f"Eject: {exc}")
+                return self._send(200, {"ejected": vol})
             if path == "/api/device_remove":        # Karoo: our maps, icons and theme rules off the device
                 s = settings.load()
                 if s.get("device") != "karoo":

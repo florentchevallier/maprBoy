@@ -180,6 +180,8 @@ table.exlist .tag{width:auto;padding:1px 8px;margin:1px 3px 2px 0;white-space:no
 .garmin-only{display:none}body.garmin .garmin-only{display:block}body.garmin #blkLook .pro-only,body.garmin #lookSimple{display:none}
 body.garmin #blkSqLook .pro-only,body.garmin #sqLookSimple{display:none}body.nonwahoo #contourBox,body.nonwahoo label.chk:has(> input[data-path="build.skip_classic"]){display:none}
 .karoo-only{display:none}body.karoo .karoo-only{display:block}
+label.gpick{display:flex;align-items:center;gap:8px}label.gpick>.rfile{flex:1;min-width:0}
+.maplist .ccity,.maplist .ccont{display:none}.maplist .rfile a{min-width:0;overflow:hidden;text-overflow:ellipsis}.maplist .newslot{display:none}   /* "Last run" says it */   /* Garmin / Karoo maps: name, date, size */
 body.nonwahoo #btnPlan,body.nonwahoo #btnPlan2{display:none}   /* the tile plan is for the Wahoo tiles only */
 .pole .blk > h3{cursor:pointer;user-select:none}.pole .blk > h3 > button.fold{margin:0 -4px 0 -6px}
 .pole .blk.folded > .blk-body{display:none}.pole .blk.folded > h3{margin-bottom:0}.pole .blk.folded .fsum{display:inline}
@@ -1677,14 +1679,32 @@ async function loadPois() {
 const fileUrl = rel => "/api/file?rel=" + encodeURIComponent(rel);
 const fileRow = (f, extra, newTile, plain, newTheme) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${plain ? '<span class="plaintile" title="No Wandrer data in this tile: plain map, no Wandrer or Squadrats lines">plain tile</span> ' : ""}${newTile ? `<span class="newtile">🌟 ${newTile === true ? "New tile!" : esc(newTile)}</span>` : ""}${newTheme ? '<span class="newtheme">🚨 NEW THEME: update the file on your device 🚨</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
 const NOTHING_YET = '<p class="note">Nothing built yet: make the maps in step 1, then come back here.</p>';
-const GARMIN_COPY = '<p>The Garmin maps are in the <b>garmin</b> folder of your output folder, named after the place and the day. Copy them into the ' +
-  '<b>Garmin</b> folder of the device (not into Garmin/CustomMaps, which is not read):</p><ul><li><b>maprboy-…-overlay.img</b>: Wandrer roads and ' +
-  'Squadrats, drawn over any map;</li><li><b>maprboy-…-base.img</b>: the OpenStreetMap base map with your POIs.</li></ul>' +
-  '<p class="note">Each map gets its own ids so that maps of several places can stay on the device, listed by place and day (not checked on a device yet). ' +
-  'Seen on an Edge 530; on a watch only the name gmapsupp.img was tried: if a map does not show, rename it gmapsupp.img (one map only then).</p>' +
-  '<p>Then, in the activity profile you ride with (Navigation › Map): <b>Map Theme</b> = Classic (with High Contrast the overlay is drawn in grey), and in ' +
-  '<b>Map Information</b> switch “maprBoy base …” on and the Garmin maps off (Garmin DEM can stay on).</p>' +
-  '<p class="note">The list of files and the automatic copy come later.</p>';
+const GARMIN_COPY = '<h3>On the device</h3><p class="note">The maps go into the <b>Garmin</b> folder of the device (not into Garmin/CustomMaps, which is not read): ' +
+  '<b>maprboy-…-overlay.img</b> holds the Wandrer roads and Squadrats, drawn over any map; <b>maprboy-…-base.img</b> is the OpenStreetMap base map with your POIs. ' +
+  'Each map has its own ids, so maps of several places and activities can stay on the device.</p>' +
+  '<p class="note">Then, in the activity profile you use (Navigation › Map): <b>Map Theme</b> = Classic (with High Contrast the overlay is drawn in grey), and in ' +
+  '<b>Map Information</b> switch the maprBoy maps you want on, and the Garmin maps off if you use a maprBoy base map (Garmin DEM can stay on).</p>';
+const garminPick = new Set();          // the maps ticked for the copy
+let garminPickRun = "";                // the last run they were ticked for (a new run ticks its own maps)
+async function renderGarminMaps(box) {
+  lastRes = null; drawOutTiles();
+  let r = null;
+  if (S.folders.out) try { r = await api("/api/results"); } catch (e) { r = null; }
+  if (!isGarmin()) return;
+  const runKey = r ? r.last.map(m => m.name + m.mtime).join("|") : "";
+  if (runKey !== garminPickRun) { garminPick.clear(); (r ? r.last : []).forEach(m => garminPick.add(m.name)); garminPickRun = runKey; }
+  const dateOf = t => new Date(t * 1000).toLocaleString("en-GB", {day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"});
+  const row = (m, isNew) => `<label class="gpick"><input type="checkbox" data-gmap="${esc(m.name)}"${garminPick.has(m.name) ? " checked" : ""}>${fileRow(m, [dateOf(m.mtime), "", ""], isNew ? "New map!" : false)}</label>`;
+  let h = "";
+  if (r && (r.last.length || r.other.length)) {
+    h += `<div class="rdir">Maps <span class="note">tick the ones to copy → device: Garmin/</span><span style="flex:1"></span><button class="small" data-opendir="${esc(r.dir)}">Open folder</button></div>`;
+    if (r.last.length) h += `<div class="rdir" style="font-weight:500">Last run</div><div class="rin maplist">${r.last.map(m => row(m, false)).join("")}</div>`;
+    if (r.other.length) h += `<div class="rdir" style="font-weight:500">Other maps <span class="note">made by earlier runs</span></div><div class="rin maplist">${r.other.map(m => row(m, false)).join("")}</div>`;
+  } else h += NOTHING_YET;
+  box.innerHTML = h + GARMIN_COPY;
+  $$("input[data-gmap]", box).forEach(c => c.onchange = () => { if (c.checked) garminPick.add(c.dataset.gmap); else garminPick.delete(c.dataset.gmap); renderGarminCopyBtn(); });
+  renderGarminCopyBtn();
+}
 const KAROO_COPY = '<h3>By hand</h3><p class="note">The Karoo maps are in the <b>karoo</b> folder of your output folder: one <b>maprboy-….map</b> per place and day, ' +
   '<b>maprboy-theme-block.xml</b> (our rules for the theme) and <b>maprboy-icons/</b>. The automatic copy above does it all; by hand (adb): push the .map files ' +
   'to /sdcard/offline/maps/ and the icons folder to /sdcard/, and paste the block just before &lt;/rendertheme&gt; at the end of the Karoo\'s theme ' +
@@ -1700,14 +1720,14 @@ async function renderKarooMaps(box) {
   let h = "";
   if (r && (r.last.length || r.other.length)) {
     h += `<div class="rdir">Maps <span class="note">→ device: /sdcard/offline/maps/ (the copy above sends them all)</span><span style="flex:1"></span><button class="small" data-opendir="${esc(r.dir)}">Open folder</button></div>`;
-    if (r.last.length) h += `<div class="rdir" style="font-weight:500">Last run</div><div class="rin">${r.last.map(m => row(m, "New map!")).join("")}</div>`;
-    if (r.other.length) h += `<div class="rdir" style="font-weight:500">Other maps <span class="note">made by earlier runs</span></div><div class="rin">${r.other.map(m => row(m, false)).join("")}</div>`;
+    if (r.last.length) h += `<div class="rdir" style="font-weight:500">Last run</div><div class="rin maplist">${r.last.map(m => row(m, false)).join("")}</div>`;
+    if (r.other.length) h += `<div class="rdir" style="font-weight:500">Other maps <span class="note">made by earlier runs</span></div><div class="rin maplist">${r.other.map(m => row(m, false)).join("")}</div>`;
   } else h += NOTHING_YET;
   box.innerHTML = h + KAROO_COPY;
 }
 async function renderResults() {
   const box = $("#results");
-  if (isGarmin()) { box.innerHTML = GARMIN_COPY; lastRes = null; drawOutTiles(); return; }
+  if (isGarmin()) { renderGarminMaps(box); return; }
   if (isKaroo()) { renderKarooMaps(box); return; }
   if (!S.folders.out) { box.innerHTML = NOTHING_YET; return; }
   let r;
@@ -1794,7 +1814,7 @@ $("#results").addEventListener("mouseout", e => { const row = e.target.closest &
 let copyLines = [];
 async function renderDevCopy() {
   const box = $("#devCopy");
-  if (isGarmin()) { box.hidden = true; return; }
+  if (isGarmin()) { renderGarminDevice(box); return; }
   const dev = isKaroo() ? "Karoo" : "ELEMNT";
   let d; try { d = await api("/api/device"); } catch (e) { box.hidden = true; return; }
   box.hidden = false;
@@ -1833,11 +1853,59 @@ async function renderDevCopy() {
     catch (e) { $("#devCopyMsg").textContent = e.message; rb.disabled = false; }
   };
 }
+// ---------- copy to a Garmin: as a disk (Edge) or by MTP (watches, with libmtp)
+let garminDevs = [], garminTarget = "";
+function renderGarminCopyBtn() {
+  const go = $("#devCopyGo"); if (!go || !isGarmin()) return;
+  const n = garminPick.size;
+  go.disabled = !n || !garminTarget || !!(ST && ST.job && ST.job.status === "running");
+  go.textContent = n ? `Copy ${n} map${n === 1 ? "" : "s"} to the Garmin` : "Tick the maps to copy";
+}
+async function renderGarminDevice(box) {
+  box.hidden = false;
+  box.innerHTML = '<h3>Copy automatically</h3><p class="note">Looking for a Garmin…</p>';
+  let d; try { d = await api("/api/garmin_device"); } catch (e) { box.hidden = true; return; }
+  if (!isGarmin()) return;
+  garminDevs = d.devices || [];
+  const key = x => x.kind === "disk" ? "disk:" + x.path : "mtp";
+  if (!garminDevs.some(x => key(x) === garminTarget)) garminTarget = garminDevs.length ? key(garminDevs[0]) : "";
+  const again = '<button class="small" id="devAgain">Check again</button>';
+  let h = "<h3>Copy automatically</h3>";
+  if (!garminDevs.length) {
+    h += `<p class="note">No Garmin found. Plug it in by USB and check again. An Edge shows as a disk (GARMIN in the Finder). A watch uses MTP: ${d.mtp ? "libmtp is installed" : "install libmtp first (<code>brew install libmtp</code>), then restart this page"}; quit Garmin Express and Android File Transfer, which keep the watch for themselves.</p><div class="acts">${again}</div>`;
+  } else {
+    const pick = garminDevs.length > 1 ? `<select id="garminDev">${garminDevs.map(x => `<option value="${esc(key(x))}"${key(x) === garminTarget ? " selected" : ""}>${esc(x.name)} (${x.kind === "disk" ? "disk" : "MTP"})</option>`).join("")}</select>`
+      : `<b>${esc(garminDevs[0].name)}</b> (${garminDevs[0].kind === "disk" ? "disk" : "MTP"})`;
+    h += `<p class="note">Found: ${pick}. The ticked maps are copied into its Garmin folder; a map already there with the same content is skipped${garminDevs.some(x => x.kind === "mtp") ? " (by MTP: the same size), and an older map of the same name is replaced" : ""}.</p>
+      <div class="acts"><button class="primary" id="devCopyGo">Copy</button><button class="stop" id="devCopyStop" hidden>■ Stop</button><button id="devEject" hidden>⏏ Eject</button>${again}</div>`;
+  }
+  h += '<div id="devCopyRun" hidden><progress id="devCopyBar" max="1" value="0"></progress><div class="note" id="devCopyTxt"></div></div><div class="note" id="devCopyMsg"></div>';
+  box.innerHTML = h;
+  $("#devAgain").onclick = renderDevCopy;
+  const sel = $("#garminDev"); if (sel) sel.onchange = () => { garminTarget = sel.value; showEject(); };
+  const showEject = () => { const ej = $("#devEject"); if (ej) ej.hidden = !garminTarget.startsWith("disk:"); };
+  showEject();
+  const go = $("#devCopyGo");
+  if (go) go.onclick = async () => {
+    go.disabled = true; $("#devCopyMsg").textContent = ""; copyLines = [];
+    try { await api("/api/device_copy", {maps: [...garminPick], target: garminTarget}); since = 0; startPolling(); }
+    catch (e) { $("#devCopyMsg").textContent = e.message; renderGarminCopyBtn(); }
+  };
+  const stop = $("#devCopyStop"); if (stop) stop.onclick = () => api("/api/cancel", {});
+  const ej = $("#devEject");
+  if (ej) ej.onclick = async () => {
+    ej.disabled = true;
+    try { await api("/api/device_eject", {volume: garminTarget.slice(5)}); $("#devCopyMsg").textContent = "Ejected: you can unplug the Garmin."; renderDevCopy(); }
+    catch (e) { $("#devCopyMsg").textContent = e.message; ej.disabled = false; }
+  };
+  renderGarminCopyBtn();
+}
 function copyProgress(j, shown) {
   const run = $("#devCopyRun"); if (!run) return;
   copyLines.push(...shown.map(l => l.trim()).filter(l => l && !l.startsWith("===")));
   const running = j.status === "running";
   run.hidden = !running; if ($("#devCopyStop")) $("#devCopyStop").hidden = !running; if ($("#devCopyGo")) $("#devCopyGo").disabled = running;
+  if (!running) renderGarminCopyBtn();
   if ($("#devRemove")) $("#devRemove").disabled = running;
   if ($("#devReboot")) { $("#devReboot").disabled = running; $("#devReboot").classList.toggle("primary", !running && j.status === "done" && copyLines.some(l => (/ file\(s\) copied/.test(l) && !/^0 file/.test(l)) || / our rules (added|taken out)/.test(l))); }
   $("#devCopyBar").value = $("#stepBar").value;

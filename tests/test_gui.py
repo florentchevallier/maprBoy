@@ -1476,7 +1476,10 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
         cmds = jobs.garmin_commands(self.s(squadrats={"enabled": True}), [self.EXP], "/x/sq.kml")
         titles = [t for t, _ in cmds]
         self.assertTrue(titles[0].startswith("Get the OpenStreetMap data (Oberbayern"))
-        fetch, overlay, base = (a for _, a in cmds)
+        fetch, overlay, base, mark = (a for _, a in cmds)
+        self.assertEqual(titles[-1], "Note the maps of this run")
+        self.assertEqual(mark[mark.index("mark") + 1:], ["--out", os.path.dirname(overlay[overlay.index("-o") + 1]),
+                         os.path.basename(overlay[overlay.index("-o") + 1]), os.path.basename(base[base.index("-o") + 1])])
         self.assertEqual(fetch[2:5], ["wahoondrer.gui.regions", "--fetch", "oberbayern"])
         self.assertIn("/x/a.kmz", overlay)
         self.assertIn("--squadrats", overlay)
@@ -1494,15 +1497,15 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
 
     def test_commands_without_base_map(self):
         cmds = jobs.garmin_commands(self.s(build={"garmin_base": False}), [self.EXP], None)
-        overlay = cmds[-1][1]
+        overlay = cmds[-2][1]
         self.assertIn("--pois", overlay)
         self.assertIn("--osm", overlay)
         self.assertFalse(any("base" in t for t, _ in cmds))
 
     def test_street_names_and_nothing_to_make(self):
         base = jobs.garmin_commands(self.s(build={"street_names": True}, wandrer={"enabled": False}), [self.EXP], None)
-        self.assertEqual(len(base), 2)                         # no overlay: only OSM data and the base map
-        self.assertIn("--street-names", base[-1][1])
+        self.assertEqual(len(base), 3)                         # no overlay: OSM data, the base map, the note
+        self.assertIn("--street-names", base[-2][1])
 
     def test_missing_tools_stop_the_run(self):
         with mock.patch.object(jobs, "garmin_missing", lambda s: ["Java is not installed"]):
@@ -1668,3 +1671,32 @@ class MapActivityTests(_AreaFixture, unittest.TestCase):
         no_wandrer = jobs.karoo_commands(self.s(wandrer={"enabled": False}), [foot], None)[-1][1]
         self.assertEqual(no_wandrer[no_wandrer.index("--name") + 1], f"Teststadt-{day}")
         self.assertEqual(jobs.map_activity([{"activity": "combined"}, {"activity": ""}]), "combined")
+
+
+class GarminCopyTests(unittest.TestCase):
+    def test_results_and_copy_command(self):
+        out = tempfile.mkdtemp()
+        try:
+            g = os.path.join(out, "garmin")
+            os.makedirs(g)
+            for i, n in enumerate(("maprboy-A-2026-10-28-base.img", "maprboy-M-foot-2026-11-03-overlay.img",
+                                   "maprboy-M-2026-11-03-base.img")):
+                _write(os.path.join(g, n), "x")
+                os.utime(os.path.join(g, n), (1000 + i, 1000 + i))
+            _write(os.path.join(g, "last_run.json"), json.dumps({"maps": ["maprboy-M-foot-2026-11-03-overlay.img",
+                                                                         "maprboy-M-2026-11-03-base.img"]}))
+            r = server.garmin_results(out)
+            self.assertEqual([m["name"] for m in r["last"]],
+                             ["maprboy-M-2026-11-03-base.img", "maprboy-M-foot-2026-11-03-overlay.img"])
+            self.assertEqual([m["name"] for m in r["other"]], ["maprboy-A-2026-10-28-base.img"])
+            self.assertTrue(server.result_file(out, "garmin/maprboy-A-2026-10-28-base.img"))
+            s = settings.load(os.devnull)
+            s["folders"]["out"] = out
+            title, argv = jobs.garmin_copy_command(s, ["maprboy-A-2026-10-28-base.img"], "disk:/Volumes/GARMIN")
+            self.assertEqual(argv[1:6], ["-m", "wahoondrer.garmin.device", "copy", "--target", "disk:/Volumes/GARMIN"])
+            self.assertEqual(argv[-1], os.path.join(g, "maprboy-A-2026-10-28-base.img"))
+            for bad in ((["../x.img"], "mtp"), (["a.txt"], "mtp"), ([], "mtp"), (["a.img"], "somewhere")):
+                with self.assertRaises(jobs.SettingsError):
+                    jobs.garmin_copy_command(s, *bad)
+        finally:
+            shutil.rmtree(out, ignore_errors=True)

@@ -8,8 +8,8 @@ the maps are in [PIPELINE.md](PIPELINE.md) (Wahoo) and [GARMIN.md](GARMIN.md) (G
 |---|---|---|---|
 | Wahoo ELEMNT BOLT v2 | in daily use | `maps/tiles/8/<x>/<y>.map.lzma` + `.map.lzma.17` | `maps/vtm-elemnt/` |
 | Wahoo ELEMNT ROAM v1 | tested once (borrowed device) | `maps/tiles/8/<x>/<y>.map.gz` | `maps/vtm-elemnt/` + switch file |
-| Garmin Forerunner 955 | tested (overlay) | `Garmin/gmapsupp.img` | TYP inside the `.img` |
-| Garmin Edge 830 | tested (overlay) | `Garmin/gmapsupp.img` | TYP inside the `.img` |
+| Garmin Forerunner 955 | tested (overlay, base map) | `GARMIN/*.img` | TYP inside the `.img` |
+| Garmin Edge 830 | tested (overlay) | `Garmin/*.img` | TYP inside the `.img` |
 | Garmin Edge 530 | tested (overlay) | `Garmin/gmapsupp.img` | TYP inside the `.img` |
 
 ---
@@ -81,8 +81,9 @@ Tested in October 2026 on a borrowed device, firmware **WR24-17071**.
 
 Details and the build recipe are in [GARMIN.md](GARMIN.md).
 
-- One file, `Garmin/gmapsupp.img`, built with mkgmap. maprBoy's map is a **transparent overlay**: the Garmin map
-  stays visible under it. Only one `gmapsupp.img` at a time.
+- `.img` files built with mkgmap, in the `Garmin` folder. maprBoy's map is a **transparent overlay**: the Garmin map
+  stays visible under it. Other names than `gmapsupp.img` work on the Forerunner 955 and the Edge 830 (one entry
+  per file in the map list).
 - In the map settings, enable the overlay next to the Garmin map.
 - The file goes in the `Garmin` folder itself: copied into `Garmin/CustomMaps`, it is not read (Edge 530 and 830).
 - The map theme is set per activity profile (Navigation > Map > Map Theme): use **Classic**.

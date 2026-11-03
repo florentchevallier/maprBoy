@@ -175,8 +175,9 @@ def _stops(a, b, step):
 
 def _merged_lines(horiz, vert, z):
     """Polylines of the edges, collinear neighbours merged into one straight way, with a node at every
-    big-square (z14) corner: a line then has nodes in every map tile or cut it crosses (a 2-node line
-    crossing a Garmin tile of the area grid, or the edge of a Karoo area, with no node inside was dropped)."""
+    big-square (z14) corner: a line cut to an area or to tiles keeps nodes in each part. osmium extract drops
+    a way from a part that holds none of its nodes; on an Edge 830 (October 2026) this did not show, a 2-node
+    line was drawn whole from the tile holding its end."""
     lines = []
     step = 2 ** (z - LEVELS["big"][1]) if z >= LEVELS["big"][1] else 1
 

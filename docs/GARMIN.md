@@ -10,9 +10,9 @@ With the Garmin pill on, "Make the maps" writes `Output/garmin/maprboy-<place>-<
 base map, or into the overlay without it. The place is the town most ticked exports are near, else the chosen
 regions, else the town at the centre of the area (online lookup, if allowed). Each build gets its own family id
 and map numbers (`wahoondrer/garmin/ids.py`) and shows as "maprBoy base <place> <date>" in the device's map list,
-so that maps of several places can stay on one device: not checked on a device yet. A file name other than
-gmapsupp.img and a family id other than 1299 were seen working on the Edge 530; on the Forerunner 955 only
-gmapsupp.img was tried. The command lines keep the tested defaults unless `--name`, `--family-id` and `--mapname`
+so that maps of several places can stay on one device. A file name other than gmapsupp.img and a family id other
+than 1299 were seen working on the Edge 530, the Edge 830 and the Forerunner 955 (see the display notes). The
+command lines keep the tested defaults unless `--name`, `--family-id` and `--mapname`
 are given. It needs the path of mkgmap.jar (settings ⚙), Java, osmium and
 cairosvg: the page says what is missing. The area follows the tile choice of the page: the chosen z8 tiles, the
 area of the ticked exports (plus the margin of "exports + km"), or the chosen regions; it is given to the scripts
@@ -62,7 +62,9 @@ Everything below was needed, each point cost an experiment:
 
 ## Display notes (Forerunner 955)
 - Use the "Classic" map theme; the "high contrast" theme does not show these overlays.
-- Map > Information: enable the overlay next to the Garmin map; one `gmapsupp.img` at a time.
+- Map > Information: enable the overlay next to the Garmin map. Other file names work: a Forerunner 955 showed
+  `maprboy-Munich-2026-10-28-base.img` and `-overlay.img` together from `GARMIN/`, and an Edge 830 listed two test
+  overlays (`maprboy-test-*.img`) in `Garmin/` as separate entries (October 2026).
 - Orange (the Wahoo default) is hard to tell from the Garmin base map's own orange roads, and red from the track
   the watch draws during an activity. Cyan with a white edge stands out best for the unvisited roads (first magenta;
   cyan was preferred after a test on the watch, October 2026), magenta is used for the visited ones. Widths are whole pixels.

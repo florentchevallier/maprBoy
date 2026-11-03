@@ -1,5 +1,6 @@
 import glob
 import os
+import shutil
 import re
 import tempfile
 import unittest
@@ -1410,7 +1411,8 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class GarminCommandTests(unittest.TestCase):
+class _AreaFixture:
+    """Regions, a ticked export and the settings of a Garmin / Karoo build."""
     GEO = {"type": "FeatureCollection", "features": [
         {"type": "Feature", "properties": {"id": "bayern", "name": "Bayern", "urls": {"pbf": "u"}},
          "geometry": {"type": "Polygon", "coordinates": [[[9, 47], [14, 47], [14, 50.5], [9, 50.5], [9, 47]]]}},
@@ -1452,6 +1454,8 @@ class GarminCommandTests(unittest.TestCase):
             s[k].update(v)
         return s
 
+
+class GarminCommandTests(_AreaFixture, unittest.TestCase):
     def test_smallest_regions_only(self):
         # not Bayern (its sub-region is enough) nor the "Germany, Austria, Switzerland" block that covers it all
         self.assertEqual(regions.regions_for_bbox((11.5, 48.1, 11.6, 48.15)), ["oberbayern"])
@@ -1537,3 +1541,80 @@ class GarminCommandTests(unittest.TestCase):
         os.utime(p, (old, old))
         self.assertEqual(regions.to_fetch(["oberbayern"], 14), ["oberbayern"])
         self.assertEqual(regions.to_fetch(["oberbayern"], 0), [])
+
+
+class KarooCommandTests(_AreaFixture, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.k = mock.patch.object(jobs, "karoo_missing", lambda s: [])
+        self.k.start()
+        self.o = mock.patch.object(jobs, "_osmosis", lambda s: "/usr/bin/osmosis")
+        self.o.start()
+
+    def tearDown(self):
+        self.k.stop()
+        self.o.stop()
+        super().tearDown()
+
+    def s(self, **over):
+        s = super().s(**over)
+        s["device"] = "karoo"
+        return s
+
+    def test_lines_pois_and_map(self):
+        cmds = jobs.karoo_commands(self.s(squadrats={"enabled": True}), [self.EXP], "/x/sq.kml")
+        titles = [t for t, _ in cmds]
+        self.assertEqual(titles[0], "Prepare the lines (Wandrer + Squadrats)")
+        self.assertTrue(titles[1].startswith("Get the OpenStreetMap data (Oberbayern"))
+        lines, _, build = (a for _, a in cmds)
+        self.assertIn("/x/a.kmz", lines)
+        self.assertEqual(lines[lines.index("--tiles") + 1], "136/88")
+        self.assertNotIn("--with-traveled", lines)
+        self.assertEqual(build[build.index("--lines") + 1], lines[lines.index("-o") + 1])
+        self.assertEqual(build[build.index("--bbox") + 1], "11.5,48.1,11.6,48.15")
+        self.assertEqual(build[build.index("--name") + 1], f"Teststadt-{time.strftime('%Y-%m-%d')}")
+        self.assertTrue(build[build.index("-o") + 1].endswith(os.path.join("wd-out-test", "karoo")))
+        self.assertIn(os.path.join(self.tmp, "oberbayern-latest.osm.pbf"), build)
+        self.assertIn("--pois", build)
+        self.assertNotIn("--with-visited", build)
+        self.assertEqual(json.loads(build[build.index("--look") + 1])["light"]["unvisited"]["color"], "#FF8800")
+
+    def test_visited_and_squadrats_only(self):
+        cmds = jobs.karoo_commands(self.s(wandrer={"enabled": False}, squadrats={"enabled": True}), [self.EXP],
+                                   "/x/sq.kml")
+        lines, build = cmds[0][1], cmds[-1][1]
+        self.assertNotIn("/x/a.kmz", lines)
+        self.assertIn("--squadrats", lines)
+        cmds = jobs.karoo_commands(self.s(wandrer={"with_traveled": True}), [self.EXP], None)
+        self.assertIn("--with-traveled", cmds[0][1])
+        self.assertIn("--with-visited", cmds[-1][1])
+
+    def test_missing_tools_and_copy(self):
+        self.k.stop()
+        with mock.patch.object(jobs, "karoo_missing", lambda s: ["Osmosis is not found"]):
+            with self.assertRaises(jobs.SettingsError):
+                jobs.karoo_commands(self.s(), [self.EXP], None)
+        self.k.start()
+        title, argv = jobs.karoo_copy_command(self.s(), "remove")
+        self.assertEqual(argv[1:4], ["-m", "wahoondrer.karoo.device", "remove"])
+
+    def test_osmosis_and_plugin_found(self):
+        self.o.stop()
+        self.k.stop()
+        d = tempfile.mkdtemp()
+        try:
+            osm = os.path.join(d, "bin", "osmosis")
+            for f in (osm, os.path.join(d, "lib", "default", "mapsforge-map-writer-0.21.0-jar-with-dependencies.jar")):
+                os.makedirs(os.path.dirname(f), exist_ok=True)
+                _write(f, "")
+            s = self.s()
+            s["tools"]["osmosis"] = osm
+            self.assertEqual(jobs._osmosis(s), osm)
+            with mock.patch.dict(os.environ, {"HOME": d}):
+                self.assertTrue(jobs._map_writer(osm).endswith(".jar"))
+            s["tools"]["osmosis"] = os.path.join(d, "nothing")
+            self.assertTrue(any("not found" in m for m in jobs.karoo_missing(s)))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+            self.o.start()
+            self.k.start()

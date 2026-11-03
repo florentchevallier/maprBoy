@@ -1,8 +1,8 @@
 """User settings, stored in ~/.wahoondrer/settings.json (never in the repository).
 
-One set of settings per device (Wahoo, Garmin) plus settings shared by both. The file holds
+One set of settings per device (Wahoo, Garmin, Karoo) plus settings shared by both. The file holds
     {"version": 2, "device": "wahoo", <shared keys>, "squadrats_file": "...",
-     "devices": {"wahoo": {<device keys>}, "garmin": {<device keys>}}}
+     "devices": {"wahoo": {<device keys>}, "garmin": {...}, "karoo": {...}}}
 load() returns a flat view: the shared keys plus the keys of the current device (so the rest of the
 code reads s["tiles"], s["wandrer"]... as before); save() writes the device keys back to that device only.
 A file of the first version (no "devices") becomes the Wahoo settings."""
@@ -14,11 +14,11 @@ from .. import theme_style
 
 SETTINGS_PATH = os.path.join(os.path.expanduser("~"), ".wahoondrer", "settings.json")
 
-DEVICES = ("wahoo", "garmin")
+DEVICES = ("wahoo", "garmin", "karoo")
 ACTIVITIES = ("bike", "foot", "combined")
 
 DEFAULTS = {
-    "device": "wahoo",               # the device the page works for: "wahoo" | "garmin"
+    "device": "wahoo",               # the device the page works for: "wahoo" | "garmin" | "karoo"
     "mode": "simple",                # "simple" | "pro"
     "folders": {
         "data": "",                  # parent of the standard folders created by the page
@@ -63,7 +63,8 @@ DEFAULTS = {
            "folded": {}},            # folded / open choices that differ from the default: {"sec:osm": false, "reg:Germany": true}
     "pois": {"overrides": {}, "custom": []},   # the user's POI choices, apart from the defaults in config/poi-rules.json
     "tools": {"mkgmap": "",          # path of mkgmap.jar (Garmin maps)
-              "adb": ""},            # path of adb (automatic copy to a Wahoo); "" = found by itself
+              "adb": "",             # path of adb (automatic copy to a Wahoo or a Karoo); "" = found by itself
+              "osmosis": ""},        # path of osmosis (Karoo maps); "" = found in the PATH
     "tile_format": "lzma",           # Wahoo tiles: "lzma" (most ELEMNTs) | "gz" (Output/wahoondrer_maps_gz/, e.g. an old Roam v1)
     "osm_max_days": 14,              # WMC renews the OSM regions older than this (days); 0 = never (shared by the devices)
 }

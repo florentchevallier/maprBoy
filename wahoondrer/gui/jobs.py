@@ -499,6 +499,132 @@ def garmin_commands(s, export_infos, squadrats_file):
     return cmds
 
 
+KAROO_DIR = "karoo"              # Output/karoo/: maprboy-<place>-<date>.map, maprboy-theme-block.xml, maprboy-icons/
+
+
+def _osmosis(s):
+    import shutil
+    path = os.path.expanduser((s.get("tools") or {}).get("osmosis") or "")
+    return (path if os.path.isfile(path) else None) if path else shutil.which("osmosis")
+
+
+def _map_writer(osmosis):
+    """The mapsforge MapWriter plugin of Osmosis: in ~/.openstreetmap/osmosis/plugins/ (where WMC puts it) or in
+    the lib folder of the Osmosis installation."""
+    import glob
+    places = [os.path.join(os.path.expanduser("~"), ".openstreetmap", "osmosis", "plugins")]
+    if osmosis:
+        root = os.path.dirname(os.path.dirname(os.path.realpath(osmosis)))
+        places += [os.path.join(root, "lib", "default"), os.path.join(root, "lib")]
+    return next((f for p in places for f in glob.glob(os.path.join(p, "*map-writer*.jar"))), None)
+
+
+def karoo_missing(s):
+    """What the Karoo build needs and does not find: [message, ...]."""
+    import shutil
+    out = []
+    osmosis = _osmosis(s)
+    given = (s.get("tools") or {}).get("osmosis") or ""
+    if not osmosis:
+        out.append(f"Osmosis: {given} not found" if given else
+                   "Osmosis is not found: start the page from the maprBoy environment, or give its path (⚙)")
+    elif not _map_writer(osmosis):
+        out.append("the mapsforge MapWriter plugin of Osmosis is not found (~/.openstreetmap/osmosis/plugins/)")
+    if not shutil.which("osmium"):
+        out.append("osmium is not found: start the page from the maprBoy environment")
+    return out
+
+
+def karoo_commands(s, export_infos, squadrats_file):
+    """[(title, argv), ...] for the Karoo map of Output/karoo/: the Wandrer / Squadrats lines (kmz_to_osm.py), the
+    OSM data for the POIs, then the map file, our theme rules and the icons (build_karoo.py)."""
+    from ..tiles import tiles_for_bbox
+    from . import regions, scan
+    import unicodedata
+    py = sys.executable
+    out = os.path.expanduser(s["folders"]["out"] or "")
+    if not out:
+        raise SettingsError("Choose an output folder.")
+    if _inside(out, REPO):
+        raise SettingsError("The output folder must be outside the repository.")
+    missing = karoo_missing(s)
+    if missing:
+        raise SettingsError("Karoo maps: " + "; ".join(missing) + ".")
+    work = os.path.expanduser(s["folders"]["work"] or "") or os.path.join(out, "work")
+    w, q = s["wandrer"], s["squadrats"]
+    exports = [i["path"] for i in export_infos]
+    use_wandrer = bool(w["enabled"] and exports)
+    use_squadrats = bool(q["enabled"] and squadrats_file)
+    pois = poi_args(s)
+    use_pois = bool([p for p in poi_config.effective_pois(poi_config.read_rules(), s.get("pois") or {})
+                     if p.get("enabled", True)])
+    if not (use_wandrer or use_squadrats or use_pois):
+        raise SettingsError("Nothing to make: turn on Wandrer, Squadrats or POIs.")
+    bbox = garmin_bbox(s, export_infos)
+    box = ",".join(str(v) for v in bbox)
+    place = garmin_place(s, export_infos, bbox)
+    place = " ".join(unicodedata.normalize("NFKD", place).encode("ascii", "ignore").decode().split())
+    tag = "-".join(p for p in (scan.slug(place), time.strftime("%Y-%m-%d")) if p)
+    cmds = []
+    if q["enabled"] and not squadrats_file:
+        cmds.append(("No Squadrats file: the layer is left out",
+                     [py, "-c", "print('! Squadrats: no KML file found in the Squadrats folder, so this layer is left out.')"]))
+    build = [py, os.path.join(REPO, "scripts", "build_karoo.py"), "-o", os.path.join(out, KAROO_DIR),
+             "--bbox", box, "--name", tag, "--osmosis", _osmosis(s)]
+    if use_wandrer or use_squadrats:
+        lines = os.path.join(work, "karoo-lines.osm")
+        a = [py, os.path.join(REPO, "scripts", "kmz_to_osm.py"), "-o", lines,
+             "--tiles", ",".join(f"{x}/{y}" for x, y in tiles_for_bbox(*bbox))]
+        if use_wandrer:
+            a += [*exports, "--radius-m", str(w["radius_m"]), "--simplify-m", str(w["simplify_m"])]
+            a += [f for f, on in (("--unpaved-always", w["unpaved_always"]), ("--paved-always", w["paved_always"]),
+                                  ("--no-merge", not w.get("merge", True)), ("--no-boundaries", not w["boundaries"]),
+                                  ("--with-traveled", w["with_traveled"])) if on]
+        if use_squadrats:
+            levels = [l for l in q["levels"] if l in ("big", "small")]
+            if not levels:
+                raise SettingsError("Squadrats: choose at least one level.")
+            a += ["--squadrats", squadrats_file, "--squadrats-levels", ",".join(levels),
+                  "--squadrats-buffer", str(int(q["buffer"])),
+                  "--squadrats-big-scope", q.get("big_scope", "all"), "--squadrats-small-scope", q["small_scope"]]
+        what = " + ".join(n for n, on in (("Wandrer", use_wandrer), ("Squadrats", use_squadrats)) if on)
+        cmds.append((f"Prepare the lines ({what})", a))
+        build += ["--lines", lines]
+        if use_wandrer and w["with_traveled"]:
+            build.append("--with-visited")
+    if use_pois:
+        try:
+            regions.ensure_catalog()
+        except OSError as exc:
+            raise SettingsError(f"Geofabrik's region list could not be downloaded: {exc}")
+        keys = regions.regions_for_bbox(bbox)
+        if not keys:
+            raise SettingsError("No OpenStreetMap region covers this area.")
+        cmds.append(("Get the OpenStreetMap data (" + ", ".join(regions.pretty_name(k) for k in keys) + ")",
+                     [py, "-m", "wahoondrer.gui.regions", "--fetch", *keys,
+                      "--max-days", str(settings_mod.osm_max_days(s))]))
+        build += ["--pois", *[x for k in keys for x in ("--osm", regions.region_path(k))], *pois]
+    try:
+        look, sq_look = theme_style.clean(w.get("look")), theme_style.sq_clean(q.get("look"))
+    except ValueError as exc:
+        raise SettingsError(f"Look: {exc}")
+    build += ["--look", json.dumps(look), "--sq-look", json.dumps(sq_look)]
+    cmds.append((f"Make the Karoo map (maprboy-{tag}.map)", build))
+    return cmds
+
+
+def karoo_copy_command(s, action="copy"):
+    """The step that copies the Karoo maps to the Karoo plugged in, or takes them off (wahoondrer/karoo/device.py)."""
+    if not s["folders"]["out"]:
+        raise SettingsError("Choose the output folder first (⚙).")
+    out = os.path.abspath(os.path.expanduser(s["folders"]["out"]))
+    argv = [sys.executable, "-m", "wahoondrer.karoo.device", action, "--out", out]
+    adb = (s.get("tools") or {}).get("adb") or ""
+    if adb:
+        argv += ["--adb", adb]
+    return ("Copy the maps to the Karoo" if action == "copy" else "Take the maprBoy maps off the Karoo", argv)
+
+
 def copy_command(s):
     """The step that copies the maps of the last run to the ELEMNT plugged in (adb, wahoondrer/devcopy.py)."""
     if not s["folders"]["out"]:

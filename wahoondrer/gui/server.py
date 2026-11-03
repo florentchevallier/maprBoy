@@ -71,7 +71,8 @@ def state(s):
             "pending": sum(1 for i in infos if i.get("pending")),
             "squadrats": sq, "squadrats_used": chosen["name"] if chosen else "",
             "scan": SCANNER.status(), "job": JOB.snapshot(0), "env": jobs.check_environment(),
-            "garmin_missing": jobs.garmin_missing(s) if s.get("device") == "garmin" else []}
+            "garmin_missing": jobs.garmin_missing(s) if s.get("device") == "garmin" else [],
+            "karoo_missing": jobs.karoo_missing(s) if s.get("device") == "karoo" else []}
 
 
 def poi_catalog():
@@ -377,9 +378,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, {"result": res, "info": regions.data_dir_info(base)})
             if path == "/api/device_copy":
                 s = settings.load()
+                if s.get("device", "wahoo") == "karoo":
+                    JOB.start([jobs.karoo_copy_command(s, "copy")], "copy")
+                    return self._send(200, {"started": True})
                 if s.get("device", "wahoo") != "wahoo":
-                    raise jobs.SettingsError("The automatic copy is for the Wahoo ELEMNT only.")
+                    raise jobs.SettingsError("The automatic copy is for the Wahoo ELEMNT and the Karoo.")
                 JOB.start([jobs.copy_command(s)], "copy")
+                return self._send(200, {"started": True})
+            if path == "/api/device_remove":        # Karoo: our maps, icons and theme rules off the device
+                s = settings.load()
+                if s.get("device") != "karoo":
+                    raise jobs.SettingsError("Taking the maps off is for the Karoo only.")
+                if JOB.running():
+                    raise jobs.SettingsError("A job is running: wait for it to finish.")
+                JOB.start([jobs.karoo_copy_command(s, "remove")], "copy")
                 return self._send(200, {"started": True})
             if path == "/api/device_reboot":        # the new maps show after a restart of the ELEMNT
                 if JOB.running() and JOB.kind == "copy":
@@ -417,6 +429,10 @@ class Handler(BaseHTTPRequestHandler):
             if plan:
                 raise jobs.SettingsError("\"Check first\" is for the Wahoo maps only.")
             cmds = jobs.garmin_commands(s, [i for i in infos if i["active"]], sq["path"] if sq else None)
+        elif s.get("device") == "karoo":
+            if plan:
+                raise jobs.SettingsError("\"Check first\" is for the Wahoo maps only.")
+            cmds = jobs.karoo_commands(s, [i for i in infos if i["active"]], sq["path"] if sq else None)
         else:
             cmds = jobs.build_commands(s, chosen, sq["path"] if sq else None, plan=plan)
         if s["folders"]["work"]:

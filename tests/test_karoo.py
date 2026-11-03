@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 import xml.dom.minidom
+from unittest import mock
 
 from wahoondrer.karoo import mapfile, theme
 
@@ -133,3 +134,94 @@ class MapTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FakeKaroo:
+    """An adb device as a dict {remote path: text}: what device.py needs (ls, ls -l, md5sum, mkdir, mv, rm, pull, push)."""
+    def __init__(self, files):
+        self.files = dict(files)
+
+    def run(self, *args, check=True, timeout=600):
+        if args[0] == "pull":
+            with open(args[2], "w", encoding="utf-8") as f:
+                f.write(self.files[args[1]])
+        elif args[0] == "push":
+            with open(args[1], encoding="utf-8", errors="replace") as f:
+                self.files[args[2]] = f.read()
+        return ""
+
+    def shell(self, cmd, check=True):
+        import shlex
+        parts = shlex.split(cmd.split(" 2>")[0])
+        if parts[0] == "ls" and parts[1] == "-l":
+            d = parts[2] + "/"
+            return "\n".join(f"-rw-rw---- 1 root sdcard_rw {len(v)} 2026-11-03 20:00 {k[len(d):]}"
+                             for k, v in self.files.items() if k.startswith(d) and "/" not in k[len(d):])
+        if parts[0] == "ls":
+            d = parts[1] + "/"
+            return "\n".join(k[len(d):] for k in self.files if k.startswith(d) and "/" not in k[len(d):])
+        if parts[0] == "mv":
+            self.files[parts[3]] = self.files.pop(parts[2])
+        elif parts[0] == "rm":
+            target = parts[-1]
+            for k in [k for k in self.files if k == target or k.startswith(target + "/")]:
+                del self.files[k]
+        return ""
+
+    def sizes(self, remote_dir):
+        from wahoondrer.devcopy import parse_ls
+        return parse_ls(self.shell(f"ls -l {remote_dir}"))
+
+
+class DeviceTest(unittest.TestCase):
+    def setUp(self):
+        from wahoondrer.karoo import device
+        self.device = device
+        self.out = tempfile.mkdtemp()
+        k = os.path.join(self.out, "karoo")
+        os.makedirs(os.path.join(k, "maprboy-icons"))
+        for name, text in (("maprboy-Munich-2026-11-03.map", "MAP1"), ("maprboy-Athens-2026-10-28.map", "MAP2"),
+                           ("maprboy-theme-block.xml", theme.block()), ("maprboy-icons/cafe.svg", "<svg/>"),
+                           ("notes.txt", "not a map")):
+            with open(os.path.join(k, name), "w") as f:
+                f.write(text)
+        self.karoo = FakeKaroo({"/sdcard/offline_v14.xml": "old", "/sdcard/offline_v15.xml": DEVICE_THEME,
+                                "/sdcard/offline/maps/bayern.map": "HAMMERHEAD"})
+        self.p = mock.patch.object(device, "_device", lambda adb: (self.karoo, "KAROO2"))
+        self.p.start()
+
+    def tearDown(self):
+        self.p.stop()
+        shutil.rmtree(self.out, ignore_errors=True)
+
+    def test_latest_theme(self):
+        self.assertEqual(self.device.latest_theme(["offline_v9.xml", "offline_v15.xml", "offline_v7.xml", "x.xml"]),
+                         "offline_v15.xml")
+        self.assertIsNone(self.device.latest_theme(["Music"]))
+
+    def test_copy_then_remove(self):
+        log = lambda *a: None
+        self.device.copy(self.out, log=log)
+        f = self.karoo.files
+        self.assertEqual(f["/sdcard/offline/maps/maprboy-Munich-2026-11-03.map"], "MAP1")
+        self.assertIn("/sdcard/offline/maps/maprboy-Athens-2026-10-28.map", f)          # several places
+        self.assertNotIn("/sdcard/offline/maps/notes.txt", f)
+        self.assertEqual(f["/sdcard/maprboy-icons/cafe.svg"], "<svg/>")
+        self.assertIn(theme.BEGIN, f["/sdcard/offline_v15.xml"])
+        self.assertEqual(f["/sdcard/offline_v14.xml"], "old")                            # only the theme in use
+        kept = os.path.join(self.out, "karoo", "backup", "KAROO2", "offline_v15.xml")
+        with open(kept) as k:
+            self.assertEqual(k.read(), DEVICE_THEME)                                     # the Karoo's own theme
+        self.device.copy(self.out, log=log)                                              # again: one block only
+        self.assertEqual(f["/sdcard/offline_v15.xml"].count(theme.BEGIN), 1)
+        with open(kept) as k:
+            self.assertEqual(k.read(), DEVICE_THEME)
+        self.device.remove(self.out, log=log)
+        self.assertEqual(f["/sdcard/offline_v15.xml"], DEVICE_THEME)
+        self.assertEqual(sorted(f), ["/sdcard/offline/maps/bayern.map", "/sdcard/offline_v14.xml",
+                                     "/sdcard/offline_v15.xml"])
+
+    def test_nothing_made(self):
+        shutil.rmtree(os.path.join(self.out, "karoo"))
+        with self.assertRaises(self.device.KarooError):
+            self.device.copy(self.out, log=lambda *a: None)

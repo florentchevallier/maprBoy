@@ -5,11 +5,14 @@ Status: the command lines `scripts/build_garmin.py` (Wandrer/Squadrats/POI overl
 Tested on a Forerunner 955, Edge 830 and 530.
 
 ## From the page
-With the Garmin pill on, "Make the maps" writes `Output/garmin/maprboy-<place>-<date>-overlay.img` and, unless
-"Make an OpenStreetMap base map" is unticked in the Basemap & POIs section, `...-base.img`; the POIs go into the
-base map, or into the overlay without it. The place is the town most ticked exports are near, else the chosen
-regions, else the town at the centre of the area (online lookup, if allowed). Each build gets its own family id
-and map numbers (`wahoondrer/garmin/ids.py`) and shows as "maprBoy base <place> <date>" in the device's map list,
+With the Garmin pill on, "Make the maps" writes `Output/garmin/maprboy-<place>-<activity>-<date>-overlay.img` and,
+unless "Make an OpenStreetMap base map" is unticked in the Basemap & POIs section, `maprboy-<place>-<date>-base.img`;
+the POIs go into the base map, or into the overlay without it. The place is the town most ticked exports are near,
+else the chosen regions, else the town at the centre of the area (online lookup, if allowed). The activity (bike,
+foot, combined) is the one of the Wandrer exports used ("all" when they mix several); it is left out without Wandrer roads, and the base map,
+which does not depend on it, has none. Each build gets its own family id and map numbers
+(`wahoondrer/garmin/ids.py`) and shows as "maprBoy Wandrer <place> <activity> <date>" and "maprBoy base <place>
+<date>" in the device's map list,
 so that maps of several places can stay on one device. A file name other than gmapsupp.img and a family id other
 than 1299 were seen working on the Edge 530, the Edge 830 and the Forerunner 955 (see the display notes). The
 command lines keep the tested defaults unless `--name`, `--family-id` and `--mapname`

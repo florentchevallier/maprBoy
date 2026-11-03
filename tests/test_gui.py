@@ -1642,3 +1642,29 @@ class KarooResultsTests(unittest.TestCase):
             self.assertEqual(server.karoo_results(os.path.join(out, "none"))["other"], [])
         finally:
             shutil.rmtree(out, ignore_errors=True)
+
+
+class MapActivityTests(_AreaFixture, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.k = mock.patch.object(jobs, "karoo_missing", lambda s: [])
+        self.o = mock.patch.object(jobs, "_osmosis", lambda s: "/usr/bin/osmosis")
+        self.k.start(); self.o.start()
+
+    def tearDown(self):
+        self.k.stop(); self.o.stop()
+        super().tearDown()
+
+    def test_activity_after_the_place(self):
+        day = time.strftime("%Y-%m-%d")
+        foot = dict(self.EXP, activity="foot")
+        overlay, base = (a for t, a in jobs.garmin_commands(self.s(), [foot], None) if t.startswith("Make the Garmin"))
+        self.assertEqual(os.path.basename(overlay[overlay.index("-o") + 1]), f"maprboy-Teststadt-foot-{day}-overlay.img")
+        self.assertEqual(overlay[overlay.index("--name") + 1], f"maprBoy Wandrer Teststadt foot {day}")
+        self.assertEqual(os.path.basename(base[base.index("-o") + 1]), f"maprboy-Teststadt-{day}-base.img")   # no activity
+        s = self.s(); s["device"] = "karoo"
+        build = jobs.karoo_commands(s, [foot, dict(self.EXP, activity="bike")], None)[-1][1]
+        self.assertEqual(build[build.index("--name") + 1], f"Teststadt-all-{day}")          # mixed: "all"
+        no_wandrer = jobs.karoo_commands(self.s(wandrer={"enabled": False}), [foot], None)[-1][1]
+        self.assertEqual(no_wandrer[no_wandrer.index("--name") + 1], f"Teststadt-{day}")
+        self.assertEqual(jobs.map_activity([{"activity": "combined"}, {"activity": ""}]), "combined")

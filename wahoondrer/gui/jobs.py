@@ -399,8 +399,16 @@ def garmin_place(s, export_infos, bbox):
     return " ".join(regions.catalog().get(k, {}).get("name", k) for k in (keys or [])[:2])
 
 
-def garmin_names(s, export_infos, bbox, now=None):
-    """{"overlay"|"base": (file name, name shown on the device, family id, first map number)}."""
+def map_activity(export_infos):
+    """bike / foot / combined of the exports used (from their inner file name), "all" when they differ (the "all
+    types" choice), "" when unknown: put after the place in the names of the maps that hold Wandrer roads."""
+    acts = {i.get("activity") for i in export_infos if i.get("activity") in settings_mod.ACTIVITIES}
+    return "all" if len(acts) > 1 else "".join(acts)
+
+
+def garmin_names(s, export_infos, bbox, now=None, activity=""):
+    """{"overlay"|"base": (file name, name shown on the device, family id, first map number)}.
+    `activity` (bike, foot...) goes after the place in the overlay's names; the base map does not depend on it."""
     from ..garmin import ids
     from . import scan
     now = time.time() if now is None else now
@@ -408,10 +416,11 @@ def garmin_names(s, export_infos, bbox, now=None):
     place = garmin_place(s, export_infos, bbox)
     place = " ".join(unicodedata.normalize("NFKD", place).encode("ascii", "ignore").decode().split())   # Latin-1 maps
     day = time.strftime("%Y-%m-%d", time.localtime(now))
-    tag = "-".join(p for p in (scan.slug(place), day) if p)
     out = {}
     for kind, (fid, mapname) in ids.build_ids(now).items():
-        label = "maprBoy " + ("Wandrer" if kind == "overlay" else "base") + (f" {place}" if place else "") + f" {day}"
+        act = activity if kind == "overlay" else ""
+        tag = "-".join(p for p in (scan.slug(place), scan.slug(act), day) if p)
+        label = " ".join(p for p in ("maprBoy", "Wandrer" if kind == "overlay" else "base", place, act, day) if p)
         out[kind] = (f"maprboy-{tag}-{kind}.img", label[:50], fid, mapname)
     return out
 
@@ -438,7 +447,7 @@ def garmin_commands(s, export_infos, squadrats_file):
     use_base = bool(b.get("garmin_base", True))
     bbox = garmin_bbox(s, export_infos)
     box = ",".join(str(v) for v in bbox)
-    names = garmin_names(s, export_infos, bbox)
+    names = garmin_names(s, export_infos, bbox, activity=map_activity(export_infos) if use_wandrer else "")
     cmds = []
     if q["enabled"] and not squadrats_file:
         cmds.append(("No Squadrats file: the layer is left out",
@@ -564,7 +573,8 @@ def karoo_commands(s, export_infos, squadrats_file):
     box = ",".join(str(v) for v in bbox)
     place = garmin_place(s, export_infos, bbox)
     place = " ".join(unicodedata.normalize("NFKD", place).encode("ascii", "ignore").decode().split())
-    tag = "-".join(p for p in (scan.slug(place), time.strftime("%Y-%m-%d")) if p)
+    act = map_activity(export_infos) if use_wandrer else ""
+    tag = "-".join(p for p in (scan.slug(place), scan.slug(act), time.strftime("%Y-%m-%d")) if p)
     cmds = []
     if q["enabled"] and not squadrats_file:
         cmds.append(("No Squadrats file: the layer is left out",

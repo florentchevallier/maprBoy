@@ -166,11 +166,35 @@ def results(out, fmt="lzma"):
     return res
 
 
+def karoo_results(out):
+    """The Karoo maps of Output/karoo/: the map of the last run, then the others (newest first)."""
+    out = os.path.abspath(os.path.expanduser(out or ""))
+    folder = os.path.join(out, jobs.KAROO_DIR)
+    res = {"out": out, "dir": folder, "last": [], "other": []}
+    if not os.path.isdir(folder):
+        return res
+    try:                                    # written by build_karoo.py
+        with open(os.path.join(folder, "last_run.json"), encoding="utf-8") as f:
+            last = json.load(f).get("map", "")
+    except (OSError, ValueError, AttributeError):
+        last = ""
+    maps = []
+    for name in os.listdir(folder):
+        path = os.path.join(folder, name)
+        if name.startswith("maprboy-") and name.endswith(".map") and os.path.isfile(path):
+            maps.append({"name": name, "size": os.path.getsize(path), "mtime": int(os.path.getmtime(path)),
+                         "rel": f"{jobs.KAROO_DIR}/{name}"})
+    for m in sorted(maps, key=lambda m: -m["mtime"]):
+        res["last" if m["name"] == last else "other"].append(m)
+    return res
+
+
 def result_file(out, rel):
-    """Absolute path of a built file, only inside wahoondrer_maps / wmc_classic / wahoondrer_maps_gz of the output folder."""
+    """Absolute path of a built file, only inside wahoondrer_maps / wmc_classic / wahoondrer_maps_gz / karoo of the
+    output folder."""
     out = os.path.realpath(os.path.expanduser(out or ""))
     full = os.path.realpath(os.path.join(out, rel))
-    allowed = [os.path.join(out, d) + os.sep for d in ("wahoondrer_maps", "wmc_classic", gztiles.DIR)]
+    allowed = [os.path.join(out, d) + os.sep for d in ("wahoondrer_maps", "wmc_classic", gztiles.DIR, jobs.KAROO_DIR)]
     if not out or not any(full.startswith(a) for a in allowed) or not os.path.isfile(full):
         return None
     return full
@@ -233,6 +257,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, contour_status())
             if url.path == "/api/results":
                 s = settings.load()
+                if s.get("device") == "karoo":
+                    return self._send(200, karoo_results(s["folders"]["out"]))
                 fmt = settings.tile_format(s) if s.get("device", "wahoo") == "wahoo" else "lzma"
                 return self._send(200, results(s["folders"]["out"], fmt))
             if url.path == "/api/file":

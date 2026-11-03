@@ -36,6 +36,7 @@ from wahoondrer.garmin import tiling  # noqa: E402
 from wahoondrer.karoo import mapfile, theme  # noqa: E402
 
 BLOCK_FILE = "maprboy-theme-block.xml"
+LAST_RUN = "last_run.json"
 
 
 def main():
@@ -76,6 +77,8 @@ def main():
             with open(conf, "w", encoding="utf-8") as f:
                 f.write(mapfile.tag_mapping(pois, args.with_visited))
             mapfile.write_map(inputs, bbox, os.path.join(args.out, f"maprboy-{args.name}.map"), conf, work, args.osmosis)
+            with open(os.path.join(args.out, LAST_RUN), "w", encoding="utf-8") as f:     # for the list of the page
+                json.dump({"map": f"maprboy-{args.name}.map", "bbox": list(bbox)}, f)
         finally:
             shutil.rmtree(work, ignore_errors=True)
         with open(os.path.join(args.out, BLOCK_FILE), "w", encoding="utf-8", newline="\n") as f:

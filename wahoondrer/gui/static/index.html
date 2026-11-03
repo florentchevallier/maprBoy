@@ -1675,7 +1675,7 @@ async function loadPois() {
 
 // ---------- result files (what to copy to the Bolt)
 const fileUrl = rel => "/api/file?rel=" + encodeURIComponent(rel);
-const fileRow = (f, extra, newTile, plain, newTheme) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${plain ? '<span class="plaintile" title="No Wandrer data in this tile: plain map, no Wandrer or Squadrats lines">plain tile</span> ' : ""}${newTile ? '<span class="newtile">🌟 New tile!</span>' : ""}${newTheme ? '<span class="newtheme">🚨 NEW THEME: update the file on your device 🚨</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
+const fileRow = (f, extra, newTile, plain, newTheme) => `<div class="rfile" draggable="true" data-rel="${esc(f.rel)}" data-name="${esc(f.name)}"><span>📄</span><a href="${fileUrl(f.rel)}" download="${esc(f.name)}">${esc(f.name)}</a><span class="newslot">${plain ? '<span class="plaintile" title="No Wandrer data in this tile: plain map, no Wandrer or Squadrats lines">plain tile</span> ' : ""}${newTile ? `<span class="newtile">🌟 ${newTile === true ? "New tile!" : esc(newTile)}</span>` : ""}${newTheme ? '<span class="newtheme">🚨 NEW THEME: update the file on your device 🚨</span>' : ""}</span>${extra ? `<span class="sz cdate">${esc(extra[0])}</span><span class="sz ccity" title="${esc(extra[1])}">${esc(extra[1])}</span><span class="sz ccont">${esc(extra[2] || "")}</span>` : ""}<span class="sz" style="min-width:56px;text-align:right">${mb(f.size)}</span></div>`;
 const NOTHING_YET = '<p class="note">Nothing built yet: make the maps in step 1, then come back here.</p>';
 const GARMIN_COPY = '<p>The Garmin maps are in the <b>garmin</b> folder of your output folder, named after the place and the day. Copy them into the ' +
   '<b>Garmin</b> folder of the device (not into Garmin/CustomMaps, which is not read):</p><ul><li><b>maprboy-…-overlay.img</b>: Wandrer roads and ' +
@@ -1690,10 +1690,25 @@ const KAROO_COPY = '<h3>By hand</h3><p class="note">The Karoo maps are in the <b
   'to /sdcard/offline/maps/ and the icons folder to /sdcard/, and paste the block just before &lt;/rendertheme&gt; at the end of the Karoo\'s theme ' +
   '(/sdcard/offline_vNN.xml with the highest NN), after keeping a copy of it. Restart the Karoo.</p>' +
   '<p class="note">Seen on a borrowed Karoo 2 (October 2026). Its own maps stay: ours are drawn over them. Without a GPS position, the ride map stays grey until the position is found.</p>';
+async function renderKarooMaps(box) {
+  lastRes = null; drawOutTiles();
+  let r = null;
+  if (S.folders.out) try { r = await api("/api/results"); } catch (e) { r = null; }
+  if (!isKaroo()) return;                                   // the device changed while waiting
+  const dateOf = t => new Date(t * 1000).toLocaleString("en-GB", {day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"});
+  const row = (m, isNew) => fileRow(m, [dateOf(m.mtime), "", ""], isNew);
+  let h = "";
+  if (r && (r.last.length || r.other.length)) {
+    h += `<div class="rdir">Maps <span class="note">→ device: /sdcard/offline/maps/ (the copy above sends them all)</span><span style="flex:1"></span><button class="small" data-opendir="${esc(r.dir)}">Open folder</button></div>`;
+    if (r.last.length) h += `<div class="rdir" style="font-weight:500">Last run</div><div class="rin">${r.last.map(m => row(m, "New map!")).join("")}</div>`;
+    if (r.other.length) h += `<div class="rdir" style="font-weight:500">Other maps <span class="note">made by earlier runs</span></div><div class="rin">${r.other.map(m => row(m, false)).join("")}</div>`;
+  } else h += NOTHING_YET;
+  box.innerHTML = h + KAROO_COPY;
+}
 async function renderResults() {
   const box = $("#results");
   if (isGarmin()) { box.innerHTML = GARMIN_COPY; lastRes = null; drawOutTiles(); return; }
-  if (isKaroo()) { box.innerHTML = KAROO_COPY; lastRes = null; drawOutTiles(); return; }
+  if (isKaroo()) { renderKarooMaps(box); return; }
   if (!S.folders.out) { box.innerHTML = NOTHING_YET; return; }
   let r;
   try { r = await api("/api/results"); } catch (e) { box.innerHTML = NOTHING_YET; return; }

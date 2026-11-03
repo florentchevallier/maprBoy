@@ -1618,3 +1618,27 @@ class KarooCommandTests(_AreaFixture, unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
             self.o.start()
             self.k.start()
+
+
+class KarooResultsTests(unittest.TestCase):
+    def test_last_run_first_then_the_others(self):
+        out = tempfile.mkdtemp()
+        try:
+            k = os.path.join(out, "karoo")
+            os.makedirs(k)
+            for i, name in enumerate(("maprboy-Athens-2026-10-28.map", "maprboy-Munich-2026-11-03.map",
+                                      "maprboy-Holzkirchen-2026-10-30.map")):
+                _write(os.path.join(k, name), "x" * (i + 1))
+                os.utime(os.path.join(k, name), (1000 + i, 1000 + i))
+            _write(os.path.join(k, "maprboy-theme-block.xml"), "<!-- -->")
+            _write(os.path.join(k, "last_run.json"), json.dumps({"map": "maprboy-Munich-2026-11-03.map"}))
+            r = server.karoo_results(out)
+            self.assertEqual([m["name"] for m in r["last"]], ["maprboy-Munich-2026-11-03.map"])
+            self.assertEqual([m["name"] for m in r["other"]],
+                             ["maprboy-Holzkirchen-2026-10-30.map", "maprboy-Athens-2026-10-28.map"])
+            self.assertEqual(r["last"][0]["rel"], "karoo/maprboy-Munich-2026-11-03.map")
+            self.assertTrue(server.result_file(out, "karoo/maprboy-Munich-2026-11-03.map"))
+            self.assertIsNone(server.result_file(out, "../x.map"))
+            self.assertEqual(server.karoo_results(os.path.join(out, "none"))["other"], [])
+        finally:
+            shutil.rmtree(out, ignore_errors=True)

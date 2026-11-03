@@ -1902,6 +1902,8 @@ $$("#devSeg button").forEach(b => b.onclick = async () => {
   try {
     await api("/api/settings", S);                     // first keep what is waiting for the device we leave
     S.device = b.dataset.device; await api("/api/settings", S); await refresh(); drawMapLayers(true);
+    $("#doneNote").textContent = ""; $("#btnSeeFiles").hidden = true;     // they were about the other device's run
+    if (document.body.classList.contains("step2")) { fitOutNext = true; renderResults(); }   // step 2 of this device
   }
   catch (e) { $("#runMsg").textContent = e.message; }
 });

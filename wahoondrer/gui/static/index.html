@@ -39,7 +39,7 @@ body.step2 #colLeft,body.step2 section[data-sec=make]{display:none}
 body.step2 #colFiles{display:grid}
 body.step2 .layout{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr)}   /* step 2: the list of files needs the room, the map shows where they are */
 @media (max-width:1000px){.layout,body.step2 .layout{grid-template-columns:1fr}#colMap{position:static;max-height:none}#colMap #map{height:400px;flex:none}}
-#devSeg button[data-device=wahoo].on{background:#19a6df;color:#06223a}#devSeg button[data-device=garmin].on{background:#2b6fb3;color:#fff}
+#devSeg button[data-device=wahoo].on{background:#19a6df;color:#06223a}#devSeg button[data-device=garmin].on{background:#000;color:#fff}#devSeg button[data-device=karoo].on{background:#e51937;color:#fff}
 .steps{display:inline-flex;align-items:center;gap:6px;margin:0 auto}
 .step{font-weight:600;padding:6px 14px;border-radius:99px;display:inline-flex;align-items:center;gap:8px;color:var(--mute)}
 .step .num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--line);color:var(--ink);font-size:12px;font-weight:800}
@@ -157,7 +157,7 @@ td .old{color:var(--bad);white-space:nowrap;cursor:help;position:relative}td .ol
 .notilelabels .tlabel{display:none}
 .pro label.row.maxdays{grid-template-columns:auto 250px 1fr;gap:12px 22px;align-items:center;margin:4px 0 10px}.mdwrap{display:flex;flex-direction:column;width:250px}#maxDaysRange{width:100%;margin:0;accent-color:var(--accent)}
 .mdlbl{display:flex;justify-content:space-between;font-size:11px;color:var(--mute);padding:0 8px}.mdlbl i{font-style:normal;width:0;display:flex;justify-content:center;white-space:nowrap}
-.devbox{display:flex;flex-direction:column;gap:4px;align-items:flex-start}select.model{width:auto;font-size:12.5px;padding:2px 6px;border-radius:7px}body.garmin #tileFormat{display:none}
+.devbox{display:flex;flex-direction:column;gap:4px;align-items:flex-start}select.model{width:auto;font-size:12.5px;padding:2px 6px;border-radius:7px}body.nonwahoo #tileFormat{display:none}
 .devcopy{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 14px;background:color-mix(in srgb,var(--accent) 6%,var(--card))}.devcopy[hidden]{display:none}
 .devcopy h3{margin:0 0 6px;font-size:15px}.devcopy .acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}.devcopy progress{width:100%;height:10px;accent-color:var(--accent)}
 .devcopy code{background:var(--code);color:var(--codeink);padding:1px 6px;border-radius:5px;font-size:12.5px}
@@ -178,7 +178,8 @@ table.exlist .tag{width:auto;padding:1px 8px;margin:1px 3px 2px 0;white-space:no
 .seg.types .n{font-weight:400;opacity:.75;margin-left:4px}
 .card h2 .onoff{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;margin-left:6px}
 .garmin-only{display:none}body.garmin .garmin-only{display:block}body.garmin #blkLook .pro-only,body.garmin #lookSimple{display:none}
-body.garmin #blkSqLook .pro-only,body.garmin #sqLookSimple{display:none}body.garmin #contourBox,body.garmin label.chk:has(> input[data-path="build.skip_classic"]){display:none}
+body.garmin #blkSqLook .pro-only,body.garmin #sqLookSimple{display:none}body.nonwahoo #contourBox,body.nonwahoo label.chk:has(> input[data-path="build.skip_classic"]){display:none}
+.karoo-only{display:none}body.karoo .karoo-only{display:block}
 .pole .blk > h3{cursor:pointer;user-select:none}.pole .blk > h3 > button.fold{margin:0 -4px 0 -6px}
 .pole .blk.folded > .blk-body{display:none}.pole .blk.folded > h3{margin-bottom:0}.pole .blk.folded .fsum{display:inline}
 .pro button.pro-only.inline{display:inline-block}
@@ -220,7 +221,7 @@ tr.rgrp.folded .gsum{display:inline}
 <div class="banner"><img src="banner.jpg" alt="" width="1600" height="457"><h1>maprBoy</h1></div>
 <header>
   <div class="tag"><span class="txt">custom OSM maps with POIs,<br>Wandrer &amp; Squadrats</span></div>
-  <div class="devbox"><div class="seg devseg" id="devSeg" role="group" aria-label="Device"><button type="button" data-device="wahoo">Wahoo</button><button type="button" data-device="garmin">Garmin</button></div>
+  <div class="devbox"><div class="seg devseg" id="devSeg" role="group" aria-label="Device"><button type="button" data-device="wahoo">Wahoo</button><button type="button" data-device="garmin">Garmin</button><button type="button" data-device="karoo">Karoo</button></div>
   <select class="model" id="tileFormat" aria-label="Tile format of your ELEMNT" title="Which tiles your ELEMNT reads. To check: plug it in, open it (Android File Transfer on a Mac), go to maps/tiles/8/ and open one of the numbered folders. Files ending in .map.lzma: keep the default. Files ending in .map.gz: choose .map.gz. Empty or no folder: keep the default."><option value="lzma">.map.lzma tiles (most ELEMNTs, default)</option><option value="gz">.map.gz tiles (some older ELEMNTs)</option></select></div>
   <nav class="steps" aria-label="Steps"><button type="button" class="step" data-step="1"><span class="num">1</span>Prepare</button><span class="arrow" aria-hidden="true">→</span><button type="button" class="step" data-step="2"><span class="num">2</span><span id="step2Label">Copy to the Wahoo</span></button></nav>
   <div class="seg" id="modeSeg" title="Pro shows more options. Each section can also be set to Simple or Pro on its own.">
@@ -466,6 +467,8 @@ tr.rgrp.folded .gsum{display:inline}
   <h3 class="setsub">Tools</h3>
   <label class="row" style="grid-template-columns:150px 1fr">mkgmap (Garmin)<input type="text" data-path="tools.mkgmap" placeholder="/path/to/mkgmap.jar"></label>
   <p class="note">Needed for Garmin maps only: the mkgmap.jar from mkgmap.org.uk (its lib folder next to it).</p>
+  <label class="row" style="grid-template-columns:150px 1fr">Osmosis (Karoo)<input type="text" data-path="tools.osmosis" placeholder="found in the PATH"></label>
+  <p class="note">Needed for Karoo maps only, with its mapsforge MapWriter plugin (both come with the WahooMapsCreator setup). Leave empty to use the osmosis of the PATH.</p>
 </dialog>
 
 <dialog id="dlg"><b>Choose a folder</b><div class="path" id="dlgPath"></div><ul id="dlgList"></ul>
@@ -499,7 +502,7 @@ let unsaved = false;   // a change is waiting to be saved: a refresh must not ov
 function scheduleSave(reload) {
   clearTimeout(saveTimer); unsaved = true;
   saveTimer = setTimeout(async () => {
-    try { await api("/api/settings", S); unsaved = false; if (reload || isGarmin()) await refresh(); else renderDerived(); } catch (e) { unsaved = false; $("#runMsg").textContent = e.message; }
+    try { await api("/api/settings", S); unsaved = false; if (reload || notWahoo()) await refresh(); else renderDerived(); } catch (e) { unsaved = false; $("#runMsg").textContent = e.message; }
   }, 350);
 }
 
@@ -1389,8 +1392,8 @@ function renderEnv() {
   note.hidden = !text;
   note.textContent = text || "";
   const busy = !!(ST.job && ST.job.status === "running");
-  $("#btnRun").disabled = bad || busy || garminBlocked();
-  $("#btnPlan").disabled = $("#btnPlan2").disabled = bad || busy || isGarmin();
+  $("#btnRun").disabled = bad || busy || deviceBlocked();
+  $("#btnPlan").disabled = $("#btnPlan2").disabled = bad || busy || notWahoo();
 }
 
 // ---------- what the run will make, and how long it should take (only from comparable past runs)
@@ -1406,12 +1409,12 @@ async function perTile() {
 async function renderMakeSum() {
   if (!S || !S.build) return;
   const n = S.tiles.length, el = $("#makeSum");
-  if (isGarmin()) { el.innerHTML = garminSum(); return; }
+  if (notWahoo()) { el.innerHTML = garminSum(); return; }
   if (!n) { el.innerHTML = '<span class="note">No tile chosen yet: choose them on the map.</span>'; return; }
   const what = S.build.skip_classic && modeOf("make") === "pro" ? ["Wandrer part only"]
     : ["Base map" + (poiOn ? " + POIs" : "") + (S.build.contour ? " + contour lines" : ""), S.wandrer.enabled && "Wandrer", S.squadrats.enabled && "Squadrats"].filter(Boolean);
-  const parts = [`<span><b>${n}</b> tile${n === 1 ? "" : "s"}</span>`, `<span>${esc(what.join(" + "))}</span>`, `<span>for ${isGarmin() ? "Garmin" : "Wahoo" + (tileFormat() === "gz" ? " (.map.gz)" : "")}</span>`];
-  const e = isGarmin() ? null : await perTile();
+  const parts = [`<span><b>${n}</b> tile${n === 1 ? "" : "s"}</span>`, `<span>${esc(what.join(" + "))}</span>`, `<span>for ${"Wahoo" + (tileFormat() === "gz" ? " (.map.gz)" : "")}</span>`];
+  const e = notWahoo() ? null : await perTile();
   if (e) parts.push(`<span title="From your last ${e.runs} comparable runs">≈ <b>${fmtMin(e.seconds_per_tile * n)}</b></span>`);
   el.innerHTML = parts.join("");
 }
@@ -1438,7 +1441,7 @@ let watchingRun = false;   // a run started from this page: step 2 opens by itse
 async function start(kind) {
   watchingRun = kind === "run";
   $("#runMsg").textContent = ""; $("#doneNote").textContent = "";
-  const e = kind === "run" && !isGarmin() ? await perTile() : null; runEst = e ? e.seconds_per_tile * S.tiles.length : 0;
+  const e = kind === "run" && !notWahoo() ? await perTile() : null; runEst = e ? e.seconds_per_tile * S.tiles.length : 0;
   $("#btnSeeFiles").hidden = true;
   try { await api("/api/settings", S); await api("/api/" + kind, S); since = 0; warnLines = []; $("#log").textContent = ""; $("#dlBar").hidden = true; $("#stepWrap").hidden = true; $("#runMsg").textContent = ""; startPolling(); }
   catch (e) { $("#runMsg").textContent = e.message; }
@@ -1475,12 +1478,12 @@ async function tick() {
   const st = $("#status"); st.textContent = j.status === "running" ? j.title : j.status; st.className = "pill " + j.status; st.title = st.textContent;
   $("#elapsed").textContent = j.seconds ? (j.status === "running" ? "" : "took ") + (j.seconds >= 3600 ? Math.floor(j.seconds / 3600) + " h " + String(Math.floor(j.seconds % 3600 / 60)).padStart(2, "0") + " min" : j.seconds >= 60 ? Math.floor(j.seconds / 60) + " min " + String(j.seconds % 60).padStart(2, "0") + " s" : j.seconds + " s") : "";
   const running = j.status === "running";
-  $("#btnRun").disabled = running || envBad() || garminBlocked();
-  $("#btnPlan").disabled = $("#btnPlan2").disabled = running || envBad() || isGarmin();
+  $("#btnRun").disabled = running || envBad() || deviceBlocked();
+  $("#btnPlan").disabled = $("#btnPlan2").disabled = running || envBad() || notWahoo();
   $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, under the map)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log under the map." : ""); $("#btnCancel").hidden = !running;
   if (!running) { clearInterval(poll); poll = null; $("#dlBar").hidden = true; renderRegions();
     if (warnLines.length && j.status === "done") { $("#runMsg").style.whiteSpace = "pre-line"; $("#runMsg").textContent = "To know:\n" + warnLines.map(l => "• " + l.slice(2)).join("\n"); }
-    if (j.status === "done" && j.kind === "run" && isGarmin()) $("#doneNote").innerHTML = `Done. The Garmin maps are in <span class="path">${esc(S.folders.out)}/garmin</span>: see step 2 to put them on your device.`;
+    if (j.status === "done" && j.kind === "run" && notWahoo()) $("#doneNote").innerHTML = `Done. The ${isKaroo() ? "Karoo" : "Garmin"} maps are in <span class="path">${esc(S.folders.out)}/${isKaroo() ? "karoo" : "garmin"}</span>: see step 2 to put them on your device.`;
     else if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to your device (one by one, after a backup), or use the list below.`; renderResults();
     if (j.status === "done" && j.kind === "run") { $("#btnSeeFiles").hidden = false; for (const k in estCache) delete estCache[k]; renderMakeSum(); }
     if (watchingRun && j.status === "done" && j.kind === "run") setStep(2);
@@ -1681,9 +1684,15 @@ const GARMIN_COPY = '<p>The Garmin maps are in the <b>garmin</b> folder of your 
   '<p>Then, in the activity profile you ride with (Navigation › Map): <b>Map Theme</b> = Classic (with High Contrast the overlay is drawn in grey), and in ' +
   '<b>Map Information</b> switch “maprBoy base …” on and the Garmin maps off (Garmin DEM can stay on).</p>' +
   '<p class="note">The list of files and the automatic copy come later.</p>';
+const KAROO_COPY = '<h3>By hand</h3><p class="note">The Karoo maps are in the <b>karoo</b> folder of your output folder: one <b>maprboy-….map</b> per place and day, ' +
+  '<b>maprboy-theme-block.xml</b> (our rules for the theme) and <b>maprboy-icons/</b>. The automatic copy above does it all; by hand (adb): push the .map files ' +
+  'to /sdcard/offline/maps/ and the icons folder to /sdcard/, and paste the block just before &lt;/rendertheme&gt; at the end of the Karoo\'s theme ' +
+  '(/sdcard/offline_vNN.xml with the highest NN), after keeping a copy of it. Restart the Karoo.</p>' +
+  '<p class="note">Seen on a borrowed Karoo 2 (October 2026). Its own maps stay: ours are drawn over them. Without a GPS position, the ride map stays grey until the position is found.</p>';
 async function renderResults() {
   const box = $("#results");
   if (isGarmin()) { box.innerHTML = GARMIN_COPY; lastRes = null; drawOutTiles(); return; }
+  if (isKaroo()) { box.innerHTML = KAROO_COPY; lastRes = null; drawOutTiles(); return; }
   if (!S.folders.out) { box.innerHTML = NOTHING_YET; return; }
   let r;
   try { r = await api("/api/results"); } catch (e) { box.innerHTML = NOTHING_YET; return; }
@@ -1770,13 +1779,17 @@ let copyLines = [];
 async function renderDevCopy() {
   const box = $("#devCopy");
   if (isGarmin()) { box.hidden = true; return; }
+  const dev = isKaroo() ? "Karoo" : "ELEMNT";
   let d; try { d = await api("/api/device"); } catch (e) { box.hidden = true; return; }
   box.hidden = false;
   const again = '<button class="small" id="devAgain">Check again</button>';
   let h = "<h3>Copy automatically</h3>";
-  if (!d.adb) h += `<p class="note">With <b>adb</b> (Android platform tools), maprBoy can copy the maps to the ELEMNT for you, file by file. To install it on a Mac: <code>brew install android-platform-tools</code>, then restart this page. Until then, copy the files by hand (below).</p><div class="acts">${again}</div>`;
-  else if (!d.devices.length) h += `<p class="note">adb is ready. Plug the ELEMNT in by USB.</p><div class="acts">${again}</div>`;
+  if (!d.adb) h += `<p class="note">With <b>adb</b> (Android platform tools), maprBoy can copy the maps to the ${dev} for you, file by file. To install it on a Mac: <code>brew install android-platform-tools</code>, then restart this page. Until then, copy the files by hand (below).</p><div class="acts">${again}</div>`;
+  else if (!d.devices.length) h += `<p class="note">adb is ready. Plug the ${dev} in by USB.</p><div class="acts">${again}</div>`;
+  else if (!d.ready && isKaroo()) h += `<p class="note">The Karoo is plugged in but not authorised yet. Turn on USB debugging in its developer options (Settings › About: tap the build number 7 times), then accept the prompt on its screen and check again.</p><div class="acts">${again}</div>`;
   else if (!d.ready) h += `<p class="note">The ELEMNT is plugged in but not authorised yet. Unplug it, press its power button 3 or 4 times quickly, plug it in again, then check again. (Done once; it worked like this on a Bolt v2.)</p><div class="acts">${again}</div>`;
+  else if (isKaroo()) h += `<p class="note">Karoo connected (${esc(d.devices.find(x => x.state === "device").serial)}). Every maprboy-….map of the karoo folder (one per place) and the icons are copied unless already there, and our rules are put at the end of the Karoo's theme (the first time, its own theme is kept in <span class="path">Output/karoo/backup/</span>). Then restart the Karoo. “Take maprBoy off” removes our maps, icons and rules.</p>
+    <div class="acts"><button class="primary" id="devCopyGo">Copy to the Karoo</button><button class="stop" id="devCopyStop" hidden>■ Stop</button><button id="devReboot" title="Restart the Karoo; the new maps show afterwards">↻ Restart the Karoo</button><button id="devRemove" title="Remove our maps, icons and theme rules from the Karoo">Take maprBoy off</button>${again}</div>`;
   else h += `<p class="note">ELEMNT connected (${esc(d.devices.find(x => x.state === "device").serial)}). The theme and the tiles of the last run${tileFormat() === "gz" ? " (.map.gz files)" : ""} are copied file by file; files already up to date are skipped and the ones replaced are saved first in <span class="path">Output/backup/</span>. Then restart the ELEMNT: the new maps show after a restart.</p>
     <div class="acts"><button class="primary" id="devCopyGo">Copy to the ELEMNT</button><button class="stop" id="devCopyStop" hidden>■ Stop</button><button id="devReboot" title="Restart the ELEMNT (about a minute); the new maps show afterwards">↻ Restart the ELEMNT</button>${again}</div>`;
   h += '<div id="devCopyRun" hidden><progress id="devCopyBar" max="1" value="0"></progress><div class="note" id="devCopyTxt"></div></div><div class="note" id="devCopyMsg"></div>';
@@ -1789,11 +1802,18 @@ async function renderDevCopy() {
     catch (e) { $("#devCopyMsg").textContent = e.message; go.disabled = false; }
   };
   const stop = $("#devCopyStop"); if (stop) stop.onclick = () => api("/api/cancel", {});
+  const rm = $("#devRemove");
+  if (rm) rm.onclick = async () => {
+    if (!confirm("Take the maprBoy maps, icons and theme rules off the Karoo? The Karoo's own maps stay.")) return;
+    rm.disabled = true; $("#devCopyMsg").textContent = ""; copyLines = [];
+    try { await api("/api/device_remove", {}); since = 0; startPolling(); }
+    catch (e) { $("#devCopyMsg").textContent = e.message; rm.disabled = false; }
+  };
   const rb = $("#devReboot");
   if (rb) rb.onclick = async () => {
-    if (!confirm("Restart the ELEMNT now? It takes a minute or two; keep it plugged in or not, as you like.")) return;
+    if (!confirm(`Restart the ${dev} now? It takes a minute or two; keep it plugged in or not, as you like.`)) return;
     rb.disabled = true;
-    try { await api("/api/device_reboot", {}); $("#devCopyMsg").textContent = "The ELEMNT is restarting: the new maps show once it is on again (it can take a few minutes with many tiles)."; }
+    try { await api("/api/device_reboot", {}); $("#devCopyMsg").textContent = `The ${dev} is restarting: the new maps show once it is on again.`; }
     catch (e) { $("#devCopyMsg").textContent = e.message; rb.disabled = false; }
   };
 }
@@ -1802,7 +1822,8 @@ function copyProgress(j, shown) {
   copyLines.push(...shown.map(l => l.trim()).filter(l => l && !l.startsWith("===")));
   const running = j.status === "running";
   run.hidden = !running; if ($("#devCopyStop")) $("#devCopyStop").hidden = !running; if ($("#devCopyGo")) $("#devCopyGo").disabled = running;
-  if ($("#devReboot")) { $("#devReboot").disabled = running; $("#devReboot").classList.toggle("primary", !running && j.status === "done" && copyLines.some(l => / file\(s\) copied/.test(l) && !/^0 file/.test(l))); }
+  if ($("#devRemove")) $("#devRemove").disabled = running;
+  if ($("#devReboot")) { $("#devReboot").disabled = running; $("#devReboot").classList.toggle("primary", !running && j.status === "done" && copyLines.some(l => (/ file\(s\) copied/.test(l) && !/^0 file/.test(l)) || / our rules (added|taken out)/.test(l))); }
   $("#devCopyBar").value = $("#stepBar").value;
   $("#devCopyTxt").textContent = copyLines.slice(-1)[0] || "Starting…";
   if (!running) {
@@ -1839,19 +1860,23 @@ $("#results").addEventListener("click", async e => {
 
 // ---------- device (Wahoo / Garmin), steps (1 prepare, 2 copy), folders and settings panel
 const isGarmin = () => !!(S && S.device === "garmin");
-const garminBlocked = () => isGarmin() && !!(ST && ST.garmin_missing && ST.garmin_missing.length);
+const isKaroo = () => !!(S && S.device === "karoo");
+const notWahoo = () => isGarmin() || isKaroo();           // area of the maps, no tiles plan, no tile estimate
+const deviceMissing = () => (ST && (isGarmin() ? ST.garmin_missing : isKaroo() ? ST.karoo_missing : null)) || [];
+const deviceBlocked = () => notWahoo() && deviceMissing().length > 0;
 function renderGarminNote() {
-  const box = $("#garminNote"), miss = isGarmin() && ST && ST.garmin_missing || [];
+  const box = $("#garminNote"), miss = notWahoo() ? deviceMissing() : [];
   box.hidden = !miss.length;
-  box.innerHTML = miss.length ? "<b>To make Garmin maps:</b> " + miss.map(esc).join("; ") + "." : "";
+  box.innerHTML = miss.length ? `<b>To make ${isKaroo() ? "Karoo" : "Garmin"} maps:</b> ` + miss.map(esc).join("; ") + "." : "";
 }
 function garminSum() {
   const a = S.area || {}, km = a.km || 0;
   const where = a.mode === "exports" ? "the area of the exports" : a.mode === "exports_km" ? `the area of the exports + ${km} km`
     : a.mode === "regions" ? `${(a.regions || []).length} region(s)` : `${S.tiles.length} tile(s)`;
-  const what = [S.build.garmin_base && "Base map + POIs", S.wandrer.enabled && "Wandrer", S.squadrats.enabled && "Squadrats",
-    !S.build.garmin_base && "POIs"].filter(Boolean);
-  return `<span><b>${esc(where)}</b></span><span>${esc(what.join(" + "))}</span><span>for Garmin</span>`;
+  const what = isKaroo() ? [S.wandrer.enabled && "Wandrer", S.squadrats.enabled && "Squadrats", poiOn && "POIs"].filter(Boolean)
+    : [S.build.garmin_base && "Base map + POIs", S.wandrer.enabled && "Wandrer", S.squadrats.enabled && "Squadrats",
+       !S.build.garmin_base && "POIs"].filter(Boolean);
+  return `<span><b>${esc(where)}</b></span><span>${esc(what.join(" + "))}</span><span>for ${isKaroo() ? "Karoo" : "Garmin"}</span>`;
 }
 const tileFormat = () => (S && S.tile_format === "gz") ? "gz" : "lzma";
 $("#tileFormat").addEventListener("change", async e => {
@@ -1863,10 +1888,12 @@ function renderDevice() {
   $$("#devSeg button").forEach(b => { const on = b.dataset.device === S.device; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
   $("#tileFormat").value = tileFormat();
   if (document.body.classList.contains("step2")) renderDevCopy();
-  const what = isGarmin() ? "Garmin" : "Wahoo";
+  const what = isGarmin() ? "Garmin" : isKaroo() ? "Karoo" : "Wahoo";
   $("#step2Label").textContent = $("#filesTitle").textContent = "Copy to the " + what;
   renderGarminNote();
   document.body.classList.toggle("garmin", isGarmin());
+  document.body.classList.toggle("karoo", isKaroo());
+  document.body.classList.toggle("nonwahoo", notWahoo());
 }
 $$("#devSeg button").forEach(b => b.onclick = async () => {
   if (b.dataset.device === S.device) return;

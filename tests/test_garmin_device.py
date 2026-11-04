@@ -31,7 +31,9 @@ File ID: 16779600
 
 class ParseTest(unittest.TestCase):
     def test_outputs_of_the_libmtp_tools(self):
-        self.assertEqual(device.parse_detect(DETECT), ["Garmin Forerunner 955 Solar"])
+        self.assertEqual(device.parse_detect(DETECT), ["Forerunner 955 Solar"])          # libmtp's list only
+        info = DETECT + "Device info:\n   Manufacturer: Garmin\n   Model: Forerunner 955\n   Device version: 2905\n"
+        self.assertEqual(device.parse_detect(info), ["Forerunner 955"])                  # the watch's own name
         self.assertEqual(device.parse_folders(FOLDERS), {"GARMIN": 16777216})            # top folders only
         files = device.parse_files(FILES)
         self.assertEqual(files[0], {"id": 16779431, "name": "maprboy-old.img", "size": 5, "parent": 16777216})

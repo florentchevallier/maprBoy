@@ -73,8 +73,12 @@ def mtp_ready():
 
 
 def parse_detect(text):
-    """Model names from the output of mtp-detect ("Device 0 (VID=091e and PID=4fb8) is a Garmin Forerunner 955 Solar.")."""
-    return [m.group(1) for m in re.finditer(r"^Device \d+ \(VID=091e[^)]*\) is a (Garmin [^\n]+?)\.?$", text, re.M)]
+    """The Garmin models in the output of mtp-detect. The line "Device 0 (VID=091e and PID=4fb8) is a Garmin Forerunner
+    955 Solar." comes from libmtp's own list of USB ids (a Forerunner 955 without Solar showed that name, November
+    2026); the device's own name is the "Model:" line of its "Device info", used when there is one per device."""
+    table = [m.group(1) for m in re.finditer(r"^Device \d+ \(VID=091e[^)]*\) is a Garmin ([^\n]+?)\.?$", text, re.M)]
+    models = [m.group(1).strip() for m in re.finditer(r"^\s*Model:\s*(\S[^\n]*)$", text, re.M)]
+    return models if len(models) == len(table) else table
 
 
 def mtp_devices():
@@ -85,7 +89,7 @@ def mtp_devices():
         r = subprocess.run(["mtp-detect"], capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.SubprocessError):
         return []
-    return [{"kind": "mtp", "name": n.replace("Garmin ", "", 1)} for n in parse_detect(r.stdout + r.stderr)]
+    return [{"kind": "mtp", "name": n} for n in parse_detect(r.stdout + r.stderr)]
 
 
 def status():

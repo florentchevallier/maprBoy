@@ -46,8 +46,12 @@ function Install-MaprBoy {
     # ------------------------------------------------------------------ the folder
     if (-not $Dir) {
         $default = Join-Path $env:USERPROFILE "maprBoy"
-        $Dir = Read-Host "Where should maprBoy go? [$default]"
-        if (-not $Dir) { $Dir = $default }
+        do {                         # the folder is confirmed: a word typed by mistake would become its name
+            $Dir = Read-Host "Folder for maprBoy: press Enter for the default, $default, or type another folder"
+            if (-not $Dir) { $Dir = $default }
+            $Dir = [IO.Path]::GetFullPath([IO.Path]::Combine((Get-Location).Path, $Dir))   # Combine keeps a full path as it is
+            $ok = (Read-Host "maprBoy will be installed into $Dir. OK? [Y/n]") -notmatch "^[nN]"
+        } until ($ok)
     }
     $running = $false                                        # the page running keeps the code folder in use
     try { Invoke-WebRequest -Uri "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 3 | Out-Null; $running = $true } catch { }

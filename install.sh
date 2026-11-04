@@ -57,8 +57,13 @@ fi
 
 # ------------------------------------------------------------------ the folder
 if [ -z "$DIR" ]; then
-    DIR="$(ask "Where should maprBoy go? [~/maprBoy] ")"
-    DIR="${DIR:-$HOME/maprBoy}"
+    while :; do                      # the folder is confirmed: a word typed by mistake would become its name
+        DIR="$(ask "Folder for maprBoy: press Enter for the default, ~/maprBoy, or type another folder: ")"
+        DIR="${DIR:-$HOME/maprBoy}"
+        DIR="${DIR/#\~/$HOME}"
+        case "$DIR" in /*) ;; *) DIR="$PWD/$DIR" ;; esac
+        case "$(ask "maprBoy will be installed into $DIR. OK? [Y/n] ")" in [nN]*) ;; *) break ;; esac
+    done
 fi
 DIR="${DIR/#\~/$HOME}"
 mkdir -p "$DIR" || fail "cannot create $DIR"

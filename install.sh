@@ -97,8 +97,8 @@ WANT="$(shasum -a 256 "$APP/code/environment.yml" | cut -d' ' -f1)"
 HAVE="$(cat "$APP/state/environment.sha256" 2>/dev/null || true)"
 if [ ! -d "$ENV" ] || [ "$WANT" != "$HAVE" ]; then
     rm -rf "$ENV"
-    "$MM" create -y -q -p "$ENV" -f "$APP/code/environment.yml" || fail "the environment could not be made (see above)."
-    "$MM" install -y -q -p "$ENV" -c conda-forge "openjdk>=17" || fail "Java could not be installed (see above)."
+    "$MM" create -y -p "$ENV" -f "$APP/code/environment.yml" || fail "the environment could not be made (see above)."
+    "$MM" install -y -p "$ENV" -c conda-forge "openjdk>=17" || fail "Java could not be installed (see above)."
     echo "$WANT" > "$APP/state/environment.sha256"
     "$MM" clean -y -a -q >/dev/null 2>&1 || true            # the downloaded packages are not needed any more
 else

@@ -26,6 +26,7 @@ function Install-MaprBoy {
     $MkgmapVersion = "r4924"
     $MkgmapUrl = "https://www.mkgmap.org.uk/download/mkgmap-$MkgmapVersion.zip"
     $AdbUrl = "https://dl.google.com/android/repository/platform-tools-latest-windows.zip"
+    $VcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
     $Port = 8765
 
     function Say($text) { Write-Host ""; Write-Host $text -ForegroundColor Cyan }
@@ -79,6 +80,16 @@ function Install-MaprBoy {
         Say "2/5  Python environment (the first time: several minutes, about 2 GB)"
         $mm = Join-Path $App "bin\micromamba.exe"
         if (-not (Test-Path $mm)) { Fetch $MicromambaUrl $mm }
+        & $mm --version | Out-Null
+        if ($LASTEXITCODE -eq -1073741515) {               # 0xC0000135: a DLL is missing, the Visual C++ runtime
+            Write-Host "micromamba needs the Microsoft Visual C++ Redistributable: installing it (Windows asks to confirm)."
+            $vc = Join-Path $Tmp "vc_redist.x64.exe"
+            Fetch $VcRedistUrl $vc
+            $p = Start-Process -FilePath $vc -ArgumentList "/install", "/quiet", "/norestart" -Verb RunAs -Wait -PassThru
+            if ($p.ExitCode -notin 0, 1638, 3010) { throw "the Visual C++ Redistributable could not be installed (code $($p.ExitCode))." }
+            & $mm --version | Out-Null
+        }
+        if ($LASTEXITCODE -ne 0) { throw "micromamba does not start (code $LASTEXITCODE)." }
         $env:MAMBA_ROOT_PREFIX = Join-Path $App "mamba"
         $envDir = Join-Path $App "env"
         $shaFile = Join-Path $App "state\environment.sha256"
@@ -86,9 +97,9 @@ function Install-MaprBoy {
         $have = if (Test-Path $shaFile) { (Get-Content $shaFile -Raw).Trim() } else { "" }
         if (-not (Test-Path $envDir) -or $want -ne $have) {
             if (Test-Path $envDir) { Remove-Item -Recurse -Force $envDir }
-            & $mm create -y -q -p $envDir -f (Join-Path $code "environment.yml")
+            & $mm create -y -p $envDir -f (Join-Path $code "environment.yml")
             if ($LASTEXITCODE -ne 0) { throw "the environment could not be made (see above)." }
-            & $mm install -y -q -p $envDir -c conda-forge "openjdk>=17"
+            & $mm install -y -p $envDir -c conda-forge "openjdk>=17"
             if ($LASTEXITCODE -ne 0) { throw "Java could not be installed (see above)." }
             Set-Content -Path $shaFile -Value $want
             & $mm clean -y -a -q | Out-Null

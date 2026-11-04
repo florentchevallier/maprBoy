@@ -400,6 +400,10 @@ def garmin_place(s, export_infos, bbox):
     else the OSM region(s): the chosen ones, or those the area needs (e.g. "Oberbayern"); else ""."""
     from . import regions
     from .. import places
+    try:
+        regions.ensure_catalog()          # a first run: without Geofabrik's list no region is known, nor its name
+    except OSError:
+        pass
     area = s.get("area") or {}
     keys = area.get("regions") if area.get("mode") == "regions" and area.get("regions") else regions.regions_for_bbox(bbox)
     name = places.biggest([regions.region_path(k) for k in regions.regions_for_bbox(bbox)], bbox)

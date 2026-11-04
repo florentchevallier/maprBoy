@@ -1522,6 +1522,13 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
             with self.assertRaises(jobs.SettingsError):
                 jobs.garmin_commands(self.s(), [self.EXP], None)
 
+    def test_place_gets_the_region_list_first(self):
+        # a first run on a new computer: Geofabrik's list is fetched before the name is chosen (it was fetched after)
+        calls = []
+        with mock.patch.object(regions, "ensure_catalog", lambda: calls.append(1)):
+            self.assertEqual(jobs.garmin_place(self.s(area={"mode": "manual"}), [], (11.4, 48.0, 11.7, 48.2)), "Oberbayern")
+        self.assertEqual(calls, [1])
+
     @unittest.skipUnless(shutil.which("osmium"), "needs osmium")
     def test_place_biggest_in_the_area_then_region(self):
         exps = [dict(self.EXP, place="Athens")]                     # the place of the exports is not used any more

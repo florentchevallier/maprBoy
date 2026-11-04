@@ -165,7 +165,7 @@ you use it) and the link `~/wahooMapsCreatorData` to `maprBoy-data/OSM_data`, wh
 installation downloads about 2 GB. libmtp (copy to a Garmin watch) is installed with Homebrew when it is there and
 you ask for it. Running the installer again updates the code; settings already made are kept. To uninstall,
 double-click `maprBoy-app/uninstall.command`: it asks whether your data should be deleted too.
-`bash install.sh --from <clone>` installs the code of a local copy instead of GitHub.
+Run from a copy of the repository (`bash install.sh`), it installs that copy instead of the code on GitHub.
 
 ## Installation (by hand, for development)
 maprBoy itself needs only Python 3 (standard library). `scripts/build_tiles.py` also needs

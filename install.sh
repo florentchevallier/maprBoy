@@ -4,14 +4,15 @@
 # In the Terminal:
 #   bash -c "$(curl -fsSL https://raw.githubusercontent.com/florentchevallier/maprboy/main/install.sh)"
 # or, from a copy of the repository:
-#   bash install.sh [--dir FOLDER] [--from CLONE]
+#   bash install.sh [--dir FOLDER] [--from COPY]
 #
 # Everything goes into one folder chosen by the user (default ~/maprBoy):
 #   maprBoy-app/   the code, micromamba and its environment (Python, GDAL, osmium, Java...), Osmosis, mkgmap, adb,
 #                  the settings and caches (state/), the launcher and uninstall.command
 #   maprBoy-data/  Wandrer and Squadrats exports, OSM data, the maps made (only on a first installation)
 # A launcher is put on the Desktop. Running the installer again updates the code; the environment is made again
-# only when environment.yml changed. --from takes the code from a local copy instead of GitHub (for tests).
+# only when environment.yml changed. The code comes from GitHub, or from the copy of maprBoy that holds this
+# install.sh (when it is run from one), or from --from COPY.
 set -euo pipefail
 
 REPO_ZIP="https://github.com/florentchevallier/maprboy/archive/refs/heads/main.zip"
@@ -40,6 +41,10 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+if [ -z "$FROM" ] && [ -f "${BASH_SOURCE[0]:-}" ]; then          # run from a copy of maprBoy: install that copy
+    here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    [ -f "$here/scripts/gui.py" ] && FROM="$here"
+fi
 [ "$(uname -s)" = "Darwin" ] || fail "this installer is for macOS."
 if [ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = "1" ]; then PLATFORM="osx-arm64"; else PLATFORM="osx-64"; fi
 command -v curl >/dev/null && command -v unzip >/dev/null || fail "curl and unzip are needed (they come with macOS)."
@@ -129,12 +134,13 @@ if [ ! -x "$ADB" ]; then
 fi
 if command -v mtp-detect >/dev/null; then
     echo "libmtp (Garmin watches): installed"
-elif command -v brew >/dev/null; then
+elif command -v brew >/dev/null && brew --version >/dev/null 2>&1; then
     if [ "$(ask "Garmin watch (Forerunner, Fenix...)? Install libmtp with Homebrew to copy maps to it [y/N] ")" = "y" ]; then
         brew install libmtp || echo "libmtp could not be installed: the copy to a watch will not work (the rest does)."
     fi
 else
-    echo "libmtp is not installed: only needed to copy maps to a Garmin watch (needs Homebrew: brew install libmtp)."
+    echo "libmtp is not installed: only needed to copy maps to a Garmin watch (needs a working Homebrew:"
+    echo "brew install libmtp). Without it, copy the maps to the watch by hand."
 fi
 
 # ------------------------------------------------------------------ settings and data folders

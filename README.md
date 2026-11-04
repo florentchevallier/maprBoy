@@ -213,7 +213,10 @@ WMC hard-codes `~/wahooMapsCreatorData`; the GUI makes it a symbolic link to `OS
 - Keep exports of one activity per run if you do not want to mix bike and foot (a warning is printed).
 - Do not commit KMZ files or generated maps (personal data, not redistributable); `.gitignore` covers them, but keep the exports outside the repository.
 - On the Bolt, copy files one by one (not whole folders) and back up `maps/tiles/8` first; `build_tiles.py` writes a README with the exact list.
-- WMC is GPL-3: check licences before redistributing anything (this is not legal advice).
+- Licence: maprBoy is free software under the GNU General Public License v3.0 (`LICENSE`), like WMC, on which it
+  builds. The themes in `themes/` are based on WMC's device themes; the POI icons in `themes/vtm/icons/` come from
+  WMC's `vtm_theme_poi` (the water icons are its drinking water icon in other colours), except the toilets and
+  shelter icons, drawn for this project. The font Titan One keeps its own licence (SIL OFL 1.1, see above).
 
 ## History
 `PROJECT_NOTES.md` holds the earlier project notes, kept for the project history.

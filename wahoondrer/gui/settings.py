@@ -1,4 +1,4 @@
-"""User settings, stored in ~/.wahoondrer/settings.json (never in the repository).
+"""User settings, stored in settings.json of the app's own folder (wahoondrer/home.py; never in the repository).
 
 One set of settings per device (Wahoo, Garmin, Karoo) plus settings shared by both. The file holds
     {"version": 2, "device": "wahoo", <shared keys>, "squadrats_file": "...",
@@ -10,9 +10,9 @@ import copy
 import json
 import os
 
-from .. import theme_style
+from .. import home, theme_style
 
-SETTINGS_PATH = os.path.join(os.path.expanduser("~"), ".wahoondrer", "settings.json")
+SETTINGS_PATH = home.path("settings.json")
 
 DEVICES = ("wahoo", "garmin", "karoo")
 ACTIVITIES = ("bike", "foot", "combined")

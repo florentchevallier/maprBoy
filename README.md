@@ -97,9 +97,9 @@ with the command to fix it; a newer WMC only shows a note (it may work, it was n
    folder is the complete set for the Bolt. Below the log, "Files for the Bolt" lists the theme, the tiles of
    the last run, then the other tiles (see "Output folder" below).
 
-Settings are remembered in `~/.wahoondrer/settings.json`, one set per device (Wahoo, Garmin) plus the shared ones
-(folders, Simple/Pro, online town lookup, Squadrats file), and a reading cache in `~/.wahoondrer/cache.json`
-(outside the repository). The page only listens on your own computer (127.0.0.1). The map background needs
+Settings are remembered in `~/.wahoondrer/settings.json` (with the installer: `maprBoy-app/state/`), one set per
+device (Wahoo, Garmin, Karoo) plus the shared ones (folders, Simple/Pro, online town lookup, Squadrats file), and a
+reading cache in `cache.json` next to it (outside the repository). The page only listens on your own computer (127.0.0.1). The map background needs
 an internet connection; without it, type the tiles in the box. Copying to the Bolt is still manual: see
 `README.txt` in the output folder.
 
@@ -150,7 +150,24 @@ theme (`--check` tells whether they are up to date). With choices made in the pa
 generates a private copy of the config and theme in `~/.wahoondrer/generated/` and builds with it, so repository
 files stay untouched.
 
-## Installation
+## Install on a Mac (installer)
+In the Terminal (Applications > Utilities), paste:
+```
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/florentchevallier/maprboy/main/install.sh)"
+```
+It asks where to install (default `~/maprBoy`) and puts everything in that folder:
+- `maprBoy-app/`: the code, micromamba with its environment (Python, GDAL, osmium, Java), Osmosis with the
+  MapWriter plugin, mkgmap, adb, the settings (`state/`), `maprBoy.command` and `uninstall.command`;
+- `maprBoy-data/`: the Wandrer and Squadrats exports, the OSM data and the maps made (first installation only).
+
+Outside it: `maprBoy.command` on the Desktop (double-click: the page opens; keep the Terminal window open while
+you use it) and the link `~/wahooMapsCreatorData` to `maprBoy-data/OSM_data`, which WMC needs. The first
+installation downloads about 2 GB. libmtp (copy to a Garmin watch) is installed with Homebrew when it is there and
+you ask for it. Running the installer again updates the code; settings already made are kept. To uninstall,
+double-click `maprBoy-app/uninstall.command`: it asks whether your data should be deleted too.
+`bash install.sh --from <clone>` installs the code of a local copy instead of GitHub.
+
+## Installation (by hand, for development)
 maprBoy itself needs only Python 3 (standard library). `scripts/build_tiles.py` also needs
 WMC and its tools: Java, osmium-tool, Osmosis and GDAL (`ogr2ogr` **and** the Python `osgeo`
 module, from the same GDAL build).

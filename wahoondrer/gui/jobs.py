@@ -11,7 +11,7 @@ import sys
 import threading
 import time
 
-from .. import contour, poi_config, theme_style
+from .. import contour, home, poi_config, theme_style
 from . import native
 from . import settings as settings_mod
 
@@ -685,7 +685,7 @@ def gz_command(s, tiles=None):
 
 
 # ------------------------------------------------------------------ run history (for the time estimate)
-RUNS_PATH = os.path.join(os.path.expanduser("~"), ".wahoondrer", "runs.json")
+RUNS_PATH = home.path("runs.json")
 RUNS_KEPT = 30
 ESTIMATE_MIN_RUNS = 2        # comparable successful runs needed before showing an estimate
 ESTIMATE_MAX_SPREAD = 2.0    # ...and their time per tile may differ by at most this factor

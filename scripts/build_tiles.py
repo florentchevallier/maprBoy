@@ -40,6 +40,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
 from wahoondrer import contour as contour_lines  # noqa: E402
+from wahoondrer import home  # noqa: E402
 from wahoondrer import poi_config  # noqa: E402
 from wahoondrer import progress  # noqa: E402
 from wahoondrer import reuse  # noqa: E402
@@ -104,7 +105,7 @@ def use_poi_rules(path):
     global ASSETS
     with open(path, encoding="utf-8") as f:
         pois = json.load(f)["pois"]
-    dst = os.path.join(os.path.expanduser("~"), ".wahoondrer", "generated")
+    dst = home.path("generated")
     try:
         ASSETS = str(poi_config.prepare_tree(dst, pois, REPO).root)
     except ValueError as exc:
@@ -116,7 +117,7 @@ def _private_theme():
     """Path of the theme in the private copy of config/ and the theme (the one made for the POIs if there is one,
     else a new one). The repository is not touched."""
     global ASSETS
-    dst = os.path.join(os.path.expanduser("~"), ".wahoondrer", "generated")
+    dst = home.path("generated")
     if ASSETS == REPO:
         if os.path.isdir(dst):
             shutil.rmtree(dst)

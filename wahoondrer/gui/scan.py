@@ -1,7 +1,7 @@
 """Look into the user's export folders (Wandrer KMZ/KML, Squadrats KML).
 
 Reading a big Wandrer export takes seconds, so results are cached on disk
-(~/.wahoondrer/cache.json, keyed by path + modification time + size) and the
+(cache.json in the app's own folder, wahoondrer/home.py; keyed by path + modification time + size) and the
 reading runs in a background thread that reports its progress.
 """
 import json
@@ -13,10 +13,11 @@ import time
 import urllib.parse
 import urllib.request
 
+from wahoondrer import home
 from wahoondrer.kmz import read_export
 from wahoondrer.tiles import tiles_for_bbox
 
-CACHE_PATH = os.path.join(os.path.expanduser("~"), ".wahoondrer", "cache.json")
+CACHE_PATH = home.path("cache.json")
 USER_AGENT = "maprBoy/0.1 (local tool for personal use)"
 HUB_CELL = 0.05          # degrees: grid used to find where the rides are concentrated
 

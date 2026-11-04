@@ -12,7 +12,9 @@ import shutil
 import subprocess
 import sys
 
-VENV = os.path.join(os.path.expanduser("~"), ".wahoondrer", "contour-venv")
+from . import home
+
+VENV = home.path("contour-venv")
 SOURCES = "view1,view3"        # Viewfinder Panoramas: free, no account needed
 MIN_BYTES = 1000               # a real contour file is much bigger than its XML header
 

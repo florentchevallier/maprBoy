@@ -1494,7 +1494,7 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
         self.assertIn("/x/a.kmz", overlay)
         self.assertIn("--squadrats", overlay)
         self.assertNotIn("--pois", overlay)                    # the POIs are in the base map
-        self.assertEqual(overlay[overlay.index("--bbox") + 1], "11.5,48.1,11.6,48.15")
+        self.assertIn("--bbox=11.5,48.1,11.6,48.15", overlay)
         day = time.strftime("%Y-%m-%d")
         self.assertEqual(os.path.basename(overlay[overlay.index("-o") + 1]), f"maprboy-Oberbayern-{day}-overlay.img")
         self.assertEqual(os.path.basename(base[base.index("-o") + 1]), f"maprboy-Oberbayern-{day}-base.img")
@@ -1595,7 +1595,7 @@ class KarooCommandTests(_AreaFixture, unittest.TestCase):
         self.assertEqual(lines[lines.index("--tiles") + 1], "136/88")
         self.assertNotIn("--with-traveled", lines)
         self.assertEqual(build[build.index("--lines") + 1], lines[lines.index("-o") + 1])
-        self.assertEqual(build[build.index("--bbox") + 1], "11.5,48.1,11.6,48.15")
+        self.assertIn("--bbox=11.5,48.1,11.6,48.15", build)
         self.assertEqual(build[build.index("--name") + 1], f"Oberbayern-{time.strftime('%Y-%m-%d')}")
         self.assertTrue(build[build.index("-o") + 1].endswith(os.path.join("wd-out-test", "karoo")))
         self.assertIn(os.path.join(self.tmp, "oberbayern-latest.osm.pbf"), build)

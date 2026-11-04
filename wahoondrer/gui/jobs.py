@@ -479,7 +479,9 @@ def garmin_commands(s, export_infos, squadrats_file):
     if use_wandrer or use_squadrats or not use_base:
         f, label, fid, mapname = names["overlay"]
         a = [py, os.path.join(REPO, "scripts", "build_garmin.py"), "--mkgmap", jar,
-             "-o", os.path.join(dest, f), "--bbox", box,
+             # "--bbox=W,..." in one piece: a west of Greenwich starts with "-", and argparse would take
+             # "--bbox -4.4,..." for two options
+             "-o", os.path.join(dest, f), "--bbox=" + box,
              "--name", label, "--family-id", str(fid), "--mapname", mapname]
         if use_wandrer:
             a += [*exports, "--radius-m", str(w["radius_m"]), "--simplify-m", str(w["simplify_m"])]
@@ -508,7 +510,7 @@ def garmin_commands(s, export_infos, squadrats_file):
     if use_base:
         f, label, fid, mapname = names["base"]
         c = [py, os.path.join(REPO, "scripts", "build_garmin_base.py"), "--mkgmap", jar,
-             "-o", os.path.join(dest, f), "--bbox", box,
+             "-o", os.path.join(dest, f), "--bbox=" + box,
              "--name", label, "--family-id", str(fid), "--mapname", mapname,
              *[x for f in osm for x in ("--osm", f)], *pois]
         if b.get("street_names"):
@@ -615,7 +617,7 @@ def karoo_commands(s, export_infos, squadrats_file):
         cmds.append(("No Squadrats file: the layer is left out",
                      [py, "-c", "print('! Squadrats: no KML file found in the Squadrats folder, so this layer is left out.')"]))
     build = [py, os.path.join(REPO, "scripts", "build_karoo.py"), "-o", os.path.join(out, KAROO_DIR),
-             "--bbox", box, "--name", tag, "--osmosis", _osmosis(s)]
+             "--bbox=" + box, "--name", tag, "--osmosis", _osmosis(s)]
     if use_wandrer or use_squadrats:
         lines = os.path.join(work, "karoo-lines.osm")
         a = [py, os.path.join(REPO, "scripts", "kmz_to_osm.py"), "-o", lines,

@@ -32,7 +32,7 @@ function Find-Map($folder, $name) {
 }
 
 try {
-    $watches = Get-Watches
+    $watches = @(Get-Watches)        # @(): a function's single item comes back alone, and .Count is empty on it
     if ($Action -eq "list") {
         $maps = @()
         if ($watches.Count) {

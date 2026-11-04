@@ -1,23 +1,78 @@
+<img src="docs/images/maprboy-icon.webp" alt="maprBoy icon: a bike computer in front of a country landscape that turns into a neon grid" width="120" align="right">
+
 # maprBoy
 
-Builds Wahoo ELEMNT (Bolt v2) maps with [WahooMapsCreator](https://github.com/treee111/wahooMapsCreator) (WMC)
-and bakes your **Wandrer** data (unexplored roads, achievement boundaries) into the base map.
+maprBoy makes custom OpenStreetMap maps for bike computers and watches, with the points of interest you choose,
+your **[Wandrer](https://wandrer.earth)** roads (the ones you have not ridden yet, in orange) and your
+**[Squadrats](https://squadrats.com)** squares (the ones not explored yet, outlined in red). Everything is set from a
+local web page.
 
-- Source: Wandrer KML/KMZ exports (no OSM matching).
-- Output: `.map.lzma` files per z8 tile, with a Wandrer layer (`wandrer=visited|unvisited|boundary`, no `highway` tag).
-- Optional Squadrats layer (from a Squadrats KML export): outlines of the squares NOT yet explored, as thin red lines (big z14 squares solid, small z17 squares dashed).
-- VTM theme `vtm-elemnt.xml`: unvisited roads in orange (dashed when unpaved), boundaries as a subtle violet dashed line, and (optional) the roads already ridden as thin green lines.
+<img src="docs/images/bolt-wandrer-squadrats.jpg" alt="Two pictures of a Wahoo BOLT screen during a ride: Wandrer's unridden roads in orange and the Squadrats small squares outlined with dashed red lines" width="560">
 
-## Status
-- Proof of concept validated on tile 136/88 (Bolt v2).
+<img src="docs/images/legend.svg" alt="Legend of the layers added to the map: orange roads, dashed when unpaved, subtle violet boundary dashes, red solid and dashed Squadrats outlines, and green, red and blue toilet icons" width="560">
+
+## Devices
+
+| Device | Status | Details |
+|---|---|---|
+| Wahoo ELEMNT BOLT v2 | in daily use | full maps, tile by tile ([WahooMapsCreator](https://github.com/treee111/wahooMapsCreator)) |
+| Wahoo ELEMNT ROAM v1 | tested once (borrowed device) | same maps, `.map.gz` tiles |
+| Garmin Forerunner 955, Edge 830, Edge 530 | tested (the base map: on the Forerunner 955) | a map over the Garmin map, and an optional OpenStreetMap base map |
+| Hammerhead Karoo 2 | tested on a borrowed device | a map drawn over Hammerhead's maps; the copy from the page is not tested yet |
+
+What was learned on each device: [docs/DEVICES.md](docs/DEVICES.md) and, for Garmin, [docs/GARMIN.md](docs/GARMIN.md).
+
+## Install (Mac)
+In the Terminal (Applications > Utilities), paste:
+```
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/florentchevallier/maprboy/main/install.sh)"
+```
+It asks where to install (default `~/maprBoy`) and puts everything in that folder:
+- `maprBoy-app/`: the code, micromamba with its environment (Python, GDAL, osmium, Java), Osmosis with the
+  MapWriter plugin, mkgmap, adb, the settings (`state/`), `maprBoy.command` and `uninstall.command`;
+- `maprBoy-data/`: the Wandrer and Squadrats exports, the OSM data and the maps made (first installation only).
+
+Outside it: `maprBoy.command` on the Desktop (double-click: the page opens; keep the Terminal window open while
+you use it) and the link `~/wahooMapsCreatorData` to `maprBoy-data/OSM_data`, which WMC needs. The first
+installation downloads about 2 GB. libmtp (copy to a Garmin watch) is installed with Homebrew when it is there and
+you ask for it. Running the installer again updates the code; settings already made are kept. To uninstall,
+double-click `maprBoy-app/uninstall.command`: it asks whether your data should be deleted too.
+Run from a copy of the repository (`bash install.sh`), it installs that copy instead of the code on GitHub.
+
+The installer was tested on an Intel Mac with macOS 10.14. Windows: an installer is in preparation. Other systems:
+install by hand (see "Installation (by hand, for development)" below).
+
+## Use
+1. Start maprBoy (`maprBoy.command` on the Desktop): the page opens in your browser.
+2. Choose your device at the top: Wahoo, Garmin or Karoo.
+3. Drop your Wandrer exports (`.kmz`) and your Squadrats export (`.kml`) on the page.
+4. Choose the area: zoom-8 tiles for a Wahoo, a rectangle drawn on the map for a Garmin or a Karoo (or the area of
+   your exports, or OpenStreetMap regions).
+5. Choose the points of interest, then press **Make the maps**. The OpenStreetMap data is downloaded the first time.
+6. Step 2 copies the maps to the device plugged in by USB, or shows the files to copy by hand.
+
+<img src="docs/images/osm-regions.png" alt="The list of downloaded OpenStreetMap regions, grouped by country and sub-region, with tick boxes, size, download date, age, the tiles that need each region, and Update and Delete buttons" width="560">
+
+## How it works
+
+<img src="docs/images/architecture-wahoo.svg" alt="Diagram: OpenStreetMap, Wandrer and Squadrats exports and elevation data flow through WahooMapsCreator, a conversion and merge step and pyhgtmap into one map file per tile for the Wahoo BOLT; a local web page drives the pipeline" width="720">
+
+The diagram shows the Wahoo maps. The Wandrer roads are not matched to OpenStreetMap roads: they are kept as their
+own lines, with their own tags. Garmin and Karoo work the same way without WahooMapsCreator: osmium takes what is needed
+from the OpenStreetMap extracts, then mkgmap makes the Garmin `.img` maps and the mapsforge MapWriter (with Osmosis)
+the Karoo `.map` file. Contour lines are made for the Wahoo maps only.
+
+## For developers
+The sections below describe the command line, the code and the manual installation.
+
+### Code overview
 - `wahoondrer/kmz.py`: reads and merges several exports with de-duplication (newest export wins, ordered by the timestamp inside the KML; an older road disappears only when the newer export redraws it).
 - `wahoondrer/process.py`: keeps unvisited roads only within a radius of traveled roads (default 250 m; options to keep every unpaved or every paved road), merges chained segments (always), simplifies geometry.
 - `scripts/build_tiles.py`: classic WMC tiles + Wandrer tiles, output folder with a copy guide for the Bolt.
 - `wahoondrer/progress.py`: download progress bar (replaces WMC's silent download function) and "step n of N" counter; in the GUI they are sent as log lines starting with the character `\x01` (`P|text` bar, `S|n|total|label` step).
 - `wahoondrer/squadrats.py`: rebuilds the explored squares from the Squadrats KML and outlines the unexplored ones in a band around them.
-- Planned: GUI (options: keep traveled roads, boundaries on/off, radius, unpaved handling), simple installation.
 
-## Quick use
+### Command line (Wahoo)
 ```
 # 1. merge exports into one OSM file (standard library only)
 python3 scripts/kmz_to_osm.py -o ~/wandrer.osm path/to/exports/*.kmz
@@ -36,7 +91,7 @@ python3 scripts/build_tiles.py \
 ```
 Remove `--plan` for the real run. See `docs/PIPELINE.md` for details.
 
-## Graphical interface (local web page)
+## The page in detail
 ```bash
 wahoondrer-env                     # or any environment where WMC is installed
 python3 scripts/gui.py             # opens http://127.0.0.1:8765/ in your browser
@@ -100,8 +155,8 @@ with the command to fix it; a newer WMC only shows a note (it may work, it was n
 Settings are remembered in `~/.wahoondrer/settings.json` (with the installer: `maprBoy-app/state/`), one set per
 device (Wahoo, Garmin, Karoo) plus the shared ones (folders, Simple/Pro, online town lookup, Squadrats file), and a
 reading cache in `cache.json` next to it (outside the repository). The page only listens on your own computer (127.0.0.1). The map background needs
-an internet connection; without it, type the tiles in the box. Copying to the Bolt is still manual: see
-`README.txt` in the output folder.
+an internet connection; without it, type the tiles in the box. Step 2 copies the maps to the device, or lists the
+files to copy by hand (see also `README.txt` in the output folder).
 
 ## Contour lines (optional, experimental)
 Tick **Add contour lines** in step 8 (Pro mode), or use `--contour` with `scripts/build_tiles.py`. The lines come
@@ -149,23 +204,6 @@ offers every entry; `scripts/generate_poi_config.py` writes it into the tag-mapp
 theme (`--check` tells whether they are up to date). With choices made in the page, `build_tiles.py --poi-rules FILE`
 generates a private copy of the config and theme in `~/.wahoondrer/generated/` and builds with it, so repository
 files stay untouched.
-
-## Install on a Mac (installer)
-In the Terminal (Applications > Utilities), paste:
-```
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/florentchevallier/maprboy/main/install.sh)"
-```
-It asks where to install (default `~/maprBoy`) and puts everything in that folder:
-- `maprBoy-app/`: the code, micromamba with its environment (Python, GDAL, osmium, Java), Osmosis with the
-  MapWriter plugin, mkgmap, adb, the settings (`state/`), `maprBoy.command` and `uninstall.command`;
-- `maprBoy-data/`: the Wandrer and Squadrats exports, the OSM data and the maps made (first installation only).
-
-Outside it: `maprBoy.command` on the Desktop (double-click: the page opens; keep the Terminal window open while
-you use it) and the link `~/wahooMapsCreatorData` to `maprBoy-data/OSM_data`, which WMC needs. The first
-installation downloads about 2 GB. libmtp (copy to a Garmin watch) is installed with Homebrew when it is there and
-you ask for it. Running the installer again updates the code; settings already made are kept. To uninstall,
-double-click `maprBoy-app/uninstall.command`: it asks whether your data should be deleted too.
-Run from a copy of the repository (`bash install.sh`), it installs that copy instead of the code on GitHub.
 
 ## Installation (by hand, for development)
 maprBoy itself needs only Python 3 (standard library). `scripts/build_tiles.py` also needs

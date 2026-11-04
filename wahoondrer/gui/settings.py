@@ -33,7 +33,8 @@ DEFAULTS = {
     "tiles": [],                     # ["136/88", ...]
     "area": {"mode": "manual",       # how the tiles are chosen: "manual" | "exports" | "exports_km" | "regions"
              "km": 10,               # margin around the exports for "exports_km"
-             "regions": []},         # Geofabrik regions (file keys, e.g. "europe_germany_bayern_oberbayern") for "regions"
+             "regions": [],          # Geofabrik regions (file keys, e.g. "europe_germany_bayern_oberbayern") for "regions"
+             "box": None},           # [W, S, E, N] drawn on the map: the area of "manual" for Garmin and Karoo
     "wandrer": {
         "enabled": True,
         "boundaries": True,

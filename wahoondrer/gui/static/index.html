@@ -155,6 +155,11 @@ td .old{color:var(--bad);white-space:nowrap;cursor:help;position:relative}td .ol
 #map.fixedh{flex:none !important}
 .leaflet-interactive:focus{outline:none}
 .notilelabels .tlabel{display:none}
+/* Garmin and Karoo: one rectangle (the area of the maps) instead of the z8 tiles */
+.boxonly{display:none}body.nonwahoo .boxonly{display:inline}body.nonwahoo .wahooonly,body.nonwahoo .tilebar{display:none!important}
+#mapDraw.on{background:var(--ink);color:var(--card)}#map.drawing,#map.drawing .leaflet-interactive{cursor:crosshair}
+.boxcorner{background:#fff;border:3px solid #b85a1e;border-radius:4px;box-sizing:border-box;cursor:move}
+.leaflet-tooltip.boxlabel{background:#1f1f1f;color:#fff;border:0;border-radius:999px;padding:3px 12px;font-weight:600;box-shadow:none}.leaflet-tooltip.boxlabel::before{display:none}
 .pro label.row.maxdays{grid-template-columns:auto 250px 1fr;gap:12px 22px;align-items:center;margin:4px 0 10px}.mdwrap{display:flex;flex-direction:column;width:250px}#maxDaysRange{width:100%;margin:0;accent-color:var(--accent)}
 .mdlbl{display:flex;justify-content:space-between;font-size:11px;color:var(--mute);padding:0 8px}.mdlbl i{font-style:normal;width:0;display:flex;justify-content:center;white-space:nowrap}
 .devbox{display:flex;flex-direction:column;gap:4px;align-items:flex-start}select.model{width:auto;font-size:12.5px;padding:2px 6px;border-radius:7px}body.nonwahoo #tileFormat{display:none}
@@ -400,10 +405,10 @@ tr.rgrp.folded .gsum{display:inline}
     <span class="seg areaseg" id="areaSeg" role="group" aria-label="How to choose the tiles">
       <button type="button" data-area="manual">Manual</button><button type="button" data-area="exports">From Wandrer exports</button><button type="button" data-area="exports_km">Exports +</button><span class="kmbox"><input type="number" id="areaKm" min="0" max="200" step="1" aria-label="Margin around the exports in km">km</span><button type="button" data-area="regions">Regions</button>
     </span>
-    <span class="sp"></span><button type="button" class="small" id="mapFit">🔍 Zoom to my data</button><button type="button" class="small" id="mapLocate">📍 My location</button>
+    <span class="sp"></span><button type="button" class="small" id="mapFit">🔍 Zoom to my data</button><button type="button" class="small" id="mapLocate">📍 My location</button><button type="button" class="small boxonly" id="mapDraw" aria-pressed="false" title="Press on the map, drag, release">✏️ Draw the area</button>
   </div>
   <div class="maptools mt2">
-    <span class="pro-only inline-flex lays"><span class="note">On the map:</span><label><input type="checkbox" id="layExp" checked> Wandrer coverage</label><label><input type="checkbox" id="layTiles" checked> Selected tiles</label><label><input type="checkbox" id="layOsm" checked> OSM regions</label></span>
+    <span class="pro-only inline-flex lays"><span class="note">On the map:</span><label><input type="checkbox" id="layExp" checked> Wandrer coverage</label><label><input type="checkbox" id="layTiles" checked> <span class="wahooonly">Selected tiles</span><span class="boxonly">Area</span></label><label><input type="checkbox" id="layOsm" checked> OSM regions</label></span>
     <span class="sp"></span><span class="note" id="areaHint"></span>
   </div>
   <div class="maptools" id="areaRegions" hidden>
@@ -691,6 +696,10 @@ const AREA_HINT = {manual: "Click the map to add or remove a tile (zoom-8 tiles,
   regions: "The tiles that touch the chosen OpenStreetMap regions (violet on the map); click a tile to adjust (switches to Manual).",
   exports: "The tiles touched by the exports in use; click a tile to adjust (switches to Manual).",
   exports_km: "The tiles within this margin of the exports in use; click a tile to adjust (switches to Manual)."};
+const AREA_HINT_BOX = {manual: "Draw the area with ✏️ (press on the map, drag, release), then drag a corner to adjust.",
+  regions: "The rectangle around the chosen regions; drag a corner to adjust (switches to Manual).",
+  exports: "The rectangle around the exports in use; drag a corner to adjust (switches to Manual).",
+  exports_km: "The rectangle around the exports in use, plus the margin; drag a corner to adjust (switches to Manual)."};
 const area = () => { S.area = S.area || {mode: "manual", km: 10}; S.area.regions = S.area.regions || []; return S.area; };
 const regionTiles = {};                           // "key,key" -> ["x/y", ...] from the server (the outlines are there)
 const regionShapes = {};                          // key -> {name, rings}
@@ -716,8 +725,58 @@ function areaTiles() {
     api("/api/region_tiles?keys=" + encodeURIComponent(k)).then(r => { regionTiles[k] = r.tiles; applyArea(); drawMapLayers(); }).catch(() => {});
     return null;                                  // known in a moment
   }
+  if (notWahoo() && validBox(a.box)) return tilesInBox(...a.box);   // manual, Garmin / Karoo: the tiles the rectangle touches
   return null;                                    // manual: the tiles stay as they are
 }
+// ---------- Garmin and Karoo: the maps cover one rectangle, shown as it will be made (jobs.garmin_bbox); [W, S, E, N]
+const validBox = b => Array.isArray(b) && b.length === 4 && b.every(v => typeof v === "number" && isFinite(v))
+  && -180 <= b[0] && b[0] < b[2] && b[2] <= 180 && -85 <= b[1] && b[1] < b[3] && b[3] <= 85;
+const unionBox = bs => bs.length ? [Math.min(...bs.map(b => b[0])), Math.min(...bs.map(b => b[1])),
+  Math.max(...bs.map(b => b[2])), Math.max(...bs.map(b => b[3]))] : null;
+const ringBox = r => [Math.min(...r.map(p => p[0])), Math.min(...r.map(p => p[1])), Math.max(...r.map(p => p[0])), Math.max(...r.map(p => p[1]))];
+function mapBox() {
+  const a = area();
+  if (a.mode === "exports" || a.mode === "exports_km") {
+    const b = unionBox(activeExports().filter(e => e.bbox).map(e => e.bbox));
+    if (!b || a.mode === "exports") return b;
+    const km = Math.max(0, +a.km || 0), dy = km / 111.2, dx = km / (111.32 * Math.cos((b[1] + b[3]) / 2 * Math.PI / 180));
+    return [b[0] - dx, b[1] - dy, b[2] + dx, b[3] + dy];
+  }
+  if (a.mode === "regions") return unionBox(a.regions.flatMap(k => ((regionShapes[k] || {}).rings || []).map(ringBox)));
+  if (validBox(a.box)) return a.box;
+  return unionBox(S.tiles.map(k => { const [x, y] = k.split("/").map(Number), [[s, w], [n, e]] = tileBbox(x, y); return [w, s, e, n]; }));
+}
+const boxKm = b => `≈ ${Math.round((b[2] - b[0]) * 111.32 * Math.cos((b[1] + b[3]) / 2 * Math.PI / 180))} × ${Math.round((b[3] - b[1]) * 111.2)} km`;
+function setBox(b) {                              // a drawn or adjusted rectangle: Manual, with the tiles it touches
+  const cl = (v, m) => Math.max(-m, Math.min(m, v)), r = v => Math.round(v * 1e5) / 1e5;
+  const w = cl(Math.min(b[0], b[2]), 180), e = cl(Math.max(b[0], b[2]), 180), s = cl(Math.min(b[1], b[3]), 85), n = cl(Math.max(b[1], b[3]), 85);
+  const box = [r(w), r(s), r(e), r(n)];
+  if (!validBox(box)) return;
+  const a = area(); a.box = box; a.mode = "manual"; S.tiles = tilesInBox(...box);
+  scheduleSave(false); renderDerived();
+}
+function drawBox() {
+  const b = mapBox(); if (!b) return;
+  const [w, s, e, n] = b, rect = L.rectangle([[s, w], [n, e]], {color: "#b85a1e", weight: 3, fillOpacity: .08, interactive: false}).addTo(layerTiles);
+  L.marker([s, (w + e) / 2], {icon: L.divIcon({className: "", iconSize: [0, 0]}), interactive: false, keyboard: false})
+    .bindTooltip(boxKm(b), {permanent: true, direction: "bottom", offset: [0, 10], className: "boxlabel"}).addTo(layerTiles);
+  if (document.body.classList.contains("step2")) return;
+  const corners = [[s, w], [s, e], [n, w], [n, e]];         // the opposite corner of i is 3 - i
+  corners.forEach(([la, lo], i) => {
+    const m = L.marker([la, lo], {draggable: true, keyboard: false, title: "Drag to adjust the area",
+      icon: L.divIcon({className: "boxcorner", iconSize: [16, 16]})}).addTo(layerTiles);
+    m.on("drag", () => rect.setBounds([m.getLatLng(), corners[3 - i]]));
+    m.on("dragend", () => { const p = m.getLatLng(), o = corners[3 - i]; setBox([p.lng, p.lat, o[1], o[0]]); });
+  });
+}
+let drawing = null;                               // the ✏️ mode: press, drag, release draws the rectangle
+function setDrawing(on) {
+  drawing = on ? {} : null;
+  $("#mapDraw").classList.toggle("on", on); $("#mapDraw").setAttribute("aria-pressed", String(on));
+  $("#map").classList.toggle("drawing", on);
+  if (map) { if (on) map.dragging.disable(); else map.dragging.enable(); }
+}
+$("#mapDraw").onclick = () => setDrawing(!drawing);
 async function loadShapes(keys) {
   const todo = keys.filter(k => !regionShapes[k]);
   if (todo.length) Object.assign(regionShapes, await api("/api/region_shapes?keys=" + encodeURIComponent(todo.join(","))));
@@ -754,13 +813,14 @@ function renderArea() {
   $("#areaRegions").hidden = a.mode !== "regions";
   if (a.mode === "regions") { loadRegionNames().then(renderRegionChips); loadShapes(a.regions).then(() => { renderRegionChips(); drawMapLayers(); }); }
   if (document.activeElement !== $("#areaKm")) $("#areaKm").value = a.km;
-  $("#areaHint").textContent = AREA_HINT[a.mode] || "";
+  $("#areaHint").textContent = (notWahoo() ? AREA_HINT_BOX : AREA_HINT)[a.mode] || "";
 }
 $$("#areaSeg button").forEach(b => b.onclick = e => {
   if (b.disabled) return;
-  area().mode = b.dataset.area; renderArea(); applyArea(); scheduleSave(false); drawMapLayers(true);
+  if (notWahoo() && b.dataset.area === "manual" && !validBox(area().box)) { const m = mapBox(); if (m) area().box = m.map(v => Math.round(v * 1e5) / 1e5); }
+  area().mode = b.dataset.area; scheduleSave(false); renderDerived(); drawMapLayers(true);
 });
-$("#areaKm").addEventListener("change", e => { area().km = Math.max(0, Math.min(200, Math.round(+e.target.value || 0))); renderArea(); applyArea(); scheduleSave(false); drawMapLayers(true); });
+$("#areaKm").addEventListener("change", e => { area().km = Math.max(0, Math.min(200, Math.round(+e.target.value || 0))); scheduleSave(false); renderDerived(); drawMapLayers(true); });
 let osmInfo = null;                              // {recent, old} counts of the downloaded regions drawn, for the legend
 const layerOn = id => !$('section[data-sec="tiles"]').classList.contains("pro") || $("#" + id).checked;
 function applyLayers() {
@@ -793,7 +853,9 @@ function renderDerived() {
   sel.value = S.squadrats.file;
   const used = sq.find(f => f.name === ST.squadrats_used);
   $("#sqFile").textContent = used ? `using ${used.name} (${sq[0].name === used.name ? "most recent" : "chosen by you"})` : (S.folders.squadrats ? "no KML file in the Squadrats folder yet" : "set up your folders first");
-  $("#mapNote").textContent = S.tiles.length ? `${S.tiles.length} tile(s): ${S.tiles.join(", ")}` : "No tile chosen yet.";
+  const mb = notWahoo() && mapBox();
+  $("#mapNote").textContent = notWahoo() ? (mb ? `Area (W, S, E, N): ${mb.map(v => v.toFixed(4)).join(", ")}, ${boxKm(mb)}` : "No area yet.")
+    : S.tiles.length ? `${S.tiles.length} tile(s): ${S.tiles.join(", ")}` : "No tile chosen yet.";
   $("#tilesText").value = S.tiles.join(", ");
   renderLegend();
   drawMapLayers();
@@ -839,8 +901,18 @@ async function initMap() {
   layerExp = L.layerGroup().addTo(map); layerTiles = L.layerGroup().addTo(map); layerGrid = L.layerGroup().addTo(map);
   layerReg = L.layerGroup().addTo(map); layerOsm = L.layerGroup();
   layerMenus = L.layerGroup().addTo(map);
+  map.on("mousedown", e => { if (!drawing) return; drawing.start = e.latlng;
+    drawing.rect = L.rectangle([e.latlng, e.latlng], {color: "#b85a1e", weight: 2, dashArray: "6 5", fillOpacity: .05, interactive: false}).addTo(map); });
+  map.on("mousemove", e => { if (drawing && drawing.rect) { drawing.end = e.latlng; drawing.rect.setBounds([drawing.start, e.latlng]); } });
+  window.addEventListener("mouseup", () => {        // on the window: the button may be released outside the map
+    if (!drawing || !drawing.rect) return;
+    const a = drawing.start, b = drawing.end || a; map.removeLayer(drawing.rect); setDrawing(false);
+    if (map.latLngToContainerPoint(a).distanceTo(map.latLngToContainerPoint(b)) < 8) return;   // a click, not a rectangle
+    setBox([a.lng, a.lat, b.lng, b.lat]);
+  });
   map.on("click", e => {
     if (document.body.classList.contains("step2")) return;     // step 2 shows the files made: no tile choice there
+    if (notWahoo()) return;                       // Garmin / Karoo: a rectangle, drawn with ✏️
     toManual();                                   // a click adjusts the tiles a mode chose: the selection is kept, as Manual
     const [x, y] = tileOf(e.latlng.lng, e.latlng.lat), k = x + "/" + y, i = S.tiles.indexOf(k);
     if (i >= 0) S.tiles.splice(i, 1); else S.tiles.push(k);
@@ -876,6 +948,7 @@ function initMapGrip() {
 }
 function drawGrid() {
   if (!map) return; layerGrid.clearLayers();
+  if (notWahoo()) return;                         // no z8 tiles for Garmin and Karoo
   if (map.getZoom() < 5) return;
   const b = map.getBounds(), [x0, y1] = tileOf(b.getWest(), b.getSouth()), [x1, y0] = tileOf(b.getEast(), b.getNorth());
   if ((x1 - x0 + 1) * (y1 - y0 + 1) > 400) return;
@@ -885,7 +958,9 @@ function drawGrid() {
 function dataBounds() {
   const pts = [];
   for (const e of activeExports()) if (e.bbox) pts.push([e.bbox[1], e.bbox[0]], [e.bbox[3], e.bbox[2]]);
-  for (const k of S.tiles) { const [x, y] = k.split("/").map(Number); pts.push(...tileBbox(x, y)); }
+  const mb = notWahoo() && mapBox();
+  if (mb) pts.push([mb[1], mb[0]], [mb[3], mb[2]]);
+  else if (!notWahoo()) for (const k of S.tiles) { const [x, y] = k.split("/").map(Number); pts.push(...tileBbox(x, y)); }
   return pts.length ? L.latLngBounds(pts) : null;
 }
 // one colour AND one pattern per type (readable even without colour vision): bike = "/" hatching, foot = "\\" hatching, combined = dots
@@ -979,7 +1054,8 @@ function drawMapLayers(fit) {
     if (pf) { r.setStyle({fillColor: pf, fillOpacity: 1}); r._pat = true; }
     r.bindTooltip(esc(e.place ? e.place + " — " : "") + esc(e.name) + (e.date ? " · " + esc(e.date) : ""), {sticky: true, className: "nm"}); expRects[e.name] = r;
   }
-  for (const k of S.tiles) { const [x, y] = k.split("/").map(Number);
+  if (notWahoo()) drawBox();
+  else for (const k of S.tiles) { const [x, y] = k.split("/").map(Number);
     L.rectangle(tileBbox(x, y), {color: "#e8731a", weight: 2, fillOpacity: .18, interactive: false}).bindTooltip(k, {permanent: true, direction: "center", className: "tlabel"}).addTo(layerTiles); }
   tileLabels();
   layerReg.clearLayers();
@@ -1958,11 +2034,12 @@ function renderGarminNote() {
 function garminSum() {
   const a = S.area || {}, km = a.km || 0;
   const where = a.mode === "exports" ? "the area of the exports" : a.mode === "exports_km" ? `the area of the exports + ${km} km`
-    : a.mode === "regions" ? `${(a.regions || []).length} region(s)` : `${S.tiles.length} tile(s)`;
+    : a.mode === "regions" ? `${(a.regions || []).length} region(s)` : validBox(a.box) ? "the drawn area" : `${S.tiles.length} tile(s)`;
+  const mb = mapBox();
   const what = isKaroo() ? [S.wandrer.enabled && "Wandrer", S.squadrats.enabled && "Squadrats", poiOn && "POIs"].filter(Boolean)
     : [S.build.garmin_base && "Base map + POIs", S.wandrer.enabled && "Wandrer", S.squadrats.enabled && "Squadrats",
        !S.build.garmin_base && "POIs"].filter(Boolean);
-  return `<span><b>${esc(where)}</b></span><span>${esc(what.join(" + "))}</span><span>for ${isKaroo() ? "Karoo" : "Garmin"}</span>`;
+  return `<span><b>${esc(where)}</b>${mb ? " " + esc(boxKm(mb)) : ""}</span><span>${esc(what.join(" + "))}</span><span>for ${isKaroo() ? "Karoo" : "Garmin"}</span>`;
 }
 const tileFormat = () => (S && S.tile_format === "gz") ? "gz" : "lzma";
 $("#tileFormat").addEventListener("change", async e => {
@@ -1980,6 +2057,11 @@ function renderDevice() {
   document.body.classList.toggle("garmin", isGarmin());
   document.body.classList.toggle("karoo", isKaroo());
   document.body.classList.toggle("nonwahoo", notWahoo());
+  const h2 = $('section[data-sec="tiles"] h2'), title = notWahoo() ? "Area to generate" : "Tiles to generate";
+  const tn = h2 && [...h2.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+  if (tn) tn.textContent = title;
+  const fb = h2 && $("button.fold", h2); if (fb) fb.setAttribute("aria-label", title);
+  if (!notWahoo() && drawing) setDrawing(false);
 }
 $$("#devSeg button").forEach(b => b.onclick = async () => {
   if (b.dataset.device === S.device) return;

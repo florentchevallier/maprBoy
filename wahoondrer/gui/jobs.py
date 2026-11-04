@@ -2,6 +2,7 @@
 import importlib.metadata
 import importlib.util
 import json
+import math
 import os
 import platform
 import re
@@ -340,10 +341,23 @@ def garmin_missing(s):
     return out
 
 
+def drawn_box(area):
+    """The rectangle drawn on the map ([W, S, E, N] in degrees), or None when there is none or it is not usable."""
+    b = (area or {}).get("box")
+    if not isinstance(b, (list, tuple)) or len(b) != 4:
+        return None
+    if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in b):
+        return None
+    w, so, e, n = (float(v) for v in b)
+    if not (-180 <= w < e <= 180 and -85 <= so < n <= 85):
+        return None
+    return w, so, e, n
+
+
 def garmin_bbox(s, export_infos):
-    """(W, S, E, N) of the Garmin maps, from the area mode of the page:
-    manual = the chosen z8 tiles; exports = the exports; exports_km = the exports plus the margin;
-    regions = the chosen regions."""
+    """(W, S, E, N) of the Garmin and Karoo maps, from the area mode of the page:
+    manual = the rectangle drawn on the map (or, without one, the chosen z8 tiles); exports = the exports;
+    exports_km = the exports plus the margin; regions = the chosen regions."""
     from ..tiles import tile_bbox
     from . import regions
     mode = (s.get("area") or {}).get("mode", "manual")
@@ -360,6 +374,8 @@ def garmin_bbox(s, export_infos):
                 boxes.append((min(xs), min(ys), max(xs), max(ys)))
         if not boxes:
             raise SettingsError("Choose at least one region.")
+    elif drawn_box(s.get("area")):
+        boxes = [drawn_box(s.get("area"))]
     else:
         tiles = parse_tiles(s.get("tiles") or [])
         if not tiles:
@@ -368,7 +384,6 @@ def garmin_bbox(s, export_infos):
     w, so, e, n = (min(b[0] for b in boxes), min(b[1] for b in boxes),
                    max(b[2] for b in boxes), max(b[3] for b in boxes))
     if mode == "exports_km":
-        import math
         km = float((s.get("area") or {}).get("km") or 0)
         dlat, dlon = km / 111.2, km / (111.32 * math.cos(math.radians((so + n) / 2)))
         w, so, e, n = w - dlon, so - dlat, e + dlon, n + dlat

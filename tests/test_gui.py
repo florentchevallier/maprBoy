@@ -181,12 +181,12 @@ class DeviceSettingsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "s.json")
             s = settings.load(p)
-            self.assertEqual(s["area"], {"mode": "manual", "km": 10, "regions": []})
+            self.assertEqual(s["area"], {"mode": "manual", "km": 10, "regions": [], "box": None})
             s["area"] = {"mode": "regions", "km": 25, "regions": ["oberbayern"]}; s = settings.save(s, p)
             s["device"] = "garmin"; g = settings.save(s, p)
             self.assertEqual((g["area"]["mode"], g["area"]["regions"]), ("manual", []))
             g["device"] = "wahoo"
-            self.assertEqual(settings.save(g, p)["area"], {"mode": "regions", "km": 25, "regions": ["oberbayern"]})
+            self.assertEqual(settings.save(g, p)["area"], {"mode": "regions", "km": 25, "regions": ["oberbayern"], "box": None})
 
     def test_the_squadrats_file_is_shared(self):
         with tempfile.TemporaryDirectory() as d:
@@ -1471,6 +1471,15 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
         self.assertEqual(manual[0], 11.25)
         with self.assertRaises(jobs.SettingsError):
             jobs.garmin_bbox(self.s(), [])
+
+    def test_bbox_drawn_rectangle(self):
+        drawn = {"mode": "manual", "box": [11.4, 48.05, 11.7, 48.2]}
+        self.assertEqual(jobs.garmin_bbox(self.s(area=drawn), [self.EXP]), (11.4, 48.05, 11.7, 48.2))
+        # only Manual uses it; a box that cannot be an area is left aside for the tiles
+        self.assertEqual(jobs.garmin_bbox(self.s(area={**drawn, "mode": "exports"}), [self.EXP]), (11.5, 48.1, 11.6, 48.15))
+        for bad in ([11.7, 48.05, 11.4, 48.2], [11.4, 48.05, 11.7], ["11", 48, 12, 49], [0, 89, 1, 90], None):
+            self.assertEqual(jobs.garmin_bbox(self.s(area={"mode": "manual", "box": bad}), [self.EXP])[0], 11.25)
+        self.assertIsNone(settings.load(os.devnull)["area"]["box"])
 
     def test_commands_base_map_on(self):
         cmds = jobs.garmin_commands(self.s(squadrats={"enabled": True}), [self.EXP], "/x/sq.kml")

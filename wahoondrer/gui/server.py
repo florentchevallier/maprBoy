@@ -376,6 +376,9 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/cancel":
                 JOB.cancel()
                 return self._send(200, {"ok": True})
+            if path == "/api/quit":
+                quit_server()
+                return self._send(200, {"ok": True})
             if path == "/api/scan":
                 s = settings.load()
                 started = SCANNER.start(s["folders"]["wandrer"], s["geocode"])
@@ -556,8 +559,20 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(200, {"saved": name, "already": False})
 
 
+_SERVER = []          # the running server, for "Quit maprBoy"
+
+
+def quit_server():
+    """Stop a run, then the page server: serve() returns and the program ends (its window says so)."""
+    JOB.cancel()
+    DOWNLOADER.cancel()
+    for srv in _SERVER:
+        threading.Timer(0.3, srv.shutdown).start()     # after the answer is sent
+
+
 def serve(port=8765, open_browser=True):
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    _SERVER[:] = [srv]
     url = f"http://127.0.0.1:{port}/"
     print(f"maprBoy is running at {url}  (Ctrl+C to stop)")
     env = jobs.check_environment()

@@ -481,6 +481,8 @@ tr.rgrp.folded .gsum{display:inline}
   <p class="note">Needed for Garmin maps only: the mkgmap.jar from mkgmap.org.uk (its lib folder next to it).</p>
   <label class="row" style="grid-template-columns:150px 1fr">Osmosis (Karoo)<input type="text" data-path="tools.osmosis" placeholder="found in the PATH"></label>
   <p class="note">Needed for Karoo maps only, with its mapsforge MapWriter plugin (both come with the WahooMapsCreator setup). Leave empty to use the osmosis of the PATH.</p>
+  <h3 class="setsub">maprBoy</h3>
+  <div class="actions"><button type="button" id="btnQuit">Quit maprBoy</button><span class="note">Stops the page and the program behind it (a run going on is stopped too). Start it again with maprBoy on your Desktop.</span></div>
 </dialog>
 
 <dialog id="dlg"><b>Choose a folder</b><div class="path" id="dlgPath"></div><ul id="dlgList"></ul>
@@ -1517,6 +1519,14 @@ function renderLogTail() {                        // the folded log: its last 3 
 $("#logFold").onclick = () => { setFolded("log", !isFolded("log")); renderLogFold(); };
 FOLD_DEFAULT.log = true;                          // the log shows its last 3 lines at first
 $("#btnSeeFiles").onclick = () => setStep(2);
+
+// ---------- quit: the program behind the page stops (its window says so)
+$("#btnQuit").onclick = async () => {
+  if (ST && ST.job && ST.job.status === "running" && !confirm("A run is going on: stop it and quit maprBoy?")) return;
+  try { await api("/api/quit", {}); } catch (e) { /* stopped before answering */ }
+  document.body.innerHTML = '<main style="max-width:560px;margin:80px auto;padding:0 16px;font:16px/1.5 system-ui,sans-serif">' +
+    '<h1 style="font-size:22px">maprBoy has stopped</h1><p>You can close this tab. To use maprBoy again, start it with maprBoy on your Desktop.</p></main>';
+};
 
 // ---------- running
 let since = 0, poll = null, warnLines = [];

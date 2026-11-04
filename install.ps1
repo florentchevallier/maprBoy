@@ -49,6 +49,9 @@ function Install-MaprBoy {
         $Dir = Read-Host "Where should maprBoy go? [$default]"
         if (-not $Dir) { $Dir = $default }
     }
+    $running = $false                                        # the page running keeps the code folder in use
+    try { Invoke-WebRequest -Uri "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 3 | Out-Null; $running = $true } catch { }
+    if ($running) { throw "maprBoy is running: close its window (the one maprBoy.bat opened), then run the installer again." }
     New-Item -ItemType Directory -Force -Path $Dir | Out-Null
     $Dir = (Resolve-Path $Dir).Path
     $App = Join-Path $Dir "maprBoy-app"
@@ -157,8 +160,9 @@ set "MAMBA_ROOT_PREFIX=%APP%\mamba"
 set "MAPRBOY_HOME=%APP%\state"
 set "PATH=%APP%\tools\osmosis-$OsmosisVersion\bin;%APP%\tools\platform-tools;%PATH%"
 curl -s -o NUL http://127.0.0.1:$Port/ && (echo maprBoy is already running: opening the page. & start "" http://127.0.0.1:$Port/ & exit /b 0)
-cd /d "%APP%\code"
-"%APP%\bin\micromamba.exe" run -p "%APP%\env" python scripts\gui.py --port $Port
+cd /d "%APP%"
+"%APP%\bin\micromamba.exe" run -p "%APP%\env" python "%APP%\code\scripts\gui.py" --port $Port
+echo maprBoy has stopped. You can close this window.
 pause
 "@
         Set-Content -Path (Join-Path $App "maprBoy.bat") -Value $launcher -Encoding Ascii

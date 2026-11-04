@@ -51,6 +51,10 @@ command -v curl >/dev/null && command -v unzip >/dev/null || fail "curl and unzi
 
 say "maprBoy installer ($PLATFORM, macOS $(sw_vers -productVersion))"
 
+if curl -s -m 3 -o /dev/null "http://127.0.0.1:$PORT/"; then           # the code must not change under a running page
+    fail "maprBoy is running: close its Terminal window (the one maprBoy.command opened), then run the installer again."
+fi
+
 # ------------------------------------------------------------------ the folder
 if [ -z "$DIR" ]; then
     DIR="$(ask "Where should maprBoy go? [~/maprBoy] ")"

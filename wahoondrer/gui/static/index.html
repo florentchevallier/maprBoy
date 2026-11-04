@@ -1953,7 +1953,9 @@ async function renderGarminDevice(box) {
   const again = '<button class="small" id="devAgain">Check again</button>';
   let h = "<h3>Copy automatically</h3>";
   if (!garminDevs.length) {
-    h += `<p class="note">No Garmin found. Plug it in by USB and check again. An Edge shows as a disk (GARMIN in the Finder). A watch uses MTP: ${d.mtp ? "libmtp is installed" : "install libmtp first (<code>brew install libmtp</code>), then restart this page"}; quit Garmin Express and Android File Transfer, which keep the watch for themselves.</p><div class="acts">${again}</div>`;
+    h += d.windows
+      ? `<p class="note">No Garmin found. Plug it in by USB and check again. An Edge shows as a drive (GARMIN in File Explorer). A watch is not a drive (MTP): the automatic copy does not reach it on Windows yet; copy the maps by hand in File Explorer (This PC › the watch › Internal Storage › GARMIN; “Open folder” below shows the maps). Quit Garmin Express, which keeps the watch for itself.</p><div class="acts">${again}</div>`
+      : `<p class="note">No Garmin found. Plug it in by USB and check again. An Edge shows as a disk (GARMIN in the Finder). A watch uses MTP: ${d.mtp ? "libmtp is installed" : "install libmtp first (<code>brew install libmtp</code>), then restart this page"}; quit Garmin Express and Android File Transfer, which keep the watch for themselves.</p><div class="acts">${again}</div>`;
   } else {
     const pick = garminDevs.length > 1 ? `<select id="garminDev">${garminDevs.map(x => `<option value="${esc(key(x))}"${key(x) === garminTarget ? " selected" : ""}>${esc(x.name)} (${x.kind === "disk" ? "disk" : "MTP"})</option>`).join("")}</select>`
       : `<b>${esc(garminDevs[0].name)}</b> (${garminDevs[0].kind === "disk" ? "disk" : "MTP"})`;

@@ -116,9 +116,10 @@ if [ ! -x "$OSMOSIS_DIR/bin/osmosis" ]; then
     rm -rf "$OSMOSIS_DIR" && mv "$root" "$OSMOSIS_DIR"
     chmod +x "$OSMOSIS_DIR/bin/osmosis"
 fi
-mkdir -p "$OSMOSIS_DIR/lib/default"
-if ! ls "$OSMOSIS_DIR/lib/default/"*map-writer*.jar >/dev/null 2>&1; then
-    fetch "$MAPWRITER_URL" "$OSMOSIS_DIR/lib/default/$(basename "$MAPWRITER_URL")"
+PLUGINS="$HOME/.openstreetmap/osmosis/plugins"          # where Osmosis 0.49 looks for plugins (and WMC puts this one)
+mkdir -p "$PLUGINS"
+if ! ls "$PLUGINS/"*map-writer*.jar >/dev/null 2>&1; then
+    fetch "$MAPWRITER_URL" "$PLUGINS/$(basename "$MAPWRITER_URL")"
 fi
 MKGMAP_JAR="$APP/tools/mkgmap-$MKGMAP_VERSION/mkgmap.jar"
 if [ ! -f "$MKGMAP_JAR" ]; then

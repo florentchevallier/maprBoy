@@ -76,22 +76,28 @@ def model_of(garmin_dir):
     return m.group(1) if m else ""
 
 
-def disks(volumes=VOLUMES):
-    """[{"kind": "disk", "name", "path"}]: the mounted volumes holding a Garmin folder with GarminDevice.xml."""
-    out = []
+def _volumes(volumes):
+    """(name, path) of the mounted disks: the folders of /Volumes (macOS), the drive letters D: to Z: (Windows)."""
+    if os.name == "nt" and volumes == VOLUMES:
+        return [(f"{c}:", f"{c}:\\") for c in "DEFGHIJKLMNOPQRSTUVWXYZ" if os.path.isdir(f"{c}:\\")]
     try:
-        names = sorted(os.listdir(volumes))
+        return [(n, os.path.join(volumes, n)) for n in sorted(os.listdir(volumes))]
     except OSError:
-        return out
-    for n in names:
-        g = _garmin_dir(os.path.join(volumes, n))
+        return []
+
+
+def disks(volumes=VOLUMES):
+    """[{"kind": "disk", "name", "path"}]: the mounted disks holding a Garmin folder with GarminDevice.xml."""
+    out = []
+    for n, path in _volumes(volumes):
+        g = _garmin_dir(path)
         if g and os.path.isfile(os.path.join(g, "GarminDevice.xml")):
-            out.append({"kind": "disk", "name": model_of(g) or n, "path": os.path.join(volumes, n)})
+            out.append({"kind": "disk", "name": model_of(g) or n, "path": path})
     return out
 
 
 def mtp_ready():
-    return all(shutil.which(t) for t in MTP_TOOLS)
+    return os.name != "nt" and all(shutil.which(t) for t in MTP_TOOLS)     # libmtp: macOS / Linux only
 
 
 def parse_detect(text):
@@ -116,7 +122,7 @@ def mtp_devices():
 
 def status():
     """What the page shows: the Garmin plugged in (as a disk or by MTP) and whether libmtp is installed."""
-    return {"devices": disks() + mtp_devices(), "mtp": mtp_ready()}
+    return {"devices": disks() + mtp_devices(), "mtp": mtp_ready(), "windows": os.name == "nt"}
 
 
 # ------------------------------------------------------------------ copy
@@ -229,7 +235,15 @@ def copy_mtp(files, log=print, replace_older=False):
 
 
 def eject(volume):
-    """Unmount the disk of the device (macOS)."""
+    """Unmount the disk of the device (macOS: diskutil; Windows: the Eject of File Explorer)."""
+    if os.name == "nt":
+        drive = os.path.splitdrive(volume)[0] or volume.rstrip("\\/")
+        script = (f"$d=(New-Object -ComObject Shell.Application).Namespace(17).ParseName('{drive}');"
+                  "if($d){$d.InvokeVerb('Eject')}else{exit 1}")
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            raise DeviceError((r.stderr or r.stdout).strip() or f"{drive} could not be ejected")
+        return
     r = subprocess.run(["diskutil", "eject", volume], capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         raise DeviceError((r.stderr or r.stdout).strip() or "the device could not be ejected")

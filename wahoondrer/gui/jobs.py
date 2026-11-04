@@ -531,7 +531,7 @@ def garmin_copy_command(s, names, target, replace_older=False):
         if not isinstance(n, str) or os.path.basename(n) != n or not n.endswith(".img"):
             raise SettingsError(f"Not a map of the garmin folder: {n}")
         files.append(os.path.join(folder, n))
-    if not (target == "mtp" or (isinstance(target, str) and target.startswith("disk:/"))):
+    if not (target == "mtp" or (isinstance(target, str) and target.startswith("disk:") and os.path.isabs(target[5:]))):
         raise SettingsError("No Garmin chosen.")
     return ("Copy the maps to the Garmin", [sys.executable, "-m", "wahoondrer.garmin.device", "copy",
                                             "--target", target, *(["--replace-older"] if replace_older else []), *files])
@@ -551,6 +551,8 @@ def _map_writer(osmosis):
     the lib folder of the Osmosis installation."""
     import glob
     places = [os.path.join(os.path.expanduser("~"), ".openstreetmap", "osmosis", "plugins")]
+    if os.environ.get("APPDATA"):                 # Windows: where Osmosis 0.49 and WMC put the plugins
+        places.append(os.path.join(os.environ["APPDATA"], "Openstreetmap", "Osmosis", "Plugins"))
     if osmosis:
         root = os.path.dirname(os.path.dirname(os.path.realpath(osmosis)))
         places += [os.path.join(root, "lib", "default"), os.path.join(root, "lib")]

@@ -196,6 +196,36 @@ def delete(key):
     return freed
 
 
+def _is_link(path):
+    """A symbolic link, or on Windows a directory junction (what we make there: no admin rights needed)."""
+    if os.path.islink(path):
+        return True
+    if os.name == "nt" and os.path.isdir(path):
+        try:
+            os.readlink(path)                         # Python 3.8+ reads junctions too
+            return True
+        except (OSError, ValueError):
+            return False
+    return False
+
+
+def _make_link(target, link):
+    """link -> target: a symbolic link, or on Windows a directory junction (a symbolic link needs admin rights or
+    the developer mode there)."""
+    if os.name == "nt":
+        import _winapi
+        _winapi.CreateJunction(target, link)
+    else:
+        os.symlink(target, link)
+
+
+def _remove_link(link):
+    if os.name == "nt" and not os.path.islink(link):
+        os.rmdir(link)                                # removes the junction only, never what it points to
+    else:
+        os.remove(link)
+
+
 def data_dir_info(base=""):
     """Where WMC's data really is, and whether it is inside `base` (the user's maprBoy folder)."""
     real = os.path.realpath(WMC_DIR)
@@ -204,7 +234,7 @@ def data_dir_info(base=""):
     if os.path.isdir(MAPS_DIR):
         size = sum(os.path.getsize(os.path.join(MAPS_DIR, n)) for n in os.listdir(MAPS_DIR)
                    if os.path.isfile(os.path.join(MAPS_DIR, n)))
-    return {"wmc_dir": WMC_DIR, "real": real, "is_link": os.path.islink(WMC_DIR),
+    return {"wmc_dir": WMC_DIR, "real": real, "is_link": _is_link(WMC_DIR),
             "exists": os.path.exists(WMC_DIR), "wanted": want, "size": size,
             "ok": bool(want) and real == os.path.realpath(want)}
 
@@ -219,10 +249,10 @@ def link_data_dir(base, move=False):
     if os.path.realpath(WMC_DIR) == os.path.realpath(target):
         os.makedirs(target, exist_ok=True)
         return "already"
-    if os.path.islink(WMC_DIR):                       # a link to somewhere else: just repoint it
+    if _is_link(WMC_DIR):                             # a link to somewhere else: just repoint it
         os.makedirs(target, exist_ok=True)
-        os.remove(WMC_DIR)
-        os.symlink(target, WMC_DIR)
+        _remove_link(WMC_DIR)
+        _make_link(target, WMC_DIR)
         return "repointed"
     if os.path.isdir(WMC_DIR):
         if not move:
@@ -233,10 +263,10 @@ def link_data_dir(base, move=False):
             os.rmdir(target)
         os.makedirs(os.path.dirname(target), exist_ok=True)
         shutil.move(WMC_DIR, target)                  # instant on the same disk, a copy otherwise
-        os.symlink(target, WMC_DIR)
+        _make_link(target, WMC_DIR)
         return "moved"
     os.makedirs(target, exist_ok=True)
-    os.symlink(target, WMC_DIR)
+    _make_link(target, WMC_DIR)
     return "linked"
 
 

@@ -28,19 +28,30 @@ In the Terminal (Applications > Utilities), paste:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/florentchevallier/maprboy/main/install.sh)"
 ```
 It asks where to install (default `~/maprBoy`) and puts everything in that folder:
-- `maprBoy-app/`: the code, micromamba with its environment (Python, GDAL, osmium, Java), Osmosis with the
-  MapWriter plugin, mkgmap, adb, the settings (`state/`), `maprBoy.command` and `uninstall.command`;
+- `maprBoy-app/`: the code, micromamba with its environment (Python, GDAL, osmium, Java), Osmosis, mkgmap, adb,
+  pyhgtmap (contour lines), the settings (`state/`), `maprBoy.command` and `uninstall.command`;
 - `maprBoy-data/`: the Wandrer and Squadrats exports, the OSM data and the maps made (first installation only).
 
 Outside it: `maprBoy.command` on the Desktop (double-click: the page opens; keep the Terminal window open while
-you use it) and the link `~/wahooMapsCreatorData` to `maprBoy-data/OSM_data`, which WMC needs. The first
+you use it), the link `~/wahooMapsCreatorData` to `maprBoy-data/OSM_data`, which WMC needs, and the MapWriter plugin
+of Osmosis in `~/.openstreetmap/osmosis/plugins/`. The first
 installation downloads about 2 GB. libmtp (copy to a Garmin watch) is installed with Homebrew when it is there and
 you ask for it. Running the installer again updates the code; settings already made are kept. To uninstall,
 double-click `maprBoy-app/uninstall.command`: it asks whether your data should be deleted too.
 Run from a copy of the repository (`bash install.sh`), it installs that copy instead of the code on GitHub.
 
-The installer was tested on an Intel Mac with macOS 10.14. Windows: an installer is in preparation. Other systems:
-install by hand (see "Installation (by hand, for development)" below).
+The installer was tested on an Intel Mac with macOS 10.14. Other systems: install by hand (see "Installation (by
+hand, for development)" below).
+
+## Install (Windows, not tested yet)
+In PowerShell (Start menu, type PowerShell), paste:
+```
+powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/florentchevallier/maprboy/main/install.ps1 | iex"
+```
+Same layout as on a Mac (`maprBoy-app`, `maprBoy-data`, default `%USERPROFILE%\maprBoy`), with `maprBoy.bat` on the
+Desktop and `maprBoy-app\uninstall.bat`. `%USERPROFILE%\wahooMapsCreatorData` becomes a directory junction to
+`maprBoy-data\OSM_data`. An Edge (a drive) can be copied to from the page; a watch (MTP) is copied to by hand in
+File Explorer for now.
 
 ## Use
 1. Start maprBoy (`maprBoy.command` on the Desktop): the page opens in your browser.

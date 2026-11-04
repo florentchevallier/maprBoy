@@ -152,18 +152,37 @@ function Install-MaprBoy {
 
         # -------------------------------------------------------------- launcher and uninstaller
         Say "5/5  Launcher"
+        # micromamba run hides the console window on Windows (seen in November 2026), so maprBoy runs without a
+        # window: launch.ps1 starts it in the background, its messages go to state\server.log, and the page's
+        # "Quit maprBoy" button stops it.
+        $q = { param($s) "'" + ($s -replace "'", "''") + "'" }
+        $launch = @"
+# maprBoy launcher (made by install.ps1), run hidden by maprBoy.bat: starts maprBoy in the background and opens its page.
+`$App = $(& $q $App)
+`$url = "http://127.0.0.1:$Port/"
+function Test-Up { try { Invoke-WebRequest -Uri `$url -UseBasicParsing -TimeoutSec 2 | Out-Null; `$true } catch { `$false } }
+if (Test-Up) { Start-Process `$url; exit }                  # already running: only the page
+`$env:MAMBA_ROOT_PREFIX = Join-Path `$App "mamba"
+`$env:MAPRBOY_HOME = Join-Path `$App "state"
+`$env:PYTHONUTF8 = "1"                                       # the messages go to a file: keep them in UTF-8
+`$env:PATH = (Join-Path `$App "tools\osmosis-$OsmosisVersion\bin") + ";" + (Join-Path `$App "tools\platform-tools") + ";" + `$env:PATH
+`$log = Join-Path `$App "state\server.log"
+`$err = Join-Path `$App "state\server-errors.log"
+`$runArgs = @("run", "-p", ('"' + (Join-Path `$App "env") + '"'), "python", ('"' + (Join-Path `$App "code\scripts\gui.py") + '"'), "--port", "$Port")
+`$p = Start-Process -FilePath (Join-Path `$App "bin\micromamba.exe") -ArgumentList `$runArgs -WorkingDirectory `$App -WindowStyle Hidden -RedirectStandardOutput `$log -RedirectStandardError `$err -PassThru
+for (`$i = 0; `$i -lt 90; `$i++) {                          # the page opens by itself once maprBoy answers
+    Start-Sleep -Seconds 1
+    if (Test-Up) { exit }
+    if (`$p.HasExited) { break }
+}
+Start-Process notepad.exe ('"' + `$err + '"')              # it did not start: show why
+"@
+        Set-Content -Path (Join-Path $App "launch.ps1") -Value $launch -Encoding UTF8
         $launcher = @"
 @echo off
-rem maprBoy launcher (made by install.ps1): starts the page; close this window to stop it.
-set "APP=$App"
-set "MAMBA_ROOT_PREFIX=%APP%\mamba"
-set "MAPRBOY_HOME=%APP%\state"
-set "PATH=%APP%\tools\osmosis-$OsmosisVersion\bin;%APP%\tools\platform-tools;%PATH%"
-curl -s -o NUL http://127.0.0.1:$Port/ && (echo maprBoy is already running: opening the page. & start "" http://127.0.0.1:$Port/ & exit /b 0)
-cd /d "%APP%"
-"%APP%\bin\micromamba.exe" run -p "%APP%\env" python "%APP%\code\scripts\gui.py" --port $Port
-echo maprBoy has stopped. You can close this window.
-pause
+rem maprBoy launcher (made by install.ps1): starts maprBoy in the background and opens its page; stop it with
+rem "Quit maprBoy" in the settings of the page.
+start "" powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "$App\launch.ps1"
 "@
         Set-Content -Path (Join-Path $App "maprBoy.bat") -Value $launcher -Encoding Ascii
         $uninstall = @"
@@ -178,6 +197,8 @@ Write-Host "This removes maprBoy from `$Dir."
 if (`$item -and `$item.LinkType -and ((`$item.Target | Select-Object -First 1) -eq (Join-Path `$Data "OSM_data"))) {
     cmd /c rmdir "`$wmc"                     # removes the link only, never what it points to
 }
+Get-Process -ErrorAction SilentlyContinue | Where-Object { `$_.Path -and `$_.Path.StartsWith(`$App, [StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force
+Start-Sleep -Seconds 1                   # maprBoy running in the background: stopped first, its files are deleted below
 `$desk = Join-Path ([Environment]::GetFolderPath("Desktop")) "maprBoy.bat"
 if ((Test-Path `$desk) -and (Select-String -Quiet -Path `$desk -Pattern "maprBoy launcher \(made by install.ps1\)")) { Remove-Item -Force `$desk }
 Remove-Item -Recurse -Force `$App
@@ -203,8 +224,8 @@ pause
         Copy-Item (Join-Path $App "maprBoy.bat") (Join-Path $desktop "maprBoy.bat") -Force
 
         Say "Done."
-        Write-Host "Start maprBoy: double-click maprBoy.bat on the Desktop (the page opens in your browser; keep its window"
-        Write-Host "open while you use it). Uninstall: double-click $App\uninstall.bat"
+        Write-Host "Start maprBoy: double-click maprBoy.bat on the Desktop (it runs without a window; the page opens in your"
+        Write-Host "browser). Stop it with 'Quit maprBoy' in the settings of the page. Uninstall: double-click $App\uninstall.bat"
     } finally {
         Remove-Item -Recurse -Force $Tmp -ErrorAction SilentlyContinue
     }

@@ -49,7 +49,9 @@ In PowerShell (Start menu, type PowerShell), paste:
 powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/florentchevallier/maprboy/main/install.ps1 | iex"
 ```
 Same layout as on a Mac (`maprBoy-app`, `maprBoy-data`, default `%USERPROFILE%\maprBoy`), with `maprBoy.bat` on the
-Desktop and `maprBoy-app\uninstall.bat`. `%USERPROFILE%\wahooMapsCreatorData` becomes a directory junction to
+Desktop and `maprBoy-app\uninstall.bat`. On Windows maprBoy runs without a window: `maprBoy.bat` starts it in the
+background and opens the page; "Quit maprBoy" in the settings of the page stops it (its messages go to
+`maprBoy-app\state\server.log`). `%USERPROFILE%\wahooMapsCreatorData` becomes a directory junction to
 `maprBoy-data\OSM_data`. An Edge (a drive) can be copied to from the page; a watch (MTP) is copied to by hand in
 File Explorer for now.
 

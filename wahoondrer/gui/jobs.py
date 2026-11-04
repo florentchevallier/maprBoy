@@ -391,27 +391,15 @@ def garmin_bbox(s, export_infos):
 
 
 def garmin_place(s, export_infos, bbox):
-    """A short place name for the Garmin file names and map list, whatever the area mode:
-    1. the town that comes most often among the ticked exports whose extent overlaps the area;
-    2. else the town at the centre of the area (online, if allowed);
-    3. else the OSM region(s): the chosen ones, or those the area needs (e.g. "Greece"); else ""."""
-    from . import regions, scan
-    w, so, e, n = bbox
-    places = [i.get("place") for i in export_infos
-              if i.get("place") and i.get("bbox") and i["bbox"][0] <= e and i["bbox"][2] >= w
-              and i["bbox"][1] <= n and i["bbox"][3] >= so]
-    if places:
-        return max(sorted(set(places)), key=places.count)
-    if s.get("geocode", True):
-        try:
-            name = scan.lookup_place((w + e) / 2, (so + n) / 2)
-        except Exception:
-            name = ""
-        if name:
-            return name
+    """A short place name for the Garmin and Karoo file names and map list, as for the Wahoo tiles: the biggest
+    place inside the area (a city before a town, then the population) in the OSM extracts already on disk;
+    else the OSM region(s): the chosen ones, or those the area needs (e.g. "Oberbayern"); else ""."""
+    from . import regions
+    from .. import places
     area = s.get("area") or {}
     keys = area.get("regions") if area.get("mode") == "regions" and area.get("regions") else regions.regions_for_bbox(bbox)
-    return " ".join(regions.catalog().get(k, {}).get("name", k) for k in (keys or [])[:2])
+    name = places.biggest([regions.region_path(k) for k in regions.regions_for_bbox(bbox)], bbox)
+    return name or " ".join(regions.catalog().get(k, {}).get("name", k) for k in (keys or [])[:2])
 
 
 def map_activity(export_infos):

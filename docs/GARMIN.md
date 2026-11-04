@@ -7,8 +7,9 @@ Tested on a Forerunner 955, Edge 830 and 530.
 ## From the page
 With the Garmin pill on, "Make the maps" writes `Output/garmin/maprboy-<place>-<activity>-<date>-overlay.img` and,
 unless "Make an OpenStreetMap base map" is unticked in the Basemap & POIs section, `maprboy-<place>-<date>-base.img`;
-the POIs go into the base map, or into the overlay without it. The place is the town most ticked exports are near,
-else the chosen regions, else the town at the centre of the area (online lookup, if allowed). The activity (bike,
+the POIs go into the base map, or into the overlay without it. The place is, as for the Wahoo tiles, the biggest place
+inside the area in the OSM extracts already on disk (a city before a town, then the population; the English name when
+OSM has one); without them (the first build of a new area), the name of the OSM region(s). The activity (bike,
 foot, combined) is the one of the Wandrer exports used ("all" when they mix several); it is left out without Wandrer roads, and the base map,
 which does not depend on it, has none. Each build gets its own family id and map numbers
 (`wahoondrer/garmin/ids.py`) and shows as "maprBoy Wandrer <place> <activity> <date>" and "maprBoy base <place>

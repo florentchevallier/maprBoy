@@ -1,6 +1,7 @@
 import glob
 import os
 import shutil
+import subprocess
 import re
 import tempfile
 import unittest
@@ -1433,7 +1434,7 @@ class _AreaFixture:
         self.jar = jar
         self.p = [mock.patch.object(regions, "GEOFABRIK", geo), mock.patch.object(regions, "MAPS_DIR", self.tmp),
                   mock.patch.object(jobs, "garmin_missing", lambda s: []),
-                  mock.patch.object(scan, "lookup_place", lambda lon, lat: "Teststadt")]
+                  mock.patch.object(scan, "lookup_place", lambda lon, lat: "Teststadt")]   # must not be used
         for p in self.p:
             p.start()
         regions._catalog.update(mtime=None, items={})
@@ -1495,9 +1496,9 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
         self.assertNotIn("--pois", overlay)                    # the POIs are in the base map
         self.assertEqual(overlay[overlay.index("--bbox") + 1], "11.5,48.1,11.6,48.15")
         day = time.strftime("%Y-%m-%d")
-        self.assertEqual(os.path.basename(overlay[overlay.index("-o") + 1]), f"maprboy-Teststadt-{day}-overlay.img")
-        self.assertEqual(os.path.basename(base[base.index("-o") + 1]), f"maprboy-Teststadt-{day}-base.img")
-        self.assertEqual(overlay[overlay.index("--name") + 1], f"maprBoy Wandrer Teststadt {day}")
+        self.assertEqual(os.path.basename(overlay[overlay.index("-o") + 1]), f"maprboy-Oberbayern-{day}-overlay.img")
+        self.assertEqual(os.path.basename(base[base.index("-o") + 1]), f"maprboy-Oberbayern-{day}-base.img")
+        self.assertEqual(overlay[overlay.index("--name") + 1], f"maprBoy Wandrer Oberbayern {day}")
         fo, fb = int(overlay[overlay.index("--family-id") + 1]), int(base[base.index("--family-id") + 1])
         self.assertEqual(fb, fo + 1)
         self.assertEqual(base[base.index("--mapname") + 1], f"{fb}001")
@@ -1521,18 +1522,22 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
             with self.assertRaises(jobs.SettingsError):
                 jobs.garmin_commands(self.s(), [self.EXP], None)
 
-    def test_place_exports_then_centre_then_region(self):
-        far = dict(self.EXP, place="Munich", bbox=[11.0, 47.0, 11.1, 47.1])      # ticked, but outside the area
-        exps = [dict(self.EXP, place="Athens"), dict(self.EXP, place="Athens"), dict(self.EXP, place="Piraeus"),
-                far, far, far]
+    @unittest.skipUnless(shutil.which("osmium"), "needs osmium")
+    def test_place_biggest_in_the_area_then_region(self):
+        exps = [dict(self.EXP, place="Athens")]                     # the place of the exports is not used any more
         area = (11.4, 48.0, 11.7, 48.2)
+        self.assertEqual(jobs.garmin_place(self.s(area={"mode": "manual"}), exps, area), "Oberbayern")   # no OSM file yet
+        opl = os.path.join(self.tmp, "places.opl")
+        _write(opl, "n1 v1 x11.575 y48.137 Tplace=city,name=M%fc%nchen,name:en=Munich,population=1512491\n"
+                    "n2 v1 x11.45 y48.05 Tplace=city,name=Smallcity,population=9000\n"
+                    "n3 v1 x11.6 y48.1 Tplace=town,name=Bigtown,population=2000000\n"
+                    "n4 v1 x12.5 y48.1 Tplace=city,name=Outside,population=9999999\n")
+        subprocess.run(["osmium", "cat", opl, "-o", regions.region_path("oberbayern")], check=True)
         for mode in ("manual", "exports", "regions"):
-            self.assertEqual(jobs.garmin_place(self.s(area={"mode": mode}), exps, area), "Athens")
-        self.assertEqual(jobs.garmin_place(self.s(area={"mode": "manual"}), [far], area), "Teststadt")
-        with mock.patch.object(scan, "lookup_place", lambda lon, lat: ""):     # e.g. the centre is in the sea
-            self.assertEqual(jobs.garmin_place(self.s(area={"mode": "manual"}), [far], area), "Oberbayern")
+            self.assertEqual(jobs.garmin_place(self.s(area={"mode": mode}), exps, area), "Munich")
         n = jobs.garmin_names(self.s(area={"mode": "manual"}), [], area)
-        self.assertTrue(n["base"][0].startswith("maprboy-Teststadt-"))
+        self.assertTrue(n["base"][0].startswith("maprboy-Munich-"))
+        self.assertEqual(jobs.garmin_place(self.s(), exps, (11.44, 48.04, 11.46, 48.06)), "Smallcity")
 
     def test_ids_differ_between_builds(self):
         from wahoondrer.garmin import ids
@@ -1584,7 +1589,7 @@ class KarooCommandTests(_AreaFixture, unittest.TestCase):
         self.assertNotIn("--with-traveled", lines)
         self.assertEqual(build[build.index("--lines") + 1], lines[lines.index("-o") + 1])
         self.assertEqual(build[build.index("--bbox") + 1], "11.5,48.1,11.6,48.15")
-        self.assertEqual(build[build.index("--name") + 1], f"Teststadt-{time.strftime('%Y-%m-%d')}")
+        self.assertEqual(build[build.index("--name") + 1], f"Oberbayern-{time.strftime('%Y-%m-%d')}")
         self.assertTrue(build[build.index("-o") + 1].endswith(os.path.join("wd-out-test", "karoo")))
         self.assertIn(os.path.join(self.tmp, "oberbayern-latest.osm.pbf"), build)
         self.assertIn("--pois", build)
@@ -1671,14 +1676,14 @@ class MapActivityTests(_AreaFixture, unittest.TestCase):
         day = time.strftime("%Y-%m-%d")
         foot = dict(self.EXP, activity="foot")
         overlay, base = (a for t, a in jobs.garmin_commands(self.s(), [foot], None) if t.startswith("Make the Garmin"))
-        self.assertEqual(os.path.basename(overlay[overlay.index("-o") + 1]), f"maprboy-Teststadt-foot-{day}-overlay.img")
-        self.assertEqual(overlay[overlay.index("--name") + 1], f"maprBoy Wandrer Teststadt foot {day}")
-        self.assertEqual(os.path.basename(base[base.index("-o") + 1]), f"maprboy-Teststadt-{day}-base.img")   # no activity
+        self.assertEqual(os.path.basename(overlay[overlay.index("-o") + 1]), f"maprboy-Oberbayern-foot-{day}-overlay.img")
+        self.assertEqual(overlay[overlay.index("--name") + 1], f"maprBoy Wandrer Oberbayern foot {day}")
+        self.assertEqual(os.path.basename(base[base.index("-o") + 1]), f"maprboy-Oberbayern-{day}-base.img")   # no activity
         s = self.s(); s["device"] = "karoo"
         build = jobs.karoo_commands(s, [foot, dict(self.EXP, activity="bike")], None)[-1][1]
-        self.assertEqual(build[build.index("--name") + 1], f"Teststadt-all-{day}")          # mixed: "all"
+        self.assertEqual(build[build.index("--name") + 1], f"Oberbayern-all-{day}")          # mixed: "all"
         no_wandrer = jobs.karoo_commands(self.s(wandrer={"enabled": False}), [foot], None)[-1][1]
-        self.assertEqual(no_wandrer[no_wandrer.index("--name") + 1], f"Teststadt-{day}")
+        self.assertEqual(no_wandrer[no_wandrer.index("--name") + 1], f"Oberbayern-{day}")
         self.assertEqual(jobs.map_activity([{"activity": "combined"}, {"activity": ""}]), "combined")
 
 

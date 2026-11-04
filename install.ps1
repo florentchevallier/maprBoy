@@ -56,6 +56,14 @@ function Install-MaprBoy {
     $Dir = (Resolve-Path $Dir).Path
     $App = Join-Path $Dir "maprBoy-app"
     $Data = Join-Path $Dir "maprBoy-data"
+    # a program of maprBoy-app still running keeps its folders in use: the adb server, which the page starts and
+    # which outlives it (seen in November 2026), so it is stopped (adb starts it again when it is needed)
+    $left = @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($App + "\", [StringComparison]::OrdinalIgnoreCase) })
+    if ($left.Count) {
+        Write-Host ("Stopping " + (($left | ForEach-Object { $_.Name }) -join ", ") + " (started by maprBoy)")
+        $left | Stop-Process -Force
+        Start-Sleep -Seconds 1
+    }
     foreach ($d in "bin", "tools", "state") { New-Item -ItemType Directory -Force -Path (Join-Path $App $d) | Out-Null }
     Write-Host "Installing into $Dir"
     $Tmp = Join-Path ([IO.Path]::GetTempPath()) ("maprboy-" + [Guid]::NewGuid().ToString("N"))

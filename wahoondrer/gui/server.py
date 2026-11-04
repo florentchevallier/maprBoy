@@ -562,10 +562,24 @@ class Handler(BaseHTTPRequestHandler):
 _SERVER = []          # the running server, for "Quit maprBoy"
 
 
+def stop_adb():
+    """Stop the adb server: the page's first `adb devices` starts it in the background and it outlives maprBoy
+    (seen on Windows: it kept the code folder in use, so the installer could not replace it). adb starts it again
+    by itself when it is needed."""
+    adb = devcopy.find_adb((settings.load().get("tools") or {}).get("adb") or "")
+    if not adb:
+        return
+    try:
+        subprocess.run([adb, "kill-server"], capture_output=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
 def quit_server():
     """Stop a run, then the page server: serve() returns and the program ends (its window says so)."""
     JOB.cancel()
     DOWNLOADER.cancel()
+    stop_adb()
     for srv in _SERVER:
         threading.Timer(0.3, srv.shutdown).start()     # after the answer is sent
 

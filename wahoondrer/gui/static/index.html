@@ -30,15 +30,19 @@ main{margin:0 auto;padding:16px 20px 40px;display:grid;gap:16px;max-width:calc(v
 #colLeft,#colMap,#colFiles{display:grid;gap:16px;min-width:0}
 #colLeft > section,#colMap > section,#colFiles > section{min-width:0;overflow-x:auto}
 body.step2 section[data-sec=tiles] :is(.maptools,.tilebar,#locNote,#mapNote),body.step2 section[data-sec=tiles] .seg.micro{display:none}
-#colMap{position:sticky;top:var(--headh,64px);max-height:calc(100vh - var(--headh,64px) - 16px);overflow:auto;grid-template-rows:minmax(0,1fr) auto}
+#colMap{position:sticky;top:var(--headh,64px);max-height:calc(100vh - var(--headh,64px) - 16px);overflow:auto;grid-template-rows:minmax(min-content,1fr) auto}
 #colMap section[data-sec=tiles]{display:flex;flex-direction:column;min-height:420px}
 #colMap section[data-sec=tiles] > .fold-body{display:flex;flex-direction:column;flex:1;min-height:0}
 #colMap #map{flex:1;min-height:320px;height:auto}
+/* "Make the maps" (buttons, progress, log) stays in view at the bottom of the right column, over the map when there
+   is no room for both; the log takes at most a third of the window */
+#colMap > section[data-sec=make]{overflow:visible;position:sticky;bottom:0;z-index:1100}
+#colMap pre#log{height:min(320px,33vh)}
 #colFiles{display:none}
 body.step2 #colLeft,body.step2 section[data-sec=make]{display:none}
 body.step2 #colFiles{display:grid}
 body.step2 .layout{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr)}   /* step 2: the list of files needs the room, the map shows where they are */
-@media (max-width:1000px){.layout,body.step2 .layout{grid-template-columns:1fr}#colMap{position:static;max-height:none}#colMap #map{height:400px;flex:none}}
+@media (max-width:1000px){.layout,body.step2 .layout{grid-template-columns:1fr}#colMap{position:static;max-height:none}#colMap > section[data-sec=make]{position:static}#colMap #map{height:400px;flex:none}}
 #devSeg button[data-device=wahoo].on{background:#19a6df;color:#06223a}#devSeg button[data-device=garmin].on{background:#000;color:#fff}#devSeg button[data-device=karoo].on{background:#e51937;color:#fff}
 .steps{display:inline-flex;align-items:center;gap:6px;margin:0 auto}
 .step{font-weight:600;padding:6px 14px;border-radius:99px;display:inline-flex;align-items:center;gap:8px;color:var(--mute)}

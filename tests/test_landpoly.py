@@ -77,6 +77,21 @@ class LandPolygonsTest(unittest.TestCase):
             raise SystemExit(1)                    # what progress.download does on a status other than 200
         self.assertEqual(landpoly.refresh(self.dl, http_error, log=lambda *a: None), "kept")
 
+    def test_the_copy_on_github_when_the_official_site_is_down(self):
+        def official_down(url, path):
+            self.calls.append(url)
+            if "osmdata.openstreetmap.de" in url:
+                with open(path, "w") as f:
+                    f.write("half")                  # a partial file must not stay
+                raise ConnectionError("Max retries exceeded")
+            self.good_download(url, path)
+        lines = []
+        self.assertEqual(landpoly.refresh(self.dl, official_down, log=lines.append), "renewed")
+        self.assertEqual(self.calls, [landpoly.URL, landpoly.MIRROR, landpoly.MIRROR])
+        self.assertTrue(any("trying the copy on github.com" in l for l in lines))
+        self.assertEqual(self.content(), "new")
+        self.assertEqual(sorted(os.listdir(self.dl)), [landpoly.FOLDER])
+
     def test_first_download(self):
         self.assertEqual(landpoly.refresh(self.dl, self.good_download, log=lambda *a: None), "renewed")
         self.assertEqual(self.content(), "new")

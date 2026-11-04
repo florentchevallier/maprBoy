@@ -13,6 +13,10 @@ import time
 import zipfile
 
 URL = "https://osmdata.openstreetmap.de/download/land-polygons-split-4326.zip"
+# a copy kept by maprBoy (a GitHub release of the repository), used when osmdata.openstreetmap.de does not answer
+# (seen down for hours in November 2026). Same data: (c) OpenStreetMap contributors, ODbL.
+MIRROR = "https://github.com/florentchevallier/maprboy/releases/download/land-polygons/land-polygons-split-4326.zip"
+URLS = (URL, MIRROR)
 FOLDER = "land-polygons-split-4326"
 SHP = "land_polygons.shp"
 STAMP = ".maprboy-downloaded"
@@ -42,6 +46,22 @@ def _for_wmc(folder):
     os.utime(os.path.join(folder, SHP), (now, now))
 
 
+def _fetch(download, path, log):
+    """Download the zip from the first source that answers; raises the last error when none does."""
+    error = None
+    for i, url in enumerate(URLS):
+        if i:
+            log(f"  Land polygons: {URLS[i - 1].split('/')[2]} does not answer, trying the copy on {url.split('/')[2]}")
+        try:
+            download(url, path)
+            return
+        except (Exception, SystemExit) as e:      # progress.download stops with sys.exit on an HTTP error
+            error = e
+            if os.path.exists(path):
+                os.remove(path)
+    raise error
+
+
 def refresh(dl_dir, download, max_days=MAX_DAYS, log=print, now=None):
     """Make sure dl_dir/land-polygons-split-4326 holds land polygons WMC will use as they are.
     download(url, path) fetches a file. Returns "fresh", "renewed" (a new copy: the land tiles must be made again)
@@ -58,7 +78,7 @@ def refresh(dl_dir, download, max_days=MAX_DAYS, log=print, now=None):
     tmp = os.path.join(dl_dir, FOLDER + ".new")
     try:
         os.makedirs(dl_dir, exist_ok=True)
-        download(URL, zpath)
+        _fetch(download, zpath, log)
         shutil.rmtree(tmp, ignore_errors=True)
         with zipfile.ZipFile(zpath) as z:
             z.extractall(tmp)
@@ -71,9 +91,10 @@ def refresh(dl_dir, download, max_days=MAX_DAYS, log=print, now=None):
             os.remove(zpath)
         why = str(e).splitlines()[0][:200] if str(e) else type(e).__name__
         if since is None:
-            raise LandError("the land polygons (coastlines) could not be downloaded from osmdata.openstreetmap.de "
-                            f"({why}) and there is no copy on disk yet: check the internet connection, or try again "
-                            "later. They are needed once, for the Wahoo maps.") from None
+            raise LandError("the land polygons (coastlines) could not be downloaded, neither from "
+                            f"osmdata.openstreetmap.de nor from maprBoy's copy on GitHub ({why}), and there is no copy "
+                            "on disk yet: check the internet connection, or try again later. They are needed once, "
+                            "for the Wahoo maps.") from None
         log(f"! Land polygons: the new copy could not be downloaded ({why}); the old copy is used.")
         _for_wmc(folder)
         return "kept"

@@ -18,7 +18,7 @@ local web page.
 | Wahoo ELEMNT BOLT v2 | in daily use | full maps, tile by tile ([WahooMapsCreator](https://github.com/treee111/wahooMapsCreator)) |
 | Wahoo ELEMNT ROAM v1 | tested once (borrowed device) | same maps, `.map.gz` tiles |
 | Garmin Forerunner 955, Edge 830, Edge 530 | tested (the base map: on the Forerunner 955) | a map over the Garmin map, and an optional OpenStreetMap base map |
-| Hammerhead Karoo 2 | tested on a borrowed device | a map drawn over Hammerhead's maps; the copy from the page is not tested yet |
+| Hammerhead Karoo 2 | tested on a borrowed device | a map drawn over Hammerhead's maps |
 
 What was learned on each device: [docs/DEVICES.md](docs/DEVICES.md) and, for Garmin, [docs/GARMIN.md](docs/GARMIN.md).
 
@@ -43,7 +43,7 @@ Run from a copy of the repository (`bash install.sh`), it installs that copy ins
 The installer was tested on an Intel Mac with macOS 10.14. Other systems: install by hand (see "Installation (by
 hand, for development)" below).
 
-## Install (Windows, not tested yet)
+## Install (Windows)
 In PowerShell (Start menu, type PowerShell), paste:
 ```
 powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/florentchevallier/maprboy/main/install.ps1 | iex"
@@ -52,8 +52,11 @@ Same layout as on a Mac (`maprBoy-app`, `maprBoy-data`, default `%USERPROFILE%\m
 Desktop and `maprBoy-app\uninstall.bat`. On Windows maprBoy runs without a window: `maprBoy.bat` starts it in the
 background and opens the page; "Quit maprBoy" in the settings of the page stops it (its messages go to
 `maprBoy-app\state\server.log`). `%USERPROFILE%\wahooMapsCreatorData` becomes a directory junction to
-`maprBoy-data\OSM_data`. An Edge (a drive) can be copied to from the page; a watch (MTP) is copied to by hand in
-File Explorer for now.
+`maprBoy-data\OSM_data`. Copying from the page works for every device: a Wahoo and a Karoo with adb, a Garmin
+Edge as a drive, a Garmin watch through File Explorer (MTP). Windows asks once whether adb may use the network
+(firewall): the copies worked with that access refused.
+
+The installer was tested on Windows 10 (a virtual machine).
 
 ## Use
 1. Start maprBoy (`maprBoy.command` on the Desktop): the page opens in your browser.
@@ -154,7 +157,7 @@ with the command to fix it; a newer WMC only shows a note (it may work, it was n
    When a run ends, a system notification says that the maps are ready (and how long it took) or which step failed,
    so you can do something else meanwhile; untick "Notify me when a run ends" to turn it off. On macOS the banner is
    shown under the name "Script Editor" (allow it in System Settings > Notifications); on Linux it needs
-   `notify-send`; the Windows version has not been tested yet. When the log shows a known cause of failure (a module
+   `notify-send`; on Windows it is shown under the name "Windows PowerShell". When the log shows a known cause of failure (a module
    missing because the environment is not active, a full disk), a "Hint:" line says what to do.
    While it runs, a progress bar shows each OSM download (size, percentage, speed), and a "step n of N" bar
    follows the stages of the build (the stages themselves are run by WMC and have no finer percentage).

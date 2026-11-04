@@ -4,6 +4,10 @@ This page gathers what was learned on each device: where the files go, what work
 still unknown. It is the reference before writing per-device instructions in the README. Recipes for building
 the maps are in [PIPELINE.md](PIPELINE.md) (Wahoo) and [GARMIN.md](GARMIN.md) (Garmin).
 
+All three families were also copied to from the page on Windows 10 (November 2026, a virtual machine): a BOLT v2 and
+a Karoo 2 with adb, an Edge 530 as a drive, a Forerunner 955 by MTP. Windows asked once whether adb may use the
+network (firewall); the copies worked with that access refused.
+
 | Device | Status | Map files | Theme |
 |---|---|---|---|
 | Wahoo ELEMNT BOLT v2 | in daily use | `maps/tiles/8/<x>/<y>.map.lzma` + `.map.lzma.17` | `maps/vtm-elemnt/` |
@@ -11,6 +15,7 @@ the maps are in [PIPELINE.md](PIPELINE.md) (Wahoo) and [GARMIN.md](GARMIN.md) (G
 | Garmin Forerunner 955 | tested (overlay, base map) | `GARMIN/*.img` | TYP inside the `.img` |
 | Garmin Edge 830 | tested (overlay) | `Garmin/*.img` | TYP inside the `.img` |
 | Garmin Edge 530 | tested (overlay) | `Garmin/gmapsupp.img` | TYP inside the `.img` |
+| Hammerhead Karoo 2 | tested (borrowed device) | `/sdcard/offline/maps/maprboy-*.map` | our block in `/sdcard/offline_vNN.xml` |
 
 ---
 
@@ -90,6 +95,20 @@ Details and the build recipe are in [GARMIN.md](GARMIN.md).
 - Default look: unvisited roads cyan `#00E1FF` with a white edge, visited roads magenta `#FF00FF`, unpaved roads
   dashed, boundaries a purple band under the roads, Squadrats blue. Visited roads are always drawn.
 
+### Copy from the page
+
+- An **Edge** shows as a drive (the Edge 830 on a Mac, the Edge 530 on Windows): the maps are copied into its
+  `Garmin` folder, and the page can eject it.
+- A **Forerunner 955** shows no drive, only an MTP device. On a Mac the copy uses the libmtp command line tools
+  (`brew install libmtp`); on Windows, File Explorer's own objects (`wahoondrer/garmin/mtp_windows.ps1`).
+- On Windows, File Explorer shows the watch's maps without `.img`, and with a size of 0 in the Size column (the real
+  size is in its properties). A map of the same name but another size brings Windows' "Replace" window, to answer
+  by hand. Deleting a file from a script asked for a confirmation and then did not delete it, so on Windows maprBoy
+  deletes nothing from a watch: the log lists the older versions to delete by hand.
+- Each build has its own map ids: the device lists an older version of a map as another map (an Edge 830 kept two
+  base maps switched on). "Delete the older versions" removes, after the copy, the maps of the same place and kind
+  with an earlier date in their name (on a drive, and by MTP on a Mac).
+
 ## Garmin Forerunner 955
 
 - Use the **"Classic" map theme**: the "high contrast" theme does not show the overlay.
@@ -120,3 +139,21 @@ Borrowed device, same generation as the Edge 830 without a touch screen.
 - maprBoy's OSM base map (`maprboy-base.img`, see GARMIN.md) shows with the Garmin maps switched off in Map
   Information, and the overlay is drawn over it. POIs at resolution 22 showed from the 800 m scale, at 24 from
   about 200 m.
+
+---
+
+## Hammerhead Karoo 2
+
+Borrowed device, tested in October and November 2026.
+
+- adb works once USB debugging is on (developer options), after accepting the prompt on the Karoo's screen.
+- The maps are mapsforge `.map` files in `/sdcard/offline/maps/`, one per place and day
+  (`maprboy-<place>[-<activity>]-<date>.map`): several stay on the device. The Karoo's own maps stay too: ours are
+  drawn over them.
+- The theme is `/sdcard/offline_vNN.xml` with the highest number (v15 on that device; v7 to v14 were there too).
+  maprBoy adds its rules at the end of it, before `</rendertheme>`; the first time, the Karoo's own theme is kept in
+  `Output/karoo/backup/<serial>/`. The icons go to `/sdcard/maprboy-icons/` (`file:/maprboy-icons/...` in the theme).
+- The new maps show after a restart (button on the page). "Take maprBoy off" puts the Karoo's theme back and deletes
+  our maps and icons.
+- Without a GPS position, the ride map stays grey until the position is found.
+- Checked on the device: the Wandrer roads and the Squadrats around the chosen area.

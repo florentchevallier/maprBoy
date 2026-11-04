@@ -62,7 +62,7 @@ from wahoomc.osm_data import XYOsmData  # noqa: E402
 from wahoomc.osm_maps_functions import OsmMaps  # noqa: E402
 from wahoomc.setup_functions import (  # noqa: E402
     adjustments_due_to_breaking_changes, check_installation_of_required_programs,
-    copy_jsons_from_repo_to_user, initialize_work_directories)
+    copy_jsons_from_repo_to_user, initialize_work_directories, write_config_file)
 
 
 class FakeOsmData:
@@ -395,6 +395,9 @@ def main():
     initialize_work_directories()
     adjustments_due_to_breaking_changes()
     download_tooling()
+    # WMC's own main() writes its version to ~/wahooMapsCreatorData/.config.json; without it the next run on
+    # Windows deletes tooling_win (Osmosis, osmfilter) and downloads it again (adjustments_due_to_breaking_changes)
+    write_config_file()
     check_installation_of_required_programs()
     # WMC's init helper asks "Overwrite? (y/n)" for every existing file, so
     # only call it when the default files are missing from the user config.

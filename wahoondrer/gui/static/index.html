@@ -1877,13 +1877,15 @@ async function renderGarminDevice(box) {
     const pick = garminDevs.length > 1 ? `<select id="garminDev">${garminDevs.map(x => `<option value="${esc(key(x))}"${key(x) === garminTarget ? " selected" : ""}>${esc(x.name)} (${x.kind === "disk" ? "disk" : "MTP"})</option>`).join("")}</select>`
       : `<b>${esc(garminDevs[0].name)}</b> (${garminDevs[0].kind === "disk" ? "disk" : "MTP"})`;
     h += `<p class="note">Found: ${pick}. The ticked maps are copied into its Garmin folder; a map already there with the same content is skipped${garminDevs.some(x => x.kind === "mtp") ? " (by MTP: the same size), and an older map of the same name is replaced" : ""}.</p>
-      <div class="acts"><button class="primary" id="devCopyGo">Copy</button><button class="stop" id="devCopyStop" hidden>■ Stop</button><button id="devEject" hidden>⏏ Eject</button>${again}</div>`;
+      <div class="acts"><button class="primary" id="devCopyGo">Copy</button><button class="stop" id="devCopyStop" hidden>■ Stop</button><button id="devEject" hidden>⏏ Eject</button>${again}</div>
+      <p class="note" id="mtpNote" hidden>MTP: nothing to eject; unplug once the copy says Done.</p>`;
   }
   h += '<div id="devCopyRun" hidden><progress id="devCopyBar" max="1" value="0"></progress><div class="note" id="devCopyTxt"></div></div><div class="note" id="devCopyMsg"></div>';
   box.innerHTML = h;
   $("#devAgain").onclick = renderDevCopy;
   const sel = $("#garminDev"); if (sel) sel.onchange = () => { garminTarget = sel.value; showEject(); };
-  const showEject = () => { const ej = $("#devEject"); if (ej) ej.hidden = !garminTarget.startsWith("disk:"); };
+  const showEject = () => { const disk = garminTarget.startsWith("disk:"), ej = $("#devEject"), mn = $("#mtpNote");
+    if (ej) ej.hidden = !disk; if (mn) mn.hidden = disk || !garminTarget; };
   showEject();
   const go = $("#devCopyGo");
   if (go) go.onclick = async () => {

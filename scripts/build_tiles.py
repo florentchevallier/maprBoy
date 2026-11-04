@@ -41,6 +41,7 @@ sys.path.insert(0, REPO)
 
 from wahoondrer import contour as contour_lines  # noqa: E402
 from wahoondrer import home  # noqa: E402
+from wahoondrer import landpoly  # noqa: E402
 from wahoondrer import poi_config  # noqa: E402
 from wahoondrer import progress  # noqa: E402
 from wahoondrer import reuse  # noqa: E402
@@ -457,7 +458,14 @@ def main():
               " the lines below show it). " + ("Regions already on disk are kept, however old (your setting)."
                                                 if args.max_days <= 0 else
                                                 f"Regions already on disk and younger than {args.max_days} days are kept."))
-        steps.run("Download missing OSM data", data.get_downloader().download_files_if_needed)
+        try:                                                     # kept by maprBoy: renewed every 6 months only
+            land = landpoly.refresh(USER_DL_DIR, progress.download)
+        except landpoly.LandError as exc:
+            sys.exit(f"! {exc}")
+        downloader = data.get_downloader()
+        if land == "renewed":
+            data.force_processing = True                         # new coastlines: the land and sea tiles are made again
+        steps.run("Download missing OSM data", downloader.download_files_if_needed)
         maps = OsmMaps(data)
         steps.run("Filter the OSM data", maps.filter_tags_from_country_osm_pbf_files)
         steps.run("Land", maps.generate_land)

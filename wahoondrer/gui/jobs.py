@@ -124,6 +124,10 @@ HINTS = (
      "Tile {0} has no land: no OpenStreetMap region covers it.",
      "Hint: tile {0} is in the open sea, no OpenStreetMap region covers it, so there is nothing to build. "
      "Take it out of the tiles (on the map) or choose a tile that touches land."),
+    (re.compile(r"HTTPSConnectionPool\(host='([^']+)'.*(?:Max retries exceeded|timed out)"),
+     "Download failed: {0} does not answer.",
+     "Hint: a download from {0} failed (no internet connection, or the site does not answer for now). Check the "
+     "connection or try again later; the files already on disk are kept."),
     (re.compile(r"No space left on device|not enough space on the disk", re.I),
      "The disk is full.",
      "Hint: the disk is full. Delete OSM regions (Map data section) or old tiles, then run again: the finished steps are not redone."),

@@ -228,6 +228,9 @@ WMC hard-codes `~/wahooMapsCreatorData`; the GUI makes it a symbolic link to `OS
 ## Notes
 - The page header uses the banner `wahoondrer/gui/static/banner.jpg`, the icon `favicon.png` and the font Titan One (`static/fonts/titan-one.woff2`, SIL Open Font License 1.1, licence text in `static/fonts/OFL.txt`); all are served locally, nothing is loaded from the Internet.
 - Keep exports of one activity per run if you do not want to mix bike and foot (a warning is printed).
+- The land polygons (coastlines, about 1 GB, from osmdata.openstreetmap.de) of the Wahoo maps are renewed every
+  6 months, not with the OSM regions; when the site does not answer, the copy on disk is used
+  (`wahoondrer/landpoly.py`).
 - Do not commit KMZ files or generated maps (personal data, not redistributable); `.gitignore` covers them, but keep the exports outside the repository.
 - On the Bolt, copy files one by one (not whole folders) and back up `maps/tiles/8` first; `build_tiles.py` writes a README with the exact list.
 - Licence: maprBoy is free software under the GNU General Public License v3.0 (`LICENSE`), like WMC, on which it

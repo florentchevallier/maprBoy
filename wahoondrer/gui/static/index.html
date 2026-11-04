@@ -1576,7 +1576,8 @@ async function renderContour() {
     const c = await api("/api/contour_status");
     const el = $("#contourStatus"), stops = !c.pyhgtmap && S.build && S.build.contour;
     el.textContent = c.pyhgtmap ? "✓ pyhgtmap found (no account needed)"
-      : "✗ pyhgtmap not installed: run once in a terminal  python3 scripts/build_tiles.py --setup-contour"
+      : (c.installed ? "✗ pyhgtmap not installed: run the maprBoy installer again (it installs it)"
+                     : "✗ pyhgtmap not installed: run once in a terminal  python3 scripts/build_tiles.py --setup-contour")
         + (stops ? " — the run will stop at the start while “Add contour lines” is ticked." : "");
     el.style.color = stops ? "var(--bad)" : ""; el.style.fontWeight = stops ? "600" : "";
   } catch (e) { /* not important */ }

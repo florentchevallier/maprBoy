@@ -226,8 +226,9 @@ def result_file(out, rel):
 
 
 def contour_status():
-    """Contour lines need pyhgtmap (installed once with build_tiles.py --setup-contour)."""
-    return {"pyhgtmap": contour.pyhgtmap_path() is not None}
+    """Contour lines need pyhgtmap (installed once with build_tiles.py --setup-contour, or by install.sh).
+    installed: the page runs from install.sh's installation (MAPRBOY_HOME is set by its launcher)."""
+    return {"pyhgtmap": contour.pyhgtmap_path() is not None, "installed": bool(os.environ.get("MAPRBOY_HOME"))}
 
 
 def regions_state():

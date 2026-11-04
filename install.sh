@@ -144,10 +144,13 @@ else
 fi
 
 # ------------------------------------------------------------------ settings and data folders
-say "4/5  Settings"
+say "4/5  Settings and the contour lines tool"
 export MAPRBOY_HOME="$APP/state"
 "$MM" run -p "$ENV" python "$APP/code/scripts/install_setup.py" --data "$DATA" \
     --mkgmap "$MKGMAP_JAR" --osmosis "$OSMOSIS_DIR/bin/osmosis" --adb "$ADB" || fail "the settings could not be written."
+echo "Contour lines tool (pyhgtmap):"
+(cd "$APP/code" && "$MM" run -p "$ENV" python -c "from wahoondrer import contour; contour.setup()") \
+    || echo "pyhgtmap could not be installed: maps without contour lines still work (run the installer again later)."
 
 # ------------------------------------------------------------------ launcher and uninstaller
 say "5/5  Launcher"

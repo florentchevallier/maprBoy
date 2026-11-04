@@ -7,9 +7,13 @@ Two ways in, both seen in November 2026:
   found" with /GARMIN/...). Sending a name already there listed a second entry of that name; deleting one of the
   two removed both: an older map of the same name is therefore deleted before the new one is sent.
 
+With --replace-older, the older versions of the copied maps are deleted from the device: the maps of the same place
+and kind (base, or overlay of the same activity) with an earlier date in their name. Each build has its own map ids, so
+the device lists an older version as another map (an Edge 830 kept both base maps switched on, November 2026).
+
 The maps of the last run are recorded in Output/garmin/last_run.json ("mark", the last step of a Garmin build).
 
-Usage: python3 -m wahoondrer.garmin.device copy --target disk:/Volumes/GARMIN | mtp  FILE.img [FILE.img ...]
+Usage: python3 -m wahoondrer.garmin.device copy --target disk:/Volumes/GARMIN | mtp [--replace-older] FILE.img [...]
        python3 -m wahoondrer.garmin.device mark --out Output/garmin NAME.img [NAME.img ...]
 """
 import argparse
@@ -30,6 +34,24 @@ MTP_TOOLS = ("mtp-detect", "mtp-folders", "mtp-files", "mtp-sendfile", "mtp-delf
 
 class DeviceError(Exception):
     pass
+
+
+_VERSION = re.compile(r"^maprboy-(?P<key>.+)-(?P<date>\d{4}-\d{2}-\d{2})-(?P<kind>base|overlay)\.img$")
+
+
+def older_versions(name, names):
+    """The names among `names` that are older versions of the map `name`: maprboy-<place>[-<activity>]-<date>-<kind>.img
+    with the same place, activity and kind and an earlier date. Other names (maprboy-base.img, a test map) are not
+    versions of anything."""
+    m = _VERSION.match(name)
+    if not m:
+        return []
+    out = []
+    for n in names:
+        o = _VERSION.match(n)
+        if o and o["key"] == m["key"] and o["kind"] == m["kind"] and o["date"] < m["date"]:
+            out.append(n)
+    return sorted(out)
 
 
 # ------------------------------------------------------------------ finding the device
@@ -106,7 +128,7 @@ def _md5(path):
     return h.hexdigest()
 
 
-def copy_to_disk(files, volume, log=print):
+def copy_to_disk(files, volume, log=print, replace_older=False):
     target = _garmin_dir(volume)
     if not target:
         raise DeviceError(f"No Garmin folder on {volume}: is the device still plugged in?")
@@ -123,6 +145,11 @@ def copy_to_disk(files, volume, log=print):
         os.replace(dest + ".part", dest)
         copied += 1
         log(f"  copied {name} ({os.path.getsize(f) / 1e6:.1f} MB)")
+    if replace_older:                                      # a map of this copy is never deleted, older or not
+        there, sent = os.listdir(target), {os.path.basename(f) for f in files}
+        for old in sorted({o for f in files for o in older_versions(os.path.basename(f), there)} - sent):
+            os.remove(os.path.join(target, old))
+            log(f"  deleted the older version {old}")
     log(f"{copied} map(s) copied into {target}. Eject the device before unplugging it.")
     return copied
 
@@ -164,7 +191,7 @@ def _mtp(args, what, timeout=3600):
     return text
 
 
-def copy_mtp(files, log=print):
+def copy_mtp(files, log=print, replace_older=False):
     if not mtp_ready():
         raise DeviceError("libmtp is not installed (macOS: brew install libmtp).")
     folders = parse_folders(_mtp(["mtp-folders"], "mtp-folders", 120))
@@ -191,6 +218,12 @@ def copy_mtp(files, log=print):
                 l for l in out.splitlines() if "association type" not in l)[-400:])
         copied += 1
         log(f"  copied {name} ({os.path.getsize(f) / 1e6:.1f} MB)")
+    if replace_older:
+        names, sent = {e["name"] for e in there}, {os.path.basename(f) for f in files}
+        for old in sorted({o for f in files for o in older_versions(os.path.basename(f), names)} - sent):
+            for e in (e for e in there if e["name"] == old):
+                _mtp(["mtp-delfile", "-n", str(e["id"])], "mtp-delfile", 120)
+            log(f"  deleted the older version {old}")
     log(f"{copied} map(s) sent to the GARMIN folder of the device.")
     return copied
 
@@ -215,6 +248,7 @@ def main(argv=None):
     ap.add_argument("files", nargs="+")
     ap.add_argument("--target", help="copy: disk:<volume> or mtp")
     ap.add_argument("--out", help="mark: the Output/garmin folder")
+    ap.add_argument("--replace-older", action="store_true", help="copy: delete the older versions of these maps")
     args = ap.parse_args(argv)
     try:
         if args.action == "mark":
@@ -224,9 +258,9 @@ def main(argv=None):
         if missing:
             raise DeviceError("not found: " + ", ".join(missing))
         if (args.target or "").startswith("disk:"):
-            copy_to_disk(args.files, args.target[5:])
+            copy_to_disk(args.files, args.target[5:], replace_older=args.replace_older)
         elif args.target == "mtp":
-            copy_mtp(args.files)
+            copy_mtp(args.files, replace_older=args.replace_older)
         else:
             raise DeviceError("--target disk:<volume> or mtp")
     except (DeviceError, OSError, subprocess.SubprocessError) as e:

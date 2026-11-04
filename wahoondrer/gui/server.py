@@ -439,7 +439,8 @@ class Handler(BaseHTTPRequestHandler):
                 if s.get("device") == "garmin":
                     if JOB.running():
                         raise jobs.SettingsError("A job is running: wait for it to finish.")
-                    JOB.start([jobs.garmin_copy_command(s, body.get("maps") or [], body.get("target", ""))], "copy")
+                    JOB.start([jobs.garmin_copy_command(s, body.get("maps") or [], body.get("target", ""),
+                                                        body.get("replace_older") is True)], "copy")
                     return self._send(200, {"started": True})
                 if s.get("device", "wahoo") != "wahoo":
                     raise jobs.SettingsError("The automatic copy is for the Wahoo ELEMNT and the Karoo.")

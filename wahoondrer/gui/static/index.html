@@ -1759,7 +1759,7 @@ const GARMIN_COPY = '<h3>On the device</h3><p class="note">The maps go into the 
   '<b>maprboy-…-overlay.img</b> holds the Wandrer roads and Squadrats, drawn over any map; <b>maprboy-…-base.img</b> is the OpenStreetMap base map with your POIs. ' +
   'Each map has its own ids, so maps of several places and activities can stay on the device.</p>' +
   '<p class="note">Then, in the activity profile you use (Navigation › Map): <b>Map Theme</b> = Classic (with High Contrast the overlay is drawn in grey), and in ' +
-  '<b>Map Information</b> switch the maprBoy maps you want on, and the Garmin maps off if you use a maprBoy base map (Garmin DEM can stay on).</p>';
+  '<b>Map Information</b> switch the maprBoy maps you want on, and the Garmin maps off if you use a maprBoy base map (Garmin DEM can stay on). A new base map may arrive switched off (seen on an Edge 830): check it there.</p>';
 const garminPick = new Set();          // the maps ticked for the copy
 let garminPickRun = "";                // the last run they were ticked for (a new run ticks its own maps)
 async function renderGarminMaps(box) {
@@ -1953,6 +1953,7 @@ async function renderGarminDevice(box) {
     const pick = garminDevs.length > 1 ? `<select id="garminDev">${garminDevs.map(x => `<option value="${esc(key(x))}"${key(x) === garminTarget ? " selected" : ""}>${esc(x.name)} (${x.kind === "disk" ? "disk" : "MTP"})</option>`).join("")}</select>`
       : `<b>${esc(garminDevs[0].name)}</b> (${garminDevs[0].kind === "disk" ? "disk" : "MTP"})`;
     h += `<p class="note">Found: ${pick}. The ticked maps are copied into its Garmin folder; a map already there with the same content is skipped${garminDevs.some(x => x.kind === "mtp") ? " (by MTP: the same size), and an older map of the same name is replaced" : ""}.</p>
+      <label class="chk"><input type="checkbox" id="devReplace" checked><span>Delete the older versions of these maps from the device <small>same place and kind (base, or overlay of the same activity), earlier date: otherwise both stay listed as two maps</small></span></label>
       <div class="acts"><button class="primary" id="devCopyGo">Copy</button><button class="stop" id="devCopyStop" hidden>■ Stop</button><button id="devEject" hidden>⏏ Eject</button>${again}</div>
       <p class="note" id="mtpNote" hidden>MTP: nothing to eject; unplug once the copy says Done.</p>`;
   }
@@ -1966,7 +1967,7 @@ async function renderGarminDevice(box) {
   const go = $("#devCopyGo");
   if (go) go.onclick = async () => {
     go.disabled = true; $("#devCopyMsg").textContent = ""; copyLines = [];
-    try { await api("/api/device_copy", {maps: [...garminPick], target: garminTarget}); since = 0; startPolling(); }
+    try { await api("/api/device_copy", {maps: [...garminPick], target: garminTarget, replace_older: $("#devReplace").checked}); since = 0; startPolling(); }
     catch (e) { $("#devCopyMsg").textContent = e.message; renderGarminCopyBtn(); }
   };
   const stop = $("#devCopyStop"); if (stop) stop.onclick = () => api("/api/cancel", {});

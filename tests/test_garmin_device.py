@@ -40,6 +40,21 @@ class ParseTest(unittest.TestCase):
         self.assertEqual(len(files), 3)
 
 
+class VersionTest(unittest.TestCase):
+    def test_older_versions(self):
+        there = ["maprboy-Munich-2026-10-28-base.img", "maprboy-Munich-2026-10-28-overlay.img",
+                 "maprboy-Munich-foot-2026-10-30-overlay.img", "maprboy-Munich-bike-2026-10-29-overlay.img",
+                 "maprboy-Munich-2026-12-01-base.img", "maprboy-Athens-2026-10-28-base.img", "maprboy-base.img",
+                 "maprboy-Moosburg-an-der-Isar-2026-10-01-base.img", "gmapsupp.img"]
+        self.assertEqual(device.older_versions("maprboy-Munich-2026-11-04-base.img", there),
+                         ["maprboy-Munich-2026-10-28-base.img"])                  # not the newer one, not Athens
+        self.assertEqual(device.older_versions("maprboy-Munich-bike-2026-11-04-overlay.img", there),
+                         ["maprboy-Munich-bike-2026-10-29-overlay.img"])          # the same activity only
+        self.assertEqual(device.older_versions("maprboy-Moosburg-an-der-Isar-2026-11-04-base.img", there),
+                         ["maprboy-Moosburg-an-der-Isar-2026-10-01-base.img"])
+        self.assertEqual(device.older_versions("maprboy-base.img", there), [])     # no date: no versions
+
+
 class DiskTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -69,6 +84,24 @@ class DiskTest(unittest.TestCase):
         self.assertFalse([n for n in os.listdir(os.path.join(self.vol, "Garmin")) if n.endswith(".part")])
 
 
+    def test_older_versions_deleted_when_asked(self):
+        g = os.path.join(self.vol, "Garmin")
+        for n in ("maprboy-M-2026-10-28-base.img", "maprboy-M-2026-10-29-base.img", "maprboy-M-foot-2026-10-28-overlay.img"):
+            with open(os.path.join(g, n), "w") as f:
+                f.write("old")
+        new = os.path.join(self.tmp, "maprboy-M-2026-11-04-base.img")
+        older_sent = os.path.join(self.tmp, "maprboy-M-2026-10-29-base.img")
+        for p in (new, older_sent):
+            with open(p, "w") as f:
+                f.write("new")
+        device.copy_to_disk([new], self.vol, log=lambda *a: None)
+        self.assertEqual(len([n for n in os.listdir(g) if n.startswith("maprboy-M-")]), 4)    # not asked: all kept
+        device.copy_to_disk([new, older_sent], self.vol, log=lambda *a: None, replace_older=True)
+        self.assertEqual(sorted(n for n in os.listdir(g) if n.startswith("maprboy-M-")),
+                         ["maprboy-M-2026-10-29-base.img", "maprboy-M-2026-11-04-base.img",   # one sent now: kept
+                          "maprboy-M-foot-2026-10-28-overlay.img"])                            # another kind
+
+
 class MtpTest(unittest.TestCase):
     def test_older_map_deleted_first_same_one_skipped(self):
         tmp = tempfile.mkdtemp()
@@ -91,6 +124,27 @@ class MtpTest(unittest.TestCase):
             self.assertFalse([c for c in calls if c[0] == "mtp-sendfile" and c[1] == same])
             self.assertLess(calls.index(["mtp-delfile", "-n", "16779431"]),
                             calls.index(["mtp-sendfile", new, "16777216/maprboy-old.img"]))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_older_versions_deleted_when_asked(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            new = os.path.join(tmp, "maprboy-M-2026-11-04-base.img")
+            with open(new, "w") as f:
+                f.write("NEW")
+            listing = FILES + ("File ID: 16779700\n   Filename: maprboy-M-2026-10-28-base.img\n"
+                               "   File size 9 (0x9) bytes\n   Parent ID: 16777216\n")
+            calls = []
+
+            def fake(args, what, timeout=3600):
+                calls.append(args)
+                return {"mtp-folders": FOLDERS, "mtp-files": listing}.get(args[0], "New file ID: 1\n")
+            with mock.patch.object(device, "_mtp", fake), mock.patch.object(device, "mtp_ready", lambda: True):
+                device.copy_mtp([new], log=lambda *a: None)
+                self.assertFalse([c for c in calls if c[0] == "mtp-delfile"])
+                device.copy_mtp([new], log=lambda *a: None, replace_older=True)
+            self.assertEqual([c for c in calls if c[0] == "mtp-delfile"], [["mtp-delfile", "-n", "16779700"]])
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 

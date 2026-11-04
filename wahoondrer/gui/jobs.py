@@ -514,9 +514,9 @@ def garmin_commands(s, export_infos, squadrats_file):
     return cmds
 
 
-def garmin_copy_command(s, names, target):
+def garmin_copy_command(s, names, target, replace_older=False):
     """The step that copies the chosen maps of Output/garmin/ to the Garmin plugged in: target "disk:<volume>" or
-    "mtp" (wahoondrer/garmin/device.py)."""
+    "mtp" (wahoondrer/garmin/device.py); replace_older: also delete the older versions of these maps there."""
     if not s["folders"]["out"]:
         raise SettingsError("Choose the output folder first (⚙).")
     folder = os.path.join(os.path.abspath(os.path.expanduser(s["folders"]["out"])), GARMIN_DIR)
@@ -530,7 +530,7 @@ def garmin_copy_command(s, names, target):
     if not (target == "mtp" or (isinstance(target, str) and target.startswith("disk:/"))):
         raise SettingsError("No Garmin chosen.")
     return ("Copy the maps to the Garmin", [sys.executable, "-m", "wahoondrer.garmin.device", "copy",
-                                            "--target", target, *files])
+                                            "--target", target, *(["--replace-older"] if replace_older else []), *files])
 
 
 KAROO_DIR = "karoo"              # Output/karoo/: maprboy-<place>-<date>.map, maprboy-theme-block.xml, maprboy-icons/

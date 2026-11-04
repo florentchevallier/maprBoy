@@ -1709,6 +1709,9 @@ class GarminCopyTests(unittest.TestCase):
             title, argv = jobs.garmin_copy_command(s, ["maprboy-A-2026-10-28-base.img"], "disk:/Volumes/GARMIN")
             self.assertEqual(argv[1:6], ["-m", "wahoondrer.garmin.device", "copy", "--target", "disk:/Volumes/GARMIN"])
             self.assertEqual(argv[-1], os.path.join(g, "maprboy-A-2026-10-28-base.img"))
+            self.assertNotIn("--replace-older", argv)
+            argv = jobs.garmin_copy_command(s, ["maprboy-A-2026-10-28-base.img"], "mtp", True)[1]
+            self.assertEqual(argv[5:8], ["mtp", "--replace-older", os.path.join(g, "maprboy-A-2026-10-28-base.img")])
             for bad in ((["../x.img"], "mtp"), (["a.txt"], "mtp"), ([], "mtp"), (["a.img"], "somewhere")):
                 with self.assertRaises(jobs.SettingsError):
                     jobs.garmin_copy_command(s, *bad)

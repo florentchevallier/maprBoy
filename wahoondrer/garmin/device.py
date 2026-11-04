@@ -2,7 +2,8 @@
 
 Two ways in, both seen in November 2026:
 - as a disk (Edge 830: the volume GARMIN in the Finder): the maps are copied into <volume>/Garmin/;
-- by MTP (Forerunner 955: no disk, an MTP device): with the libmtp command line tools (brew install libmtp).
+- by MTP (Forerunner 955: no disk, an MTP device): with the libmtp command line tools (brew install libmtp);
+  on Windows through File Explorer's objects (mtp_windows.ps1, which says what was seen there).
   mtp-sendfile accepted the number of the GARMIN folder as parent, not its name ("Parent folder could not be
   found" with /GARMIN/...). Sending a name already there listed a second entry of that name; deleting one of the
   two removed both: an older map of the same name is therefore deleted before the new one is sent.
@@ -96,8 +97,30 @@ def disks(volumes=VOLUMES):
     return out
 
 
+WIN_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mtp_windows.ps1")
+
+
 def mtp_ready():
-    return os.name != "nt" and all(shutil.which(t) for t in MTP_TOOLS)     # libmtp: macOS / Linux only
+    """libmtp's tools (macOS, Linux); on Windows, PowerShell drives File Explorer (mtp_windows.ps1)."""
+    if os.name == "nt":
+        return bool(shutil.which("powershell"))
+    return all(shutil.which(t) for t in MTP_TOOLS)
+
+
+def _win(args, timeout):
+    r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", WIN_SCRIPT, *args],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
+    return r.returncode, r.stdout + r.stderr
+
+
+def win_list():
+    """{"devices": [names], "maps": [file names in GARMIN]} of the Garmin watches seen by File Explorer (Windows)."""
+    code, out = _win(["list"], 120)
+    line = next((l for l in out.splitlines() if l.startswith("{")), "")
+    if code or not line:
+        return {"devices": [], "maps": []}
+    data = json.loads(line)
+    return {"devices": data.get("devices") or [], "maps": data.get("maps") or []}
 
 
 def parse_detect(text):
@@ -113,6 +136,11 @@ def mtp_devices():
     """[{"kind": "mtp", "name"}] for the Garmin seen by MTP (needs libmtp)."""
     if not mtp_ready():
         return []
+    if os.name == "nt":
+        try:
+            return [{"kind": "mtp", "name": n} for n in win_list()["devices"]]
+        except (OSError, ValueError, subprocess.SubprocessError):
+            return []
     try:
         r = subprocess.run(["mtp-detect"], capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.SubprocessError):
@@ -197,7 +225,35 @@ def _mtp(args, what, timeout=3600):
     return text
 
 
+def copy_mtp_windows(files, log=print, replace_older=False):
+    """Windows: mtp_windows.ps1 copies through File Explorer (its Replace window may ask); nothing is deleted there
+    (deleting did not work reliably), so the older versions are listed for the user to delete by hand."""
+    proc = subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", WIN_SCRIPT, "copy",
+                             *files], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
+                            errors="replace")
+    error = ""
+    for line in proc.stdout:
+        line = line.rstrip()
+        if line.startswith("STEP|"):
+            if gui():
+                print(MARK + "S|" + line[5:], flush=True)
+        elif line.startswith("Error: "):
+            error = line[7:]
+        elif line:
+            log(line)
+    if proc.wait() != 0:
+        raise DeviceError(error or "the copy to the watch failed")
+    if replace_older:
+        names, sent = set(win_list()["maps"]), {os.path.basename(f) for f in files}
+        old = sorted({o for f in files for o in older_versions(os.path.basename(f), names)} - sent)
+        if old:
+            log("! Older versions on the watch, to delete by hand in File Explorer (This PC > the watch > Internal "
+                "Storage > GARMIN): " + ", ".join(old))
+
+
 def copy_mtp(files, log=print, replace_older=False):
+    if os.name == "nt":
+        return copy_mtp_windows(files, log, replace_older)
     if not mtp_ready():
         raise DeviceError("libmtp is not installed (macOS: brew install libmtp).")
     folders = parse_folders(_mtp(["mtp-folders"], "mtp-folders", 120))

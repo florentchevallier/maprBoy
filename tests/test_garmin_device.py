@@ -148,6 +148,33 @@ class MtpTest(unittest.TestCase):
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
+    def test_windows_copy_lists_the_older_versions(self):
+        class FakeProc:
+            def __init__(self, *a, **k):
+                self.stdout = iter(["STEP|1|1|maprboy-M-2026-11-04-base.img\n", "  copied maprboy-M-2026-11-04-base.img (0.1 MB)\n",
+                                    "1 map(s) sent to the GARMIN folder of Forerunner 955.\n"])
+
+            def wait(self):
+                return 0
+        lines = []
+        listing = {"devices": ["Forerunner 955"], "maps": ["maprboy-M-2026-10-28-base.img", "maprboy-M-2026-11-04-base.img"]}
+        with mock.patch.object(device.subprocess, "Popen", FakeProc), mock.patch.object(device, "win_list", lambda: listing):
+            device.copy_mtp_windows(["/x/maprboy-M-2026-11-04-base.img"], log=lines.append, replace_older=True)
+        self.assertIn("  copied maprboy-M-2026-11-04-base.img (0.1 MB)", lines)
+        self.assertTrue(lines[-1].startswith("! Older versions on the watch") and "maprboy-M-2026-10-28-base.img" in lines[-1])
+
+    def test_windows_copy_error(self):
+        class FakeProc:
+            def __init__(self, *a, **k):
+                self.stdout = iter(["Error: no Garmin watch found\n"])
+
+            def wait(self):
+                return 1
+        with mock.patch.object(device.subprocess, "Popen", FakeProc):
+            with self.assertRaises(device.DeviceError) as ctx:
+                device.copy_mtp_windows(["/x/a.img"], log=lambda *a: None)
+        self.assertIn("no Garmin watch found", str(ctx.exception))
+
     def test_mark(self):
         tmp = tempfile.mkdtemp()
         try:

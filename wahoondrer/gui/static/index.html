@@ -71,7 +71,7 @@ button.icon{padding:4px 9px}
 button:disabled{opacity:.45;cursor:not-allowed}
 .chk{display:flex;gap:8px;align-items:flex-start;margin:7px 0}
 .chk input{margin-top:4px}
-.chk small,.note{color:var(--mute);font-size:12.5px;display:block}
+.chk small,.note{color:var(--mute);font-size:12.5px;display:block}.note[hidden]{display:none}   /* display:block would show a hidden note */
 .warn{color:var(--bad);font-size:13px;margin:6px 0}
 .envwarn{border:1px solid var(--bad);border-left-width:5px;border-radius:10px;background:var(--card);padding:12px 16px;font-size:14px}
 .envwarn b{color:var(--bad)}

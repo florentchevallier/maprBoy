@@ -194,6 +194,7 @@ main() {
     fi
     rm -rf "\$APP"
     if [ "\$reply" = "y" ]; then rm -rf "\$DATA"; echo "Data deleted."; else echo "Data kept in \$DATA"; fi
+    rm -f "\$DIR/.DS_Store"                   # left by the Finder when the folder was opened: not a reason to keep it
     rmdir "\$DIR" 2>/dev/null || true
     local plugins=(\$HOME/.openstreetmap/osmosis/plugins/*map-writer*.jar)
     if [ -e "\${plugins[0]}" ]; then

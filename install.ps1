@@ -217,7 +217,8 @@ if ((Test-Path `$desk) -and (Select-String -Quiet -Path `$desk -Pattern "maprBoy
 if ((Test-Path `$lnk) -and (New-Object -ComObject WScript.Shell).CreateShortcut(`$lnk).TargetPath.StartsWith(`$App, [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -Force `$lnk }
 Remove-Item -Recurse -Force `$App
 if (`$reply -eq "y") { Remove-Item -Recurse -Force `$Data; Write-Host "Data deleted." } else { Write-Host "Data kept in `$Data" }
-if ((Test-Path `$Dir) -and -not (Get-ChildItem -Force `$Dir)) { Remove-Item -Force `$Dir }
+# files Windows leaves in a folder that was opened (thumbnails, folder settings) are not a reason to keep it
+if ((Test-Path `$Dir) -and -not (Get-ChildItem -Force `$Dir | Where-Object { `$_.Name -notin "Thumbs.db", "desktop.ini" })) { Remove-Item -Recurse -Force `$Dir }
 `$plugins = Get-ChildItem (Join-Path `$env:APPDATA "Openstreetmap\Osmosis\Plugins") -Filter "*map-writer*.jar" -ErrorAction SilentlyContinue
 if (`$plugins) {
     `$reply = Read-Host "Also delete the Osmosis MapWriter plugin in %APPDATA% (another program may use it)? [y/N]"

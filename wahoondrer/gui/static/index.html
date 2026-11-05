@@ -125,7 +125,7 @@ details.var div{margin:3px 0 0 4px;color:var(--ink)}
 .runstate{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:6px 0 2px}.runstate[hidden]{display:none}
 #runMsg{margin:4px 0 0;font-size:12.5px;line-height:1.35}
 .logfold{border:0;background:transparent;padding:4px 0;margin:6px 0 4px;color:var(--mute);font-size:13px;display:inline-flex;align-items:center;gap:6px}
-.logfold svg{width:11px;height:11px;fill:currentColor;transition:transform .15s}.logfold.open svg{transform:rotate(90deg)}.logfold[hidden],pre#log[hidden]{display:none}
+.logcopy{margin-left:18px;text-decoration:underline;cursor:pointer}.logfold svg{width:11px;height:11px;fill:currentColor;transition:transform .15s}.logfold.open svg{transform:rotate(90deg)}.logfold[hidden],pre#log[hidden]{display:none}
 pre#logTail{background:var(--code);color:var(--codeink);border-radius:10px;padding:10px 12px;margin:0;font:12.5px/1.4 ui-monospace,Menlo,monospace;white-space:pre;overflow:hidden;text-overflow:ellipsis}
 pre#log.short,pre#logTail[hidden]{display:none}pre#log.short + #dlBar{border-radius:10px;margin-top:6px;padding-top:10px}
 pre#log{background:var(--code);color:var(--codeink);border-radius:10px;padding:12px;height:320px;overflow:auto;font:12.5px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:0}
@@ -449,7 +449,7 @@ tr.rgrp.folded .gsum{display:inline}
   <div class="runstate" id="runState" hidden><span id="status" class="pill">idle</span><span id="elapsed" class="note"></span><span id="runLeft" class="note"></span></div>
   <div id="stepWrap" hidden><progress id="stepBar" max="1" value="0"></progress><span id="stepTxt"></span></div>
   <div id="runMsg" class="warn"></div>
-  <button type="button" class="logfold" id="logFold" hidden></button>
+  <button type="button" class="logfold" id="logFold" hidden></button><button type="button" class="logfold logcopy" id="logCopy" title="Copy the whole log, to paste it in a message" hidden>Copy the log</button>
   <pre id="logTail" hidden></pre>
   <pre id="log" class="short" hidden></pre>
   <div id="dlBar" hidden></div>
@@ -1531,6 +1531,17 @@ function renderLogTail() {                        // the folded log: its last 3 
   t.hidden = log.hidden || !log.classList.contains("short");
 }
 $("#logFold").onclick = () => { setFolded("log", !isFolded("log")); renderLogFold(); };
+$("#logCopy").onclick = async () => {             // the whole log, also its folded part (testers send it with a question)
+  const b = $("#logCopy"), text = $("#log").textContent;
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+    const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select();
+    try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
+    t.remove();
+  }
+  b.textContent = ok ? "Copied ✓" : "Copy failed: select the log and copy it by hand";
+  setTimeout(() => { b.textContent = "Copy the log"; }, 2500);
+};
 FOLD_DEFAULT.log = true;                          // the log shows its last 3 lines at first
 $("#btnSeeFiles").onclick = () => setStep(2);
 
@@ -1538,8 +1549,10 @@ $("#btnSeeFiles").onclick = () => setStep(2);
 $("#btnQuit").onclick = async () => {
   if (ST && ST.job && ST.job.status === "running" && !confirm("A run is going on: stop it and quit maprBoy?")) return;
   try { await api("/api/quit", {}); } catch (e) { /* stopped before answering */ }
-  document.body.innerHTML = '<main style="max-width:560px;margin:80px auto;padding:0 16px;font:16px/1.5 system-ui,sans-serif">' +
+  const banner = $(".banner");                   // kept as it is: its image is already loaded, the server is gone
+  document.body.innerHTML = '<main style="max-width:560px;margin:56px auto;padding:0 16px;font:16px/1.5 system-ui,sans-serif">' +
     '<h1 style="font-size:22px">maprBoy has stopped</h1><p>You can close this tab. To use maprBoy again, start it with maprBoy on your Desktop.</p></main>';
+  if (banner) document.body.prepend(banner);
 };
 
 // ---------- running
@@ -1574,7 +1587,7 @@ async function tick() {
   const log = $("#log"), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
   const shown = feedLog(j.lines);
   if (shown.length) log.textContent += (log.textContent ? "\n" : "") + shown.join("\n");
-  log.hidden = $("#logFold").hidden = !log.textContent;
+  log.hidden = $("#logFold").hidden = $("#logCopy").hidden = !log.textContent;
   renderLogTail();
   warnLines.push(...shown.filter(l => l.startsWith("! ")));
   if (j.kind === "copy") copyProgress(j, shown);
@@ -2131,7 +2144,7 @@ async function refresh(keepMap) {
   await refresh(); setStep(1); fitHeader();
   if (!S.folders.wandrer && !S.folders.out) $("#setDlg").showModal();     // first start: choose the folders first
   renderLogFold();
-  if (ST.job.status !== "idle") { const shown = feedLog(ST.job.lines); $("#log").textContent = shown.join("\n"); $("#log").hidden = $("#logFold").hidden = !shown.length; renderLogTail(); warnLines = shown.filter(l => l.startsWith("! ")); since = ST.job.next; startPolling(); }
+  if (ST.job.status !== "idle") { const shown = feedLog(ST.job.lines); $("#log").textContent = shown.join("\n"); $("#log").hidden = $("#logFold").hidden = $("#logCopy").hidden = !shown.length; renderLogTail(); warnLines = shown.filter(l => l.startsWith("! ")); since = ST.job.next; startPolling(); }
   loadPois(); renderResults();
   await initMap();
   renderDerived(); drawMapLayers(true);

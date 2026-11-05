@@ -206,7 +206,8 @@ def generate_contours(tiles, spacing=contour_lines.DEFAULT_PRESET, per_tile=None
         for f in found:                      # empty, unfinished or other-spacing leftovers
             os.remove(f)
         print(f"  tile {t['x']}/{t['y']}: computing contour lines {spacing_t} m (the elevation data is downloaded the first time)")
-        cmd = contour_lines.build_command(exe, t, os.path.join(tdir, "elevation"), hgt_dir, jobs, spacing_t)
+        cmd = contour_lines.build_command(exe, t, os.path.join(tdir, "elevation"), hgt_dir, jobs, spacing_t,
+                                          contour_lines.sources_option(exe))
         result = subprocess.run(cmd, check=False)
         made = sorted(glob.glob(os.path.join(tdir, "elevation*.osm")))
         if result.returncode != 0 or not made:

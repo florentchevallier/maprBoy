@@ -89,7 +89,13 @@ def setup(say=print):
     subprocess.run([sys.executable, "-m", "venv", VENV], check=True)
     py = os.path.join(_bin_dir(), "python.exe" if os.name == "nt" else "python")
     say("Installing pyhgtmap (a few minutes, needs an internet connection)...")
-    subprocess.run([py, "-m", "pip", "install", "--quiet", "pyhgtmap"], check=True)
+    if subprocess.run([py, "-m", "pip", "install", "--quiet", "pyhgtmap"]).returncode:
+        # the newest pyhgtmap needs npyosmium 4.x, published ready-made for macOS 11 and later only; elsewhere pip
+        # compiles it, which failed on macOS 10.14 ("'filesystem' file not found"). Ready-made packages only:
+        # pip then takes older versions that have them (on macOS 10.14 in November 2026: pyhgtmap 3.9, which names
+        # its sources option --source, see sources_option).
+        say("The newest pyhgtmap could not be installed here: trying the versions published ready-made for this system...")
+        subprocess.run([py, "-m", "pip", "install", "--quiet", "--only-binary", ":all:", "pyhgtmap"], check=True)
     exe = pyhgtmap_path()
     if not exe:
         raise RuntimeError("pyhgtmap was installed but its program was not found.")
@@ -98,7 +104,23 @@ def setup(say=print):
     return exe
 
 
-def build_command(exe, tile, out_prefix, hgt_dir, jobs=1, spacing=DEFAULT_PRESET):
+_SOURCES_OPTION = {}
+
+
+def sources_option(exe):
+    """The name of the elevation sources option of this pyhgtmap: "--sources" since pyhgtmap 4.0, "--source" before
+    (pyhgtmap 3.9 is what older Macs get, see setup). Read once from its --help."""
+    if exe not in _SOURCES_OPTION:
+        try:
+            out = subprocess.run([exe, "--help"], capture_output=True, text=True, timeout=60)
+            text = out.stdout + out.stderr
+        except (OSError, subprocess.SubprocessError):
+            text = ""
+        _SOURCES_OPTION[exe] = "--source" if "--source=" in text and "--sources" not in text else "--sources"
+    return _SOURCES_OPTION[exe]
+
+
+def build_command(exe, tile, out_prefix, hgt_dir, jobs=1, spacing=DEFAULT_PRESET, sources_flag="--sources"):
     """WMC-like settings (no 0 m line), the line spacing of a preset, without any account."""
     step, major, medium = preset(spacing)
     # "--area=..." as ONE argument: west of Greenwich the area starts with a minus sign, and
@@ -106,7 +128,7 @@ def build_command(exe, tile, out_prefix, hgt_dir, jobs=1, spacing=DEFAULT_PRESET
     return [exe,
             f"--area={tile['left']}:{tile['bottom']}:{tile['right']}:{tile['top']}",
             "-o", out_prefix, "-s", str(step), "-c", f"{major},{medium}",
-            f"--sources={SOURCES}", f"--jobs={jobs}",
+            f"{sources_flag}={SOURCES}", f"--jobs={jobs}",
             "--start-node-id=20000000000", "--start-way-id=2000000000",
             "--max-nodes-per-tile=0", "--write-timestamp", "--no-zero-contour",
             f"--hgtdir={hgt_dir}"]

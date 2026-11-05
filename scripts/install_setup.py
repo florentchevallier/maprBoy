@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fill the settings of a fresh installation (called by install.sh, in the maprBoy environment, with MAPRBOY_HOME set).
+"""Fill the settings of a fresh installation (called by the installers, in the maprBoy environment, with MAPRBOY_HOME set).
 
 Only what is still empty is filled, so running the installer again (an update) never changes the user's choices:
 - the data folders: the standard sub-folders in --data (as the "Set up my folders" button of the page), and the

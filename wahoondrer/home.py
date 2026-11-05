@@ -1,6 +1,6 @@
 """Where maprBoy keeps its own files (settings, caches, run history, the contour lines environment).
 
-The installed app sets MAPRBOY_HOME (install.sh: <install folder>/maprBoy-app/state) so that everything stays in
+The installed app sets MAPRBOY_HOME (the installers: <install folder>/maprBoy-app/state) so that everything stays in
 the folder the user chose. Without it, as when the page is started from a clone, ~/.wahoondrer is used.
 """
 import os

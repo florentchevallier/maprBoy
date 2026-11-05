@@ -25,7 +25,7 @@ What was learned on each device: [docs/DEVICES.md](docs/DEVICES.md) and, for Gar
 ## Install (Mac)
 In the Terminal (Applications > Utilities), paste:
 ```
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/florentchevallier/maprboy/main/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_macos_linux.sh)"
 ```
 It asks where to install (default `~/maprBoy`) and puts everything in that folder:
 - `maprBoy-app/`: the code, micromamba with its environment (Python, GDAL, osmium, Java), Osmosis, mkgmap, adb,
@@ -38,7 +38,7 @@ of Osmosis in `~/.openstreetmap/osmosis/plugins/`. The first
 installation downloads about 2 GB. libmtp (copy to a Garmin watch) is installed with Homebrew when it is there and
 you ask for it. Running the installer again updates the code; settings already made are kept. To uninstall,
 double-click `maprBoy-app/uninstall.command`: it asks whether your data should be deleted too.
-Run from a copy of the repository (`bash install.sh`), it installs that copy instead of the code on GitHub.
+Run from a copy of the repository (`bash install_macos_linux.sh`), it installs that copy instead of the code on GitHub.
 
 The installer was tested on an Intel Mac with macOS 10.14. Other systems: install by hand (see "Installation (by
 hand, for development)" below).
@@ -46,7 +46,7 @@ hand, for development)" below).
 ## Install (Windows)
 In PowerShell (Start menu, type PowerShell), paste:
 ```
-powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/florentchevallier/maprboy/main/install.ps1 | iex"
+powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_windows.ps1 | iex"
 ```
 Same layout as on a Mac (`maprBoy-app`, `maprBoy-data`, default `%USERPROFILE%\maprBoy`), with a maprBoy shortcut on the
 Desktop and `maprBoy-app\uninstall.bat`. On Windows maprBoy runs without a window: the shortcut starts it in the

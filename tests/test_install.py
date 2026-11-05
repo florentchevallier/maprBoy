@@ -21,7 +21,7 @@ class HomeTest(unittest.TestCase):
 
 
 class InstallSetupTest(unittest.TestCase):
-    """scripts/install_setup.py in a fresh process, as install.sh runs it: MAPRBOY_HOME and HOME in a temp folder."""
+    """scripts/install_setup.py in a fresh process, as the installers run it: MAPRBOY_HOME and HOME in a temp folder."""
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()

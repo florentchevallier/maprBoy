@@ -2,9 +2,9 @@
 # maprBoy installer for macOS (Intel and Apple Silicon).
 #
 # In the Terminal:
-#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/florentchevallier/maprboy/main/install.sh)"
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_macos_linux.sh)"
 # or, from a copy of the repository:
-#   bash install.sh [--dir FOLDER] [--from COPY]
+#   bash install_macos_linux.sh [--dir FOLDER] [--from COPY]
 #
 # Everything goes into one folder chosen by the user (default ~/maprBoy):
 #   maprBoy-app/   the code, micromamba and its environment (Python, GDAL, osmium, Java...), Osmosis, mkgmap, adb,
@@ -12,7 +12,7 @@
 #   maprBoy-data/  Wandrer and Squadrats exports, OSM data, the maps made (only on a first installation)
 # A launcher is put on the Desktop. Running the installer again updates the code; the environment is made again
 # only when environment.yml changed. The code comes from GitHub, or from the copy of maprBoy that holds this
-# install.sh (when it is run from one), or from --from COPY.
+# install_macos_linux.sh (when it is run from one), or from --from COPY.
 set -euo pipefail
 
 REPO_ZIP="https://github.com/florentchevallier/maprboy/archive/refs/heads/main.zip"
@@ -170,7 +170,7 @@ say "5/5  Launcher"
 q() { printf '%q' "$1"; }
 cat > "$APP/maprBoy.command" <<EOF
 #!/bin/bash
-# maprBoy launcher (made by install.sh): starts the page; close this window or press Ctrl+C to stop it.
+# maprBoy launcher (made by the maprBoy installer): starts the page; close this window or press Ctrl+C to stop it.
 APP=$(q "$APP")
 export MAMBA_ROOT_PREFIX="\$APP/mamba" MAPRBOY_HOME="\$APP/state"
 export PATH="\$APP/tools/osmosis-$OSMOSIS_VERSION/bin:\$APP/tools/platform-tools:\$PATH"
@@ -183,14 +183,14 @@ cd "\$APP/code" && exec "\$APP/bin/micromamba" run -p "\$APP/env" python scripts
 EOF
 cat > "$APP/uninstall.command" <<EOF
 #!/bin/bash
-# maprBoy uninstaller (made by install.sh). The whole script is read before anything is deleted.
+# maprBoy uninstaller (made by the maprBoy installer). The whole script is read before anything is deleted.
 main() {
     local APP=$(q "$APP") DATA=$(q "$DATA") DIR=$(q "$DIR") reply
     echo "This removes maprBoy from \$DIR."
     read -r -p "Delete your data too (maps, OSM data, Wandrer and Squadrats exports in \$DATA)? [y/N] " reply
     local wmc="\$HOME/wahooMapsCreatorData"
     if [ -L "\$wmc" ] && [ "\$(readlink "\$wmc")" = "\$DATA/OSM_data" ]; then rm -f "\$wmc"; fi
-    if grep -q "maprBoy launcher (made by install.sh)" "\$HOME/Desktop/maprBoy.command" 2>/dev/null; then
+    if grep -q "maprBoy launcher (made by" "\$HOME/Desktop/maprBoy.command" 2>/dev/null; then
         rm -f "\$HOME/Desktop/maprBoy.command"
     fi
     rm -rf "\$APP"

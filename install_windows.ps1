@@ -1,16 +1,16 @@
 # maprBoy installer for Windows (10 and 11, 64-bit).
 #
 # In PowerShell (Start menu > type PowerShell), paste:
-#   powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/florentchevallier/maprboy/main/install.ps1 | iex"
+#   powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_windows.ps1 | iex"
 # or, from a copy of the repository:
-#   powershell -ExecutionPolicy Bypass -File install.ps1
+#   powershell -ExecutionPolicy Bypass -File install_windows.ps1
 #
-# Same layout as install.sh (macOS): one folder chosen by the user (default %USERPROFILE%\maprBoy) with
+# Same layout as install_macos_linux.sh (macOS): one folder chosen by the user (default %USERPROFILE%\maprBoy) with
 #   maprBoy-app\   the code, micromamba and its environment (Python, GDAL, osmium, Java...), Osmosis, mkgmap, adb,
 #                  pyhgtmap, the settings and caches (state\), maprBoy.bat and uninstall.bat
 #   maprBoy-data\  Wandrer and Squadrats exports, OSM data, the maps made (only on a first installation)
 # A maprBoy shortcut (to maprBoy.bat) is put on the Desktop. Running the installer again updates the code; the environment is made again
-# only when environment.yml changed. The code comes from GitHub, or from the copy of maprBoy holding install.ps1.
+# only when environment.yml changed. The code comes from GitHub, or from the copy of maprBoy holding install_windows.ps1.
 
 function Install-MaprBoy {
     param([string]$Dir = "", [string]$From = "")
@@ -169,7 +169,7 @@ function Install-MaprBoy {
         # "Quit maprBoy" button stops it.
         $q = { param($s) "'" + ($s -replace "'", "''") + "'" }
         $launch = @"
-# maprBoy launcher (made by install.ps1), run hidden by maprBoy.bat: starts maprBoy in the background and opens its page.
+# maprBoy launcher (made by the maprBoy installer), run hidden by maprBoy.bat: starts maprBoy in the background and opens its page.
 `$App = $(& $q $App)
 `$url = "http://127.0.0.1:$Port/"
 function Test-Up { try { Invoke-WebRequest -Uri `$url -UseBasicParsing -TimeoutSec 2 | Out-Null; `$true } catch { `$false } }
@@ -192,13 +192,13 @@ Start-Process notepad.exe ('"' + `$err + '"')              # it did not start: s
         Set-Content -Path (Join-Path $App "launch.ps1") -Value $launch -Encoding UTF8
         $launcher = @"
 @echo off
-rem maprBoy launcher (made by install.ps1): starts maprBoy in the background and opens its page; stop it with
+rem maprBoy launcher (made by the maprBoy installer): starts maprBoy in the background and opens its page; stop it with
 rem "Quit maprBoy" in the settings of the page.
 start "" powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "$App\launch.ps1"
 "@
         Set-Content -Path (Join-Path $App "maprBoy.bat") -Value $launcher -Encoding Ascii
         $uninstall = @"
-# maprBoy uninstaller (made by install.ps1), run by uninstall.bat from a copy in the temporary folder.
+# maprBoy uninstaller (made by the maprBoy installer), run by uninstall.bat from a copy in the temporary folder.
 `$App = '$($App -replace "'", "''")'
 `$Data = '$($Data -replace "'", "''")'
 `$Dir = '$($Dir -replace "'", "''")'
@@ -212,7 +212,7 @@ if (`$item -and `$item.LinkType -and ((`$item.Target | Select-Object -First 1) -
 Get-Process -ErrorAction SilentlyContinue | Where-Object { `$_.Path -and `$_.Path.StartsWith(`$App, [StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force
 Start-Sleep -Seconds 1                   # maprBoy running in the background: stopped first, its files are deleted below
 `$desk = Join-Path ([Environment]::GetFolderPath("Desktop")) "maprBoy.bat"
-if ((Test-Path `$desk) -and (Select-String -Quiet -Path `$desk -Pattern "maprBoy launcher \(made by install.ps1\)")) { Remove-Item -Force `$desk }
+if ((Test-Path `$desk) -and (Select-String -Quiet -Path `$desk -Pattern "maprBoy launcher \(made by")) { Remove-Item -Force `$desk }
 `$lnk = Join-Path ([Environment]::GetFolderPath("Desktop")) "maprBoy.lnk"
 if ((Test-Path `$lnk) -and (New-Object -ComObject WScript.Shell).CreateShortcut(`$lnk).TargetPath.StartsWith(`$App, [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -Force `$lnk }
 Remove-Item -Recurse -Force `$App
@@ -238,7 +238,7 @@ pause
         # on the Desktop: a shortcut to maprBoy.bat with the maprBoy icon (a .bat file cannot have its own icon)
         $desktop = [Environment]::GetFolderPath("Desktop")
         $old = Join-Path $desktop "maprBoy.bat"              # what earlier versions put there
-        if ((Test-Path $old) -and (Select-String -Quiet -Path $old -Pattern "maprBoy launcher \(made by install.ps1\)")) { Remove-Item -Force $old }
+        if ((Test-Path $old) -and (Select-String -Quiet -Path $old -Pattern "maprBoy launcher \(made by")) { Remove-Item -Force $old }
         $sc = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $desktop "maprBoy.lnk"))
         $sc.TargetPath = Join-Path $App "maprBoy.bat"
         $sc.WorkingDirectory = $App

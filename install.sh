@@ -203,8 +203,16 @@ main() {
 main
 EOF
 chmod +x "$APP/maprBoy.command" "$APP/uninstall.command"
+# the maprBoy icon on the launchers (Finder custom icon, set with AppKit through osascript; nothing to install)
+set_icon() {
+    osascript -l JavaScript -e 'function run(a) { ObjC.import("AppKit");
+        return $.NSWorkspace.sharedWorkspace.setIconForFileOptions($.NSImage.alloc.initWithContentsOfFile(a[0]), a[1], 0) }' \
+        "$APP/code/wahoondrer/gui/static/maprboy-icon.png" "$1" >/dev/null 2>&1 || true
+}
+set_icon "$APP/maprBoy.command"
 if [ -d "$HOME/Desktop" ]; then
     cp "$APP/maprBoy.command" "$HOME/Desktop/maprBoy.command"
+    set_icon "$HOME/Desktop/maprBoy.command"
     WHERE="the Desktop"
 else
     WHERE="$APP"

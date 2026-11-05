@@ -48,8 +48,8 @@ In PowerShell (Start menu, type PowerShell), paste:
 ```
 powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/florentchevallier/maprboy/main/install.ps1 | iex"
 ```
-Same layout as on a Mac (`maprBoy-app`, `maprBoy-data`, default `%USERPROFILE%\maprBoy`), with `maprBoy.bat` on the
-Desktop and `maprBoy-app\uninstall.bat`. On Windows maprBoy runs without a window: `maprBoy.bat` starts it in the
+Same layout as on a Mac (`maprBoy-app`, `maprBoy-data`, default `%USERPROFILE%\maprBoy`), with a maprBoy shortcut on the
+Desktop and `maprBoy-app\uninstall.bat`. On Windows maprBoy runs without a window: the shortcut starts it in the
 background and opens the page; "Quit maprBoy" in the settings of the page stops it (its messages go to
 `maprBoy-app\state\server.log`). `%USERPROFILE%\wahooMapsCreatorData` becomes a directory junction to
 `maprBoy-data\OSM_data`. Copying from the page works for every device: a Wahoo and a Karoo with adb, a Garmin

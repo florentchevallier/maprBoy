@@ -9,7 +9,7 @@
 #   maprBoy-app\   the code, micromamba and its environment (Python, GDAL, osmium, Java...), Osmosis, mkgmap, adb,
 #                  pyhgtmap, the settings and caches (state\), maprBoy.bat and uninstall.bat
 #   maprBoy-data\  Wandrer and Squadrats exports, OSM data, the maps made (only on a first installation)
-# maprBoy.bat is copied to the Desktop. Running the installer again updates the code; the environment is made again
+# A maprBoy shortcut (to maprBoy.bat) is put on the Desktop. Running the installer again updates the code; the environment is made again
 # only when environment.yml changed. The code comes from GitHub, or from the copy of maprBoy holding install.ps1.
 
 function Install-MaprBoy {
@@ -55,7 +55,7 @@ function Install-MaprBoy {
     }
     $running = $false                                        # the page running keeps the code folder in use
     try { Invoke-WebRequest -Uri "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 3 | Out-Null; $running = $true } catch { }
-    if ($running) { throw "maprBoy is running: close its window (the one maprBoy.bat opened), then run the installer again." }
+    if ($running) { throw "maprBoy is running: stop it with 'Quit maprBoy' in the settings of its page, then run the installer again." }
     New-Item -ItemType Directory -Force -Path $Dir | Out-Null
     $Dir = (Resolve-Path $Dir).Path
     $App = Join-Path $Dir "maprBoy-app"
@@ -213,6 +213,8 @@ Get-Process -ErrorAction SilentlyContinue | Where-Object { `$_.Path -and `$_.Pat
 Start-Sleep -Seconds 1                   # maprBoy running in the background: stopped first, its files are deleted below
 `$desk = Join-Path ([Environment]::GetFolderPath("Desktop")) "maprBoy.bat"
 if ((Test-Path `$desk) -and (Select-String -Quiet -Path `$desk -Pattern "maprBoy launcher \(made by install.ps1\)")) { Remove-Item -Force `$desk }
+`$lnk = Join-Path ([Environment]::GetFolderPath("Desktop")) "maprBoy.lnk"
+if ((Test-Path `$lnk) -and (New-Object -ComObject WScript.Shell).CreateShortcut(`$lnk).TargetPath.StartsWith(`$App, [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -Force `$lnk }
 Remove-Item -Recurse -Force `$App
 if (`$reply -eq "y") { Remove-Item -Recurse -Force `$Data; Write-Host "Data deleted." } else { Write-Host "Data kept in `$Data" }
 if ((Test-Path `$Dir) -and -not (Get-ChildItem -Force `$Dir)) { Remove-Item -Force `$Dir }
@@ -232,11 +234,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\maprboy-uninstall.ps
 pause
 "@
         Set-Content -Path (Join-Path $App "uninstall.bat") -Value $uninstallBat -Encoding Ascii
+        # on the Desktop: a shortcut to maprBoy.bat with the maprBoy icon (a .bat file cannot have its own icon)
         $desktop = [Environment]::GetFolderPath("Desktop")
-        Copy-Item (Join-Path $App "maprBoy.bat") (Join-Path $desktop "maprBoy.bat") -Force
+        $old = Join-Path $desktop "maprBoy.bat"              # what earlier versions put there
+        if ((Test-Path $old) -and (Select-String -Quiet -Path $old -Pattern "maprBoy launcher \(made by install.ps1\)")) { Remove-Item -Force $old }
+        $sc = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $desktop "maprBoy.lnk"))
+        $sc.TargetPath = Join-Path $App "maprBoy.bat"
+        $sc.WorkingDirectory = $App
+        $sc.IconLocation = (Join-Path $App "code\wahoondrer\gui\static\maprboy.ico") + ",0"
+        $sc.WindowStyle = 7                                  # minimized: the short-lived console window does not flash
+        $sc.Description = "Start maprBoy (the page opens in your browser)"
+        $sc.Save()
 
         Say "Done."
-        Write-Host "Start maprBoy: double-click maprBoy.bat on the Desktop (it runs without a window; the page opens in your"
+        Write-Host "Start maprBoy: double-click maprBoy on the Desktop (it runs without a window; the page opens in your"
         Write-Host "browser). Stop it with 'Quit maprBoy' in the settings of the page. Uninstall: double-click $App\uninstall.bat"
     } finally {
         Remove-Item -Recurse -Force $Tmp -ErrorAction SilentlyContinue

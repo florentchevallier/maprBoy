@@ -315,6 +315,20 @@ Style (the Bolt line width does not scale with zoom): small squares dashed `6,6`
 
 The Squadrats export is global: the most recent one is used.
 
+## Other tile services (for later)
+
+Not integrated: Squadrats is free, fast and widely used, and it is the only one with the small squares. Kept in case
+another source is needed one day (looked at in November 2026, from exports of the same person):
+
+- **VeloViewer** "explored tiles" (KML): one closed line per explored tile, on the same zoom-14 grid as the big
+  Squadrats squares. The file names itself "Explored Tiles - Veloviewer": it can be recognised from its content.
+- **StatsHunter** KML exports, default name `statshunters.<date>.kml` whatever the export: "all tiles" holds the
+  explored tiles, one filled square each, on the same zoom-14 grid (98 % the same tiles as the VeloViewer export);
+  "missing tiles" holds the unexplored tiles inside the square chosen on the site only. Nothing in the file says
+  which of the two it is, so the user would have to choose.
+- StatsHunter's "Garmin IMG (missing tiles)" is a finished Garmin map (made with mkgmap), not a source for maprBoy.
+- No small squares in either: only the big level could be drawn.
+
 ---
 
 # 11. Wandrer style

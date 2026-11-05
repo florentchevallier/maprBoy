@@ -187,12 +187,13 @@ table.exlist .tag{width:auto;padding:1px 8px;margin:1px 3px 2px 0;white-space:no
 .seg.types .n{font-weight:400;opacity:.75;margin-left:4px}
 .card h2 .onoff{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;margin-left:6px}
 .garmin-only{display:none}body.garmin .garmin-only{display:block}body.garmin #blkLook .pro-only,body.garmin #lookSimple{display:none}
-body.garmin #blkSqLook .pro-only,body.garmin #sqLookSimple{display:none}body.nonwahoo #contourBox,body.nonwahoo label.chk:has(> input[data-path="build.skip_classic"]){display:none}
+body.garmin #blkSqLook .pro-only,body.garmin #sqLookSimple{display:none}body.nonwahoo #blkContour,body.nonwahoo label.chk:has(> input[data-path="build.skip_classic"]){display:none}
 .karoo-only{display:none}body.karoo .karoo-only{display:block}
 label.gpick{display:flex;align-items:center;gap:8px}label.gpick>.rfile{flex:1;min-width:0}
 .maplist .ccity,.maplist .ccont{display:none}.maplist .rfile a{min-width:0;overflow:hidden;text-overflow:ellipsis}.maplist .newslot{display:none}   /* "Last run" says it */   /* Garmin / Karoo maps: name, date, size */
 body.nonwahoo #btnPlan,body.nonwahoo #btnPlan2{display:none}   /* the tile plan is for the Wahoo tiles only */
 .pole .blk > h3{cursor:pointer;user-select:none}.pole .blk > h3 > button.fold{margin:0 -4px 0 -6px}
+#blkContour > h3{min-height:40px;background:url(contours.svg) right center/auto 100% no-repeat}   /* a strip of contour lines: what the block is about, at a glance */
 .pole .blk.folded > .blk-body{display:none}.pole .blk.folded > h3{margin-bottom:0}.pole .blk.folded .fsum{display:inline}
 .pro button.pro-only.inline{display:inline-block}
 .drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--ink)}
@@ -250,7 +251,7 @@ tr.rgrp.folded .gsum{display:inline}
 <section class="card pole" data-sec="basemap">
   <h2>Basemap &amp; POIs <span class="hsub">from OpenStreetMap</span><span class="fsum" id="poleSumBase"></span><span class="sp"></span><div class="seg micro" data-pole="basemap" role="group" aria-label="Simple or Pro for this section"><button type="button" data-m="simple">Simple</button><button type="button" data-m="pro">Pro</button></div></h2>
   <div class="blk" id="blkBase">
-  <h3>Base map <span class="fsum" id="blkSumBase"></span><span class="sp"></span><button class="icon pro-only inline" id="btnRegReload" title="Refresh this list">🔄</button></h3>
+  <h3>OSM base map <span class="fsum" id="blkSumBase"></span><span class="sp"></span><button class="icon pro-only inline" id="btnRegReload" title="Refresh this list">🔄</button></h3>
   <p class="note simple-only" id="osmSimple">OpenStreetMap data: <span id="osmSum"></span>. Missing or old regions are downloaded when you make the maps.</p>
   <div id="regDl" style="display:none"><div class="note" id="regDlText"></div><div class="bar" id="regDlBar"><i></i></div><button class="small" id="regCancel">Cancel download</button></div>
   <div class="pro-only" id="osmPro">
@@ -268,7 +269,10 @@ tr.rgrp.folded .gsum{display:inline}
     <label class="chk"><input type="checkbox" data-path="build.garmin_base"><span>Make an OpenStreetMap base map with your POIs <small>maprboy-base.img, to use instead of the Garmin map (switch the Garmin maps off on the device). Off: only the overlay, with the POIs, drawn over the Garmin map</small></span></label>
     <label class="chk" style="margin-left:26px"><input type="checkbox" data-path="build.street_names"><span>Street names <small>the names of places, water, parks and forests and the road numbers are always there</small></span></label>
   </div>
-  <div id="contourBox" style="margin-top:10px">
+  </div>
+  <div class="blk" id="blkContour">
+  <h3>Contour lines (altitude)</h3>
+  <div id="contourBox">
     <label class="chk"><input type="checkbox" data-path="build.contour"><span>Add contour lines (relief) <small>needs <b>pyhgtmap</b> (one-time install); the first run is much longer and the tiles heavier</small></span></label>
     <p class="note" id="contourStatus"></p>
     <div class="pro-only">
@@ -1293,8 +1297,10 @@ async function renderRegions(fresh) {
   let h = "";
   if (!R.downloaded.length) h += '<p class="note">No region downloaded yet: WMC will fetch what it needs at the first run.</p>';
   else {
-    h += `<div class="actions" style="margin:0 0 6px"><!--foldall--><span class="sp"></span><span class="note" id="regSelNote"></span><button class="small danger" id="regDelSel" disabled>Delete the ticked regions</button>${R.max_days > 0 ? `<button class="small danger" id="regDelOld" title="Delete the regions older than ${R.max_days} days (WMC would renew them anyway when a map needs them)" ${R.downloaded.some(isOld) ? "" : "disabled"}>Delete outdated (${R.downloaded.filter(isOld).length} · ${mb(R.downloaded.filter(isOld).reduce((n, r) => n + r.size, 0))})</button>` : ""}<button class="small danger" id="regDelAll" title="Delete every downloaded region">Delete all (${mb(R.downloaded.reduce((n, r) => n + r.size, 0))})</button></div>
-    <table><tr><th><input type="checkbox" id="regSelAll" title="Tick / untick all"></th><th>Region</th><th class="n">Size</th><th>Downloaded</th><th class="n">Age</th><th>Needed by my tiles</th><th></th></tr>`;
+    const listOff = isFolded("reg:list");          // the whole table can be hidden: with many regions the page gets long
+    h += `<div class="actions" style="margin:0 0 6px"><button class="small" id="regListToggle" aria-expanded="${!listOff}">${listOff ? "Show the list" : "Hide the list"}</button><!--foldall--></div>
+    <div class="actions" style="margin:0 0 6px"><span class="note" id="regSelNote"></span><span class="sp"></span><button class="small danger" id="regDelSel" disabled>Delete the ticked regions</button>${R.max_days > 0 ? `<button class="small danger" id="regDelOld" title="Delete the regions older than ${R.max_days} days (WMC would renew them anyway when a map needs them)" ${R.downloaded.some(isOld) ? "" : "disabled"}>Delete outdated (${R.downloaded.filter(isOld).length} · ${mb(R.downloaded.filter(isOld).reduce((n, r) => n + r.size, 0))})</button>` : ""}<button class="small danger" id="regDelAll" title="Delete every downloaded region">Delete all (${mb(R.downloaded.reduce((n, r) => n + r.size, 0))})</button></div>
+    <table id="regTable"${listOff ? " hidden" : ""}><tr><th><input type="checkbox" id="regSelAll" title="Tick / untick all"></th><th>Region</th><th class="n">Size</th><th>Downloaded</th><th class="n">Age</th><th>Needed by my tiles</th><th></th></tr>`;
     // tree: Country > (sub-regions) > region, taken from the name "Oberfranken (Bayern, Germany)"
     const pathOf = r => { const m = /^(.*) \(([^()]*)\)$/.exec(r.name); if (!m) return [r.name]; return [...m[2].split(", ").reverse(), m[1]]; };
     const items = R.downloaded.map(r => ({r, p: pathOf(r)})).sort((x, y) => x.p.join("\u0001").localeCompare(y.p.join("\u0001")));
@@ -1340,6 +1346,14 @@ async function renderRegions(fresh) {
   }));
   const foldAll = off => { $$("tr.rgrp", box).forEach(tr => setFolded(rkOf(tr), off)); applyRegFolds(); };
   if ($("#regFoldAll")) { $("#regFoldAll").onclick = () => foldAll(true); $("#regUnfoldAll").onclick = () => foldAll(false); }
+  if ($("#regListToggle")) $("#regListToggle").onclick = () => {
+    const off = !isFolded("reg:list"); setFolded("reg:list", off);
+    $("#regTable").hidden = off; $("#regListToggle").textContent = off ? "Show the list" : "Hide the list";
+    $("#regListToggle").setAttribute("aria-expanded", String(!off));
+    $$("#regFoldAll, #regUnfoldAll").forEach(b => b.hidden = off);
+    if (!off && regColsPending && fixRegCols()) regColsPending = false;
+  };
+  $$("#regFoldAll, #regUnfoldAll").forEach(b => b.hidden = isFolded("reg:list"));
   $$("[data-upd]", box).forEach(b => b.onclick = () => startRegionDownload([b.dataset.upd], true));
   $$("[data-del]", box).forEach(b => b.onclick = async () => {
     if (!confirm(`Delete ${b.dataset.name} (${mb(Number(b.dataset.size))}) from your disk?\nWMC will download it again if a map needs it.`)) return;

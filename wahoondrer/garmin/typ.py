@@ -1,6 +1,6 @@
 """The TYP text file: how each Garmin line type is drawn.
 
-Solid roads: LineWidth (+ BorderWidth for the white edge) and a "0 0 N 0" colour list, the form that was
+Solid roads: LineWidth (+ BorderWidth for the edge, its colour in the look) and a "0 0 N 0" colour list, the form that was
 checked on a Forerunner 955. Dashed roads: a 32 px wide bitmap, as high as the width (checked on the same
 watch with 16+16 px dashes); it has no edge and uses the day colour at night.
 The night look of a solid road is added to the colour list (day colours first, then night colours: 4 colours with an edge,
@@ -10,7 +10,6 @@ from . import style
 
 FAMILY_ID = 1299    # as Wandrer's own maps; other ids were not tested
 PRODUCT_ID = 1
-EDGE_COLOR = "#FFFFFF"
 LABELS = {
     style.TYPE_UNVISITED: "Unvisited",
     style.TYPE_VISITED: "Visited",
@@ -24,9 +23,9 @@ LABELS = {
 
 def _solid(day, night):
     """The Xpm lines of a solid road: day colour (+ edge), then the night ones when they differ."""
-    colors = [day["color"]] + ([EDGE_COLOR] if day["edge"] else [])
+    colors = [day["color"]] + ([day["edge_color"]] if day["edge"] else [])
     if night != day:
-        colors += [night["color"]] + ([EDGE_COLOR] if night["edge"] else [])
+        colors += [night["color"]] + ([night["edge_color"]] if night["edge"] else [])
     return ['Xpm="0 0 %d 0"' % len(colors)] + [f'"{chr(97 + i)} c {c}"' for i, c in enumerate(colors)]
 
 

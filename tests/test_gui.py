@@ -1495,6 +1495,10 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
         self.assertIn("--squadrats", overlay)
         self.assertNotIn("--pois", overlay)                    # the POIs are in the base map
         self.assertIn("--bbox=11.5,48.1,11.6,48.15", overlay)
+        self.assertEqual(overlay[overlay.index("--device") + 1], "edge")     # the default kind of Garmin
+        watch = jobs.garmin_commands({**self.s(), "garmin_model": "watch"}, [self.EXP], None)[1][1]
+        self.assertEqual(watch[watch.index("--device") + 1], "watch")
+        self.assertEqual(settings.garmin_model({"garmin_model": "phone"}), "edge")
         day = time.strftime("%Y-%m-%d")
         self.assertEqual(os.path.basename(overlay[overlay.index("-o") + 1]), f"maprboy-Oberbayern-{day}-overlay.img")
         self.assertEqual(os.path.basename(base[base.index("-o") + 1]), f"maprboy-Oberbayern-{day}-base.img")

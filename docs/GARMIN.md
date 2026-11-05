@@ -72,6 +72,10 @@ Everything below was needed, each point cost an experiment:
 - Orange (the Wahoo default) is hard to tell from the Garmin base map's own orange roads, and red from the track
   the watch draws during an activity. Cyan with a white edge stands out best for the unvisited roads (first magenta;
   cyan was preferred after a test on the watch, October 2026), magenta is used for the visited ones. Widths are whole pixels.
+- On an Edge 830 outdoors (November 2026), the cyan unvisited roads could not be told from the track already ridden.
+  The page therefore asks which kind of Garmin the maps are for (`--device edge|watch` of build_garmin.py): an Edge
+  gets orange (#FF8800) unvisited roads with a black edge, as on the Wahoo (not checked on the device yet), a watch
+  keeps cyan with a white edge. The edge colour is part of the look (`"edge_color"`).
 - Draw order: a lower line type is drawn OVER a higher one (as major roads over minor ones). The boundaries, a wide
   band meant to show around the roads, therefore have the highest type (0x07); with 0x02 they covered the roads.
 
@@ -87,7 +91,7 @@ Same options as `kmz_to_osm.py` for the exports (`--radius-m`, `--unpaved-always
 `48.136,11.555,5`) or `--bbox W,S,E,N` (only this rectangle), and `--keep-osm FILE`. Visited roads are always drawn.
 The Wandrer and Squadrats lines are cut into tiles of about 11 km like the base map (`wahoondrer/garmin/tiling.py`):
 the four large exports of a 230 x 120 km area went over mkgmap's 16 MB per tile in one piece.
-Default look: unvisited cyan (#00E1FF) 4 px with white edge, visited magenta (#FF00FF) 4 px, unpaved roads the same colour
+Default look: unvisited cyan (#00E1FF) 4 px with white edge on a watch, orange (#FF8800) with a black edge on an Edge, visited magenta (#FF00FF) 4 px, unpaved roads the same colour
 dashed (8 px drawn, 8 px empty), boundaries a purple (#B000FF) 8 px band under the roads. Unpaved roads have their own entries in the look
 (`unvisited_unpaved`, `visited_unpaved`); `"dash": [drawn, empty]` must add up to a divisor of 32 px, and
 `"dash": null` gives a solid line instead (for instance thinner, for a small watch screen).

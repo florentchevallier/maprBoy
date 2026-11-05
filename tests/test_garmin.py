@@ -13,8 +13,9 @@ JAR = os.environ.get("MKGMAP_JAR", "")
 class LookTest(unittest.TestCase):
     def test_default_is_complete(self):
         c = look.clean({})
-        self.assertEqual(c["day"]["unvisited"], {"color": "#00E1FF", "width": 4, "edge": True, "dash": None})
-        self.assertEqual(c["day"]["visited"], {"color": "#FF00FF", "width": 4, "edge": False, "dash": None})
+        self.assertEqual(c["day"]["unvisited"], {"color": "#00E1FF", "width": 4, "edge": True, "edge_color": "#FFFFFF", "dash": None})
+        self.assertEqual(c["day"]["visited"], {"color": "#FF00FF", "width": 4, "edge": False, "edge_color": "#FFFFFF",
+                                                  "dash": None})
         self.assertEqual(c["night"], c["day"])
 
     def test_partial_override_and_night_follows_day(self):
@@ -26,7 +27,23 @@ class LookTest(unittest.TestCase):
     def test_night_changes_colour_only(self):
         c = look.clean({"day": {"unvisited": {"width": 3}},
                         "night": {"unvisited": {"color": "#112233", "width": 7, "edge": False}}})
-        self.assertEqual(c["night"]["unvisited"], {"color": "#112233", "width": 3, "edge": True, "dash": None})
+        self.assertEqual(c["night"]["unvisited"], {"color": "#112233", "width": 3, "edge": True, "edge_color": "#FFFFFF", "dash": None})
+
+    def test_edge_default_is_orange_with_a_black_edge(self):
+        e, w = look.clean({}, "edge"), look.clean({}, "watch")
+        self.assertEqual(e["day"]["unvisited"], {"color": "#FF8800", "width": 4, "edge": True, "edge_color": "#000000",
+                                                 "dash": None})
+        self.assertEqual(e["day"]["unvisited_unpaved"]["color"], "#FF8800")
+        self.assertEqual(e["day"]["visited"], w["day"]["visited"])
+        self.assertEqual(look.clean({}), w)                     # no device: the watch look, tested first
+        self.assertEqual(look.clean({}, "phone"), w)
+        self.assertIn('LineWidth=4\nBorderWidth=1\nXpm="0 0 2 0"\n"a c #FF8800"\n"b c #000000"', typ.typ_text(e))
+
+    def test_edge_colour(self):
+        c = look.clean({"day": {"unvisited": {"edge_color": "#00ff00"}}}, "edge")
+        self.assertIn('"a c #FF8800"\n"b c #00FF00"', typ.typ_text(c))
+        with self.assertRaises(ValueError):
+            look.clean({"day": {"unvisited": {"edge_color": "black"}}})
 
     def test_bad_values(self):
         for bad in ({"day": {"unvisited": {"color": "red"}}},
@@ -50,7 +67,8 @@ class StyleTypTest(unittest.TestCase):
 
     def test_squadrats_default_look(self):
         c = look.clean({})["day"]
-        self.assertEqual(c["squadrat_big"], {"color": "#1E50FF", "width": 2, "edge": False, "dash": None})
+        self.assertEqual(c["squadrat_big"], {"color": "#1E50FF", "width": 2, "edge": False,
+                                                    "edge_color": "#FFFFFF", "dash": None})
         self.assertEqual(c["squadrat_small"]["dash"], [8, 8])
         self.assertIn("squadrat=small [0x02 resolution", style.LINES)
         self.assertEqual(style.TYPE_BOUNDARY, max(t for t in range(1, 8) if f"[0x{t:02x} " in style.LINES))
@@ -97,7 +115,7 @@ class StyleTypTest(unittest.TestCase):
 
     def test_boundary_default(self):
         self.assertEqual(look.clean({})["day"]["boundary"],
-                         {"color": "#B000FF", "width": 8, "edge": False, "dash": None})
+                         {"color": "#B000FF", "width": 8, "edge": False, "edge_color": "#FFFFFF", "dash": None})
 
     def test_write_style(self):
         with tempfile.TemporaryDirectory() as d:

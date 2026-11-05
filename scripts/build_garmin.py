@@ -3,7 +3,7 @@
 
 Usage:
     python3 scripts/build_garmin.py --mkgmap /path/to/mkgmap.jar -o out/gmapsupp.img export1.kmz [export2.kmz ...]
-            [--look look.json] [--radius-m 250] [--unpaved-always] [--paved-always]
+            [--device watch|edge] [--look look.json] [--radius-m 250] [--unpaved-always] [--paved-always]
             [--simplify-m 1.5] [--no-merge] [--no-boundaries] [--area LAT,LON,KM | --bbox W,S,E,N] [--keep-osm file.osm]
             [--name TEXT --family-id N --mapname NNNNNNNN]
             [--pois --osm region.osm.pbf [--osm other.osm.pbf] [--poi-rules rules.json]] [--no-wandrer]
@@ -11,9 +11,9 @@ Usage:
              [--squadrats-big-scope all|band] [--squadrats-small-scope all|explored-big|band|both]]
 
 The map is transparent: it is drawn over the Garmin map already on the device, which stays visible.
-Unvisited roads cyan 4 px with a white edge, visited roads magenta 4 px, unpaved roads the same colour dashed
-(8 px drawn, 8 px empty), boundaries a purple 8 px band under the roads
-(defaults; change them with --look, a JSON file, see docs/GARMIN.md). Copy the result to the device as
+Unvisited roads cyan 4 px with a white edge on a watch (--device watch, the default), orange with a black edge on
+an Edge (--device edge); visited roads magenta 4 px, unpaved roads the same colour dashed (8 px drawn, 8 px empty),
+boundaries a purple 8 px band under the roads (defaults; change them with --look, a JSON file, see docs/GARMIN.md). Copy the result to the device as
 Garmin/gmapsupp.img (one such file at a time) and enable it in Map > Information.
 Needs Java and the mkgmap jar (https://www.mkgmap.org.uk/). The exports are merged like for Wahoo
 (most recent wins), then filtered around the traveled roads.
@@ -63,6 +63,8 @@ def main():
     ap.add_argument("-o", "--output", required=True, help="the .img to write, usually gmapsupp.img")
     ap.add_argument("--mkgmap", required=True, help="path of mkgmap.jar")
     ap.add_argument("--java", default="java")
+    ap.add_argument("--device", choices=look.MODELS, default="watch",
+                    help="the kind of Garmin: its default look (the track already ridden is not drawn alike)")
     ap.add_argument("--look", metavar="JSON", help="colours, widths, edge, dashes (only what differs from the default)")
     ap.add_argument("--radius-m", type=float, default=250.0,
                     help="keep unvisited roads only within this radius (m) of traveled roads; 0 = keep all")
@@ -109,7 +111,7 @@ def main():
             raise ValueError("give --area or --bbox, not both")
         area = parse_area(args.area) if args.area else None
         box = tiling.parse_bbox(args.bbox) if args.bbox else None
-        chosen = look.load(args.look) if args.look else look.defaults()
+        chosen = look.load(args.look, args.device) if args.look else look.defaults(args.device)
         poi_list = garmin_pois.load(args.poi_rules) if args.pois else []
         opts = Options(radius_m=args.radius_m, unpaved_always=args.unpaved_always,
                        paved_always=args.paved_always, simplify_m=args.simplify_m, merge=not args.no_merge)

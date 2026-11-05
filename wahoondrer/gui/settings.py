@@ -67,6 +67,7 @@ DEFAULTS = {
               "adb": "",             # path of adb (automatic copy to a Wahoo or a Karoo); "" = found by itself
               "osmosis": ""},        # path of osmosis (Karoo maps); "" = found in the PATH
     "tile_format": "lzma",           # Wahoo tiles: "lzma" (most ELEMNTs) | "gz" (Output/wahoondrer_maps_gz/, e.g. an old Roam v1)
+    "garmin_model": "edge",          # Garmin: "edge" (bike computer) | "watch": the default look of the roads
     "osm_max_days": 14,              # WMC renews the OSM regions older than this (days); 0 = never (shared by the devices)
 }
 
@@ -92,6 +93,15 @@ def tile_format(s):
     """The tile format of the Wahoo ("lzma" or "gz"); anything unexpected is "lzma"."""
     v = s.get("tile_format")
     return v if v in TILE_FORMATS else "lzma"
+
+
+GARMIN_MODELS = ("edge", "watch")
+
+
+def garmin_model(s):
+    """The kind of Garmin ("edge" or "watch"); anything unexpected is "edge"."""
+    v = s.get("garmin_model")
+    return v if v in GARMIN_MODELS else "edge"
 
 
 OSM_MAX_DAYS = (7, 14, 30, 60, 90, 0)   # the choices of the page (0 = never renew)

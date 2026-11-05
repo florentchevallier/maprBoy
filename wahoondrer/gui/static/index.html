@@ -166,7 +166,7 @@ td .old{color:var(--bad);white-space:nowrap;cursor:help;position:relative}td .ol
 .leaflet-tooltip.boxlabel{background:#1f1f1f;color:#fff;border:0;border-radius:999px;padding:3px 12px;font-weight:600;box-shadow:none}.leaflet-tooltip.boxlabel::before{display:none}
 .pro label.row.maxdays{grid-template-columns:auto 250px 1fr;gap:12px 22px;align-items:center;margin:4px 0 10px}.mdwrap{display:flex;flex-direction:column;width:250px}#maxDaysRange{width:100%;margin:0;accent-color:var(--accent)}
 .mdlbl{display:flex;justify-content:space-between;font-size:11px;color:var(--mute);padding:0 8px}.mdlbl i{font-style:normal;width:0;display:flex;justify-content:center;white-space:nowrap}
-.devbox{display:flex;flex-direction:column;gap:4px;align-items:flex-start}select.model{width:auto;font-size:12.5px;padding:2px 6px;border-radius:7px}body.nonwahoo #tileFormat{display:none}
+.devbox{display:flex;flex-direction:column;gap:4px;align-items:flex-start}select.model{width:auto;font-size:12.5px;padding:2px 6px;border-radius:7px}body.nonwahoo #tileFormat{display:none}body:not(.garmin) #garminModel{display:none}
 .devcopy{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 14px;background:color-mix(in srgb,var(--accent) 6%,var(--card))}.devcopy[hidden]{display:none}
 .devcopy h3{margin:0 0 6px;font-size:15px}.devcopy .acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}.devcopy progress{width:100%;height:10px;accent-color:var(--accent)}
 .devcopy code{background:var(--code);color:var(--codeink);padding:1px 6px;border-radius:5px;font-size:12.5px}
@@ -235,7 +235,8 @@ tr.rgrp.folded .gsum{display:inline}
 <header>
   <div class="tag"><span class="txt">custom OSM maps with POIs,<br>Wandrer &amp; Squadrats</span></div>
   <div class="devbox"><div class="seg devseg" id="devSeg" role="group" aria-label="Device"><button type="button" data-device="wahoo">Wahoo</button><button type="button" data-device="garmin">Garmin</button><button type="button" data-device="karoo">Karoo</button></div>
-  <select class="model" id="tileFormat" aria-label="Tile format of your ELEMNT" title="Which tiles your ELEMNT reads. To check: plug it in, open it (Android File Transfer on a Mac), go to maps/tiles/8/ and open one of the numbered folders. Files ending in .map.lzma: keep the default. Files ending in .map.gz: choose .map.gz. Empty or no folder: keep the default."><option value="lzma">.map.lzma tiles (most ELEMNTs, default)</option><option value="gz">.map.gz tiles (some older ELEMNTs)</option></select></div>
+  <select class="model" id="tileFormat" aria-label="Tile format of your ELEMNT" title="Which tiles your ELEMNT reads. To check: plug it in, open it (Android File Transfer on a Mac), go to maps/tiles/8/ and open one of the numbered folders. Files ending in .map.lzma: keep the default. Files ending in .map.gz: choose .map.gz. Empty or no folder: keep the default."><option value="lzma">.map.lzma tiles (most ELEMNTs, default)</option><option value="gz">.map.gz tiles (some older ELEMNTs)</option></select>
+  <select class="model" id="garminModel" aria-label="Kind of Garmin" title="Watches and Edge bike computers do not draw the track already ridden alike: each gets the colours that stay readable on it. Orange with a black edge for an Edge, cyan with a white edge for a watch."><option value="edge">Edge (bike computer)</option><option value="watch">Watch (Forerunner, Fenix...)</option></select></div>
   <nav class="steps" aria-label="Steps"><button type="button" class="step" data-step="1"><span class="num">1</span>Prepare</button><span class="arrow" aria-hidden="true">→</span><button type="button" class="step" data-step="2"><span class="num">2</span><span id="step2Label">Copy to the Wahoo</span></button></nav>
   <div class="seg" id="modeSeg" title="Pro shows more options. Each section can also be set to Simple or Pro on its own.">
     <button data-mode="simple">Simple</button><button data-mode="pro">Pro</button>
@@ -351,7 +352,7 @@ tr.rgrp.folded .gsum{display:inline}
       <p><button class="small" id="btnLookReset" type="button">Reset the look of the roads</button></p>
       <p class="note">These settings change the <b>theme</b>, not the tiles: after a build, copy the new <b>vtm-elemnt.xml</b> to your device (step 2: a red warning marks it).</p>
     </div>
-    <p class="note garmin-only">On a Garmin, unvisited roads are cyan with a white edge, visited ones magenta, unpaved ones dashed, boundaries a purple band (see docs/GARMIN.md); choosing them here comes later.</p>
+    <p class="note garmin-only">On a Garmin, unvisited roads are orange with a black edge on an Edge and cyan with a white edge on a watch (the choice under the Garmin button), visited ones magenta, unpaved ones dashed, boundaries a purple band (see docs/GARMIN.md); choosing them here comes later.</p>
   </div>
 </section>
 <section class="card pole" data-sec="squadrats">
@@ -2084,9 +2085,15 @@ function garminSum() {
   const what = isKaroo() ? [S.wandrer.enabled && "Wandrer", S.squadrats.enabled && "Squadrats", poiOn && "POIs"].filter(Boolean)
     : [S.build.garmin_base && "Base map + POIs", S.wandrer.enabled && "Wandrer", S.squadrats.enabled && "Squadrats",
        !S.build.garmin_base && "POIs"].filter(Boolean);
-  return `<span><b>${esc(where)}</b>${mb ? " " + esc(boxKm(mb)) : ""}</span><span>${esc(what.join(" + "))}</span><span>for ${isKaroo() ? "Karoo" : "Garmin"}</span>`;
+  return `<span><b>${esc(where)}</b>${mb ? " " + esc(boxKm(mb)) : ""}</span><span>${esc(what.join(" + "))}</span><span>for ${isKaroo() ? "Karoo" : garminModel() === "watch" ? "Garmin watch" : "Garmin Edge"}</span>`;
 }
 const tileFormat = () => (S && S.tile_format === "gz") ? "gz" : "lzma";
+const garminModel = () => (S && S.garmin_model === "watch") ? "watch" : "edge";
+$("#garminModel").addEventListener("change", async e => {   // the default look of the roads on this kind of Garmin
+  S.garmin_model = e.target.value;
+  try { await api("/api/settings", S); } catch (err) { $("#runMsg").textContent = err.message; }
+  renderMakeSum(); fitHeader();
+});
 $("#tileFormat").addEventListener("change", async e => {
   S.tile_format = e.target.value;
   try { await api("/api/settings", S); } catch (err) { $("#runMsg").textContent = err.message; }
@@ -2095,6 +2102,7 @@ $("#tileFormat").addEventListener("change", async e => {
 function renderDevice() {
   $$("#devSeg button").forEach(b => { const on = b.dataset.device === S.device; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
   $("#tileFormat").value = tileFormat();
+  $("#garminModel").value = garminModel();
   if (document.body.classList.contains("step2")) renderDevCopy();
   const what = isGarmin() ? "Garmin" : isKaroo() ? "Karoo" : "Wahoo";
   $("#step2Label").textContent = $("#filesTitle").textContent = "Copy to the " + what;

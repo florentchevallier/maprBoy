@@ -92,7 +92,8 @@ Details and the build recipe are in [GARMIN.md](GARMIN.md).
 - In the map settings, enable the overlay next to the Garmin map.
 - The file goes in the `Garmin` folder itself: copied into `Garmin/CustomMaps`, it is not read (Edge 530 and 830).
 - The map theme is set per activity profile (Navigation > Map > Map Theme): use **Classic**.
-- Default look: unvisited roads cyan `#00E1FF` with a white edge, visited roads magenta `#FF00FF`, unpaved roads
+- Default look: unvisited roads cyan `#00E1FF` with a white edge on a watch, orange `#FF8800` with a black edge on an
+  Edge (chosen under the Garmin button of the page), visited roads magenta `#FF00FF`, unpaved roads
   dashed, boundaries a purple band under the roads, Squadrats blue. Visited roads are always drawn.
 
 ### Copy from the page
@@ -127,6 +128,9 @@ Firmware 9.75, with the same `gmapsupp.img` as on the Forerunner 955 (foot expor
 - Works in day and night mode.
 - The Garmin map draws paths as red dashed lines; our layers stay distinct from them: the small Squadrats squares
   as blue dashed outlines, the Wandrer boundaries as a purple band.
+- On a ride (November 2026, next to a BOLT and a Karoo): the visited roads were readable, but the cyan unvisited roads
+  looked like the track already ridden; the icons were fine, and no POI was seen twice (ours and Garmin's). Hence
+  orange with a black edge for an Edge, not checked on the device yet.
 
 ## Garmin Edge 530
 

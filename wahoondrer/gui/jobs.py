@@ -482,7 +482,8 @@ def garmin_commands(s, export_infos, squadrats_file):
              # "--bbox=W,..." in one piece: a west of Greenwich starts with "-", and argparse would take
              # "--bbox -4.4,..." for two options
              "-o", os.path.join(dest, f), "--bbox=" + box,
-             "--name", label, "--family-id", str(fid), "--mapname", mapname]
+             "--name", label, "--family-id", str(fid), "--mapname", mapname,
+             "--device", settings_mod.garmin_model(s)]
         if use_wandrer:
             a += [*exports, "--radius-m", str(w["radius_m"]), "--simplify-m", str(w["simplify_m"])]
             if w["unpaved_always"]:

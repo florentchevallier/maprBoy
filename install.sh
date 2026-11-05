@@ -144,9 +144,10 @@ if [ ! -x "$ADB" ]; then
 fi
 if command -v mtp-detect >/dev/null; then
     echo "libmtp (Garmin watches): installed"
-elif command -v brew >/dev/null && brew --version >/dev/null 2>&1 && ! brew list libmtp 2>&1 | grep -qi "too old"; then
+elif command -v brew >/dev/null && brew --version >/dev/null 2>&1 \
+        && [[ "$(brew list libmtp 2>&1 || true)" != *"too old"* ]]; then
     # (on macOS 10.14, brew --version works, but brew list says the system is "too old to run Homebrew", and installing
-    # libmtp crashed)
+    # libmtp crashed. The answer is read first: with pipefail, "brew list | grep" would take brew's failure as the result)
     if [ "$(ask "Garmin watch (Forerunner, Fenix...)? Install libmtp with Homebrew to copy maps to it [y/N] ")" = "y" ]; then
         brew install libmtp || echo "libmtp could not be installed: the copy to a watch will not work (the rest does)."
     fi

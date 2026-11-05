@@ -54,9 +54,11 @@ background and opens the page; "Quit maprBoy" in the settings of the page stops 
 `maprBoy-app\state\server.log`). `%USERPROFILE%\wahooMapsCreatorData` becomes a directory junction to
 `maprBoy-data\OSM_data`. Copying from the page works for every device: a Wahoo and a Karoo with adb, a Garmin
 Edge as a drive, a Garmin watch through File Explorer (MTP). Windows asks once whether adb may use the network
-(firewall): the copies worked with that access refused.
+(firewall): the copies worked with that access refused. With contour lines, maprBoy downloads elevation data from
+viewfinderpanoramas.org: an antivirus may show it as a connection to `maprBoy-app\env\python.exe` and ask whether
+to allow it (seen with Panda Dome): it is that download.
 
-The installer was tested on Windows 10 (a virtual machine).
+The installer was tested on Windows 10 (a virtual machine) and Windows 11.
 
 ## Use
 1. Start maprBoy (`maprBoy.command` on the Desktop): the page opens in your browser.

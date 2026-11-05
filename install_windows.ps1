@@ -106,6 +106,7 @@ function Install-MaprBoy {
         }
         if ($LASTEXITCODE -ne 0) { throw "micromamba does not start (code $LASTEXITCODE)." }
         $env:MAMBA_ROOT_PREFIX = Join-Path $App "mamba"
+        $env:PIP_NO_CACHE_DIR = "1"     # pip (WMC, pyhgtmap) would leave about 130 MB in the user's cache, outside maprBoy
         $envDir = Join-Path $App "env"
         $shaFile = Join-Path $App "state\environment.sha256"
         $want = (Get-FileHash (Join-Path $code "environment.yml") -Algorithm SHA256).Hash

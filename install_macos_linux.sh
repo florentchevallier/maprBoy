@@ -1,16 +1,18 @@
 #!/bin/bash
-# maprBoy installer for macOS (Intel and Apple Silicon).
+# maprBoy installer for macOS (Intel and Apple Silicon) and Linux (64-bit).
 #
 # In the Terminal:
-#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_macos_linux.sh)"
+#   macOS:  bash -c "$(curl -fsSL https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_macos_linux.sh)"
+#   Linux:  bash -c "$(wget -qO- https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_macos_linux.sh)"
+#           (wget: curl is not always there on Linux)
 # or, from a copy of the repository:
 #   bash install_macos_linux.sh [--dir FOLDER] [--from COPY]
 #
 # Everything goes into one folder chosen by the user (default ~/maprBoy):
 #   maprBoy-app/   the code, micromamba and its environment (Python, GDAL, osmium, Java...), Osmosis, mkgmap, adb,
-#                  the settings and caches (state/), the launcher and uninstall.command
+#                  the settings and caches (state/), the launcher and the uninstaller
 #   maprBoy-data/  Wandrer and Squadrats exports, OSM data, the maps made (only on a first installation)
-# A launcher is put on the Desktop. Running the installer again updates the code; the environment is made again
+# A launcher is put on the Desktop (Linux: also in the applications menu). Running the installer again updates the code; the environment is made again
 # only when environment.yml changed. The code comes from GitHub, or from the copy of maprBoy that holds this
 # install_macos_linux.sh (when it is run from one), or from --from COPY.
 set -euo pipefail
@@ -22,13 +24,17 @@ OSMOSIS_URL="https://github.com/openstreetmap/osmosis/releases/download/$OSMOSIS
 MAPWRITER_URL="https://repo1.maven.org/maven2/org/mapsforge/mapsforge-map-writer/0.21.0/mapsforge-map-writer-0.21.0-jar-with-dependencies.jar"
 MKGMAP_VERSION="r4924"
 MKGMAP_URL="https://www.mkgmap.org.uk/download/mkgmap-$MKGMAP_VERSION.zip"
-ADB_URL="https://dl.google.com/android/repository/platform-tools-latest-darwin.zip"
+ADB_URL="https://dl.google.com/android/repository/platform-tools-latest"    # + -darwin.zip or -linux.zip
 PORT=8765
 
 say()  { printf '\n\033[1m%s\033[0m\n' "$*"; }
 fail() { printf '\n\033[31mError: %s\033[0m\n' "$*" >&2; exit 1; }
 ask()  { local reply; read -r -p "$1" reply </dev/tty || reply=""; printf '%s' "$reply"; }
-fetch() { curl -fL --retry 3 --progress-bar -o "$2" "$1" || fail "could not download $1"; }
+fetch() {
+    if command -v curl >/dev/null; then curl -fL --retry 3 --progress-bar -o "$2" "$1" || fail "could not download $1"
+    else wget -q --show-progress --tries=3 -O "$2" "$1" || fail "could not download $1"; fi
+}
+page_up() { (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; }   # a maprBoy page answering? (bash itself, no curl)
 
 DIR=""
 FROM=""
@@ -45,14 +51,31 @@ if [ -z "$FROM" ] && [ -f "${BASH_SOURCE[0]:-}" ]; then          # run from a co
     here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     [ -f "$here/scripts/gui.py" ] && FROM="$here"
 fi
-[ "$(uname -s)" = "Darwin" ] || fail "this installer is for macOS."
-if [ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = "1" ]; then PLATFORM="osx-arm64"; else PLATFORM="osx-64"; fi
-command -v curl >/dev/null && command -v unzip >/dev/null || fail "curl and unzip are needed (they come with macOS)."
+case "$(uname -s)" in
+    Darwin)
+        OS="macos"
+        if [ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = "1" ]; then PLATFORM="osx-arm64"; else PLATFORM="osx-64"; fi
+        SYSTEM="macOS $(sw_vers -productVersion)"
+        command -v curl >/dev/null && command -v unzip >/dev/null || fail "curl and unzip are needed (they come with macOS)." ;;
+    Linux)
+        OS="linux"
+        case "$(uname -m)" in
+            x86_64) PLATFORM="linux-64" ;;
+            aarch64|arm64) PLATFORM="linux-aarch64" ;;
+            *) fail "this processor ($(uname -m)) is not supported: 64-bit Intel/AMD or ARM only." ;;
+        esac
+        SYSTEM="$( (. /etc/os-release && echo "$PRETTY_NAME") 2>/dev/null || echo Linux)"
+        { command -v curl >/dev/null || command -v wget >/dev/null; } && command -v unzip >/dev/null \
+            || fail "unzip and curl (or wget) are needed. On Ubuntu or Debian: sudo apt install unzip curl" ;;
+    *) fail "this installer is for macOS and Linux (Windows: install_windows.ps1)." ;;
+esac
+if [ "$OS" = "macos" ]; then LAUNCHER="maprBoy.command"; UNINSTALLER="uninstall.command"
+else LAUNCHER="maprBoy.sh"; UNINSTALLER="uninstall.sh"; fi
 
-say "maprBoy installer ($PLATFORM, macOS $(sw_vers -productVersion))"
+say "maprBoy installer ($PLATFORM, $SYSTEM)"
 
-if curl -s -m 3 -o /dev/null "http://127.0.0.1:$PORT/"; then           # the code must not change under a running page
-    fail "maprBoy is running: close its Terminal window (the one maprBoy.command opened), then run the installer again."
+if page_up; then                                                     # the code must not change under a running page
+    fail "maprBoy is running: stop it with 'Quit maprBoy' in the settings of its page, then run the installer again."
 fi
 
 # ------------------------------------------------------------------ the folder
@@ -101,8 +124,10 @@ if [ ! -x "$MM" ]; then
     chmod +x "$MM"
 fi
 export MAMBA_ROOT_PREFIX="$APP/mamba"
+export PIP_NO_CACHE_DIR=1          # pip (WMC, pyhgtmap) would leave about 130 MB in the user's cache, outside maprBoy
 ENV="$APP/env"
-WANT="$(shasum -a 256 "$APP/code/environment.yml" | cut -d' ' -f1)"
+if command -v sha256sum >/dev/null; then SHA="sha256sum"; else SHA="shasum -a 256"; fi
+WANT="$($SHA "$APP/code/environment.yml" | cut -d' ' -f1)"
 HAVE="$(cat "$APP/state/environment.sha256" 2>/dev/null || true)"
 if [ ! -d "$ENV" ] || [ "$WANT" != "$HAVE" ]; then
     rm -rf "$ENV"
@@ -137,13 +162,19 @@ if [ ! -f "$MKGMAP_JAR" ]; then
     [ -f "$MKGMAP_JAR" ] || fail "mkgmap.jar was not found in its zip file"
 fi
 ADB="$APP/tools/platform-tools/adb"
-if [ ! -x "$ADB" ]; then
-    fetch "$ADB_URL" "$TMP/adb.zip"
+if [ "$PLATFORM" = "linux-aarch64" ]; then                    # Google publishes adb for 64-bit Intel/AMD Linux only
+    ADB=""
+    if command -v adb >/dev/null; then echo "adb: $(command -v adb)"
+    else echo "adb is not installed (copy to a Wahoo or a Karoo): sudo apt install adb"; fi
+elif [ ! -x "$ADB" ]; then
+    if [ "$OS" = "macos" ]; then fetch "$ADB_URL-darwin.zip" "$TMP/adb.zip"; else fetch "$ADB_URL-linux.zip" "$TMP/adb.zip"; fi
     unzip -q -o "$TMP/adb.zip" -d "$APP/tools"
     [ -x "$ADB" ] || fail "adb was not found in its zip file"
 fi
 if command -v mtp-detect >/dev/null; then
     echo "libmtp (Garmin watches): installed"
+elif [ "$OS" = "linux" ]; then
+    echo "libmtp is not installed: only needed to copy maps to a Garmin watch. On Ubuntu or Debian: sudo apt install mtp-tools"
 elif command -v brew >/dev/null && brew --version >/dev/null 2>&1 \
         && [[ "$(brew list libmtp 2>&1 || true)" != *"too old"* ]]; then
     # (on macOS 10.14, brew --version works, but brew list says the system is "too old to run Homebrew", and installing
@@ -168,20 +199,29 @@ echo "Contour lines tool (pyhgtmap):"
 # ------------------------------------------------------------------ launcher and uninstaller
 say "5/5  Launcher"
 q() { printf '%q' "$1"; }
-cat > "$APP/maprBoy.command" <<EOF
+MENU_FILE=""; DESKTOP_FILE=""                     # Linux: the .desktop launchers (applications menu, Desktop)
+if [ "$OS" = "linux" ]; then
+    MENU_FILE="${XDG_DATA_HOME:-$HOME/.local/share}/applications/maprboy.desktop"
+    desk="$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")"          # its name depends on the language
+    if [ -d "$desk" ] && [ "$desk" != "$HOME" ]; then DESKTOP_FILE="$desk/maprBoy.desktop"; fi
+    OPEN="xdg-open"
+else
+    OPEN="open"
+fi
+cat > "$APP/$LAUNCHER" <<EOF
 #!/bin/bash
 # maprBoy launcher (made by the maprBoy installer): starts the page; close this window or press Ctrl+C to stop it.
 APP=$(q "$APP")
 export MAMBA_ROOT_PREFIX="\$APP/mamba" MAPRBOY_HOME="\$APP/state"
 export PATH="\$APP/tools/osmosis-$OSMOSIS_VERSION/bin:\$APP/tools/platform-tools:\$PATH"
-if curl -s -o /dev/null "http://127.0.0.1:$PORT/"; then
+if (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; then
     echo "maprBoy is already running: opening the page."
-    open "http://127.0.0.1:$PORT/"
+    $OPEN "http://127.0.0.1:$PORT/"
     exit 0
 fi
 cd "\$APP/code" && exec "\$APP/bin/micromamba" run -p "\$APP/env" python scripts/gui.py --port $PORT
 EOF
-cat > "$APP/uninstall.command" <<EOF
+cat > "$APP/$UNINSTALLER" <<EOF
 #!/bin/bash
 # maprBoy uninstaller (made by the maprBoy installer). The whole script is read before anything is deleted.
 main() {
@@ -190,9 +230,10 @@ main() {
     read -r -p "Delete your data too (maps, OSM data, Wandrer and Squadrats exports in \$DATA)? [y/N] " reply
     local wmc="\$HOME/wahooMapsCreatorData"
     if [ -L "\$wmc" ] && [ "\$(readlink "\$wmc")" = "\$DATA/OSM_data" ]; then rm -f "\$wmc"; fi
-    if grep -q "maprBoy launcher (made by" "\$HOME/Desktop/maprBoy.command" 2>/dev/null; then
-        rm -f "\$HOME/Desktop/maprBoy.command"
-    fi
+    local f
+    for f in "\$HOME/Desktop/maprBoy.command" $(q "$DESKTOP_FILE") $(q "$MENU_FILE"); do     # the launchers it made
+        if [ -n "\$f" ] && grep -q "maprBoy launcher (made by" "\$f" 2>/dev/null; then rm -f "\$f"; fi
+    done
     rm -rf "\$APP"
     if [ "\$reply" = "y" ]; then rm -rf "\$DATA"; echo "Data deleted."; else echo "Data kept in \$DATA"; fi
     rm -f "\$DIR/.DS_Store"                   # left by the Finder when the folder was opened: not a reason to keep it
@@ -206,22 +247,43 @@ main() {
 }
 main
 EOF
-chmod +x "$APP/maprBoy.command" "$APP/uninstall.command"
+chmod +x "$APP/$LAUNCHER" "$APP/$UNINSTALLER"
 # the maprBoy icon on the launchers (Finder custom icon, set with AppKit through osascript; nothing to install)
 set_icon() {
     osascript -l JavaScript -e 'function run(a) { ObjC.import("AppKit");
         return $.NSWorkspace.sharedWorkspace.setIconForFileOptions($.NSImage.alloc.initWithContentsOfFile(a[0]), a[1], 0) }' \
         "$APP/code/wahoondrer/gui/static/maprboy-icon.png" "$1" >/dev/null 2>&1 || true
 }
-set_icon "$APP/maprBoy.command"
-if [ -d "$HOME/Desktop" ]; then
-    cp "$APP/maprBoy.command" "$HOME/Desktop/maprBoy.command"
-    set_icon "$HOME/Desktop/maprBoy.command"
-    WHERE="the Desktop"
+if [ "$OS" = "macos" ]; then
+    set_icon "$APP/maprBoy.command"
+    if [ -d "$HOME/Desktop" ]; then
+        cp "$APP/maprBoy.command" "$HOME/Desktop/maprBoy.command"
+        set_icon "$HOME/Desktop/maprBoy.command"
+        WHERE="double-click maprBoy.command on the Desktop"
+    else
+        WHERE="double-click $APP/maprBoy.command"
+    fi
+    UNDO="double-click $APP/uninstall.command"
 else
-    WHERE="$APP"
+    # a .desktop launcher with the maprBoy icon, in the applications menu and on the Desktop; it opens a terminal
+    write_entry() {
+        printf '%s\n' "[Desktop Entry]" "# maprBoy launcher (made by the maprBoy installer)" "Type=Application" "Name=maprBoy" \
+            "Comment=Custom OSM maps with POIs, Wandrer and Squadrats (the page opens in your browser)" \
+            "Exec=bash \"$APP/$LAUNCHER\"" "Icon=$APP/code/wahoondrer/gui/static/maprboy-icon.png" \
+            "Terminal=true" "Categories=Utility;" > "$1"
+        chmod +x "$1"
+        gio set "$1" metadata::trusted true >/dev/null 2>&1 || true    # GNOME: may spare the "Allow Launching" step
+    }
+    mkdir -p "$(dirname "$MENU_FILE")"
+    write_entry "$MENU_FILE"
+    WHERE="maprBoy in the applications menu"
+    if [ -n "$DESKTOP_FILE" ]; then
+        write_entry "$DESKTOP_FILE"
+        WHERE="$WHERE, or maprBoy on the Desktop (the first time, right-click it and choose Allow Launching if asked)"
+    fi
+    UNDO="bash $APP/uninstall.sh"
 fi
 
 say "Done."
-echo "Start maprBoy: double-click maprBoy.command on $WHERE (the page opens in your browser; keep the Terminal"
-echo "window open while you use it). Uninstall: double-click $APP/uninstall.command"
+echo "Start maprBoy: $WHERE. The page opens in your browser; keep the terminal window open while you use it."
+echo "Uninstall: $UNDO"

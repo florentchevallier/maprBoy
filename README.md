@@ -40,8 +40,20 @@ you ask for it. Running the installer again updates the code; settings already m
 double-click `maprBoy-app/uninstall.command`: it asks whether your data should be deleted too.
 Run from a copy of the repository (`bash install_macos_linux.sh`), it installs that copy instead of the code on GitHub.
 
-The installer was tested on an Intel Mac with macOS 10.14. Other systems: install by hand (see "Installation (by
-hand, for development)" below).
+The installer was tested on an Intel Mac with macOS 10.14 and on an Apple Silicon Mac.
+
+## Install (Linux, not tested on a desktop yet)
+In a terminal, paste:
+```
+bash -c "$(wget -qO- https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_macos_linux.sh)"
+```
+The same installer as on a Mac, for 64-bit Linux (Intel/AMD or ARM); it needs `unzip` (on Ubuntu or Debian:
+`sudo apt install unzip`). Same layout, with `maprBoy.sh` and `uninstall.sh` in `maprBoy-app`, and a maprBoy
+launcher in the applications menu and on the Desktop (it opens a terminal; on Ubuntu, the Desktop one may first need
+a right-click and "Allow Launching"). Copying to a Garmin watch needs `sudo apt install mtp-tools`. To uninstall:
+`bash maprBoy-app/uninstall.sh`.
+
+Other systems: install by hand (see "Installation (by hand, for development)" below).
 
 ## Install (Windows)
 In PowerShell (Start menu, type PowerShell), paste:

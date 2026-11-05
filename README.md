@@ -1,6 +1,6 @@
-<img src="docs/images/maprboy-icon.webp" alt="maprBoy icon: a bike computer in front of a country landscape that turns into a neon grid" width="120" align="right">
 
-# maprBoy
+# maprBoy <img src="docs/images/maprboy-icon.webp" alt="maprBoy icon: a bike computer in front of a country landscape that turns into a neon grid" width="120" align="centre">
+
 
 maprBoy makes custom OpenStreetMap maps for bike computers and watches, with the points of interest you choose,
 your **[Wandrer](https://wandrer.earth)** roads (the ones you have not ridden yet, in orange) and your

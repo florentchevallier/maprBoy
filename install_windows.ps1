@@ -1,7 +1,8 @@
 # maprBoy installer for Windows (10 and 11, 64-bit).
 #
 # In PowerShell (Start menu > type PowerShell), paste:
-#   powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_windows.ps1 | iex"
+#   irm https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_windows.ps1 -OutFile "$env:TEMP\install_windows.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\install_windows.ps1"
+#   (downloaded, then run: Microsoft Defender blocked "irm ... | iex" in November 2026, Trojan:Win32/Commando.C!ml)
 # or, from a copy of the repository:
 #   powershell -ExecutionPolicy Bypass -File install_windows.ps1 [-Dir FOLDER] [-From COPY] [-Update]
 #   (-Update: what the page's Update button runs: waits for the page to stop)

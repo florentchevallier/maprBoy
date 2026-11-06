@@ -58,8 +58,10 @@ Other systems: install by hand (see "Installation (by hand, for development)" be
 ## Install (Windows)
 In PowerShell (Start menu, type PowerShell), paste:
 ```
-powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_windows.ps1 | iex"
+irm https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_windows.ps1 -OutFile "$env:TEMP\install_windows.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\install_windows.ps1"
 ```
+The installer is downloaded first, then run: Microsoft Defender blocked the shorter `irm ... | iex` form
+(November 2026, "Trojan:Win32/Commando.C!ml", a heuristic detection); the same script run as a file passes.
 Same layout as on a Mac (`maprBoy-app`, `maprBoy-data`, default `%USERPROFILE%\maprBoy`), with a maprBoy shortcut on the
 Desktop and `maprBoy-app\uninstall.bat`. On Windows maprBoy runs without a window: the shortcut starts it in the
 background and opens the page; "Quit maprBoy" in the settings of the page stops it (its messages go to

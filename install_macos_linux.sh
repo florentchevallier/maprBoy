@@ -115,6 +115,7 @@ if [ -n "$FROM" ]; then
     mkdir -p "$TMP/code"
     (cd "$FROM" && tar cf - --exclude .git --exclude __pycache__ --exclude ".DS_Store" --exclude "Art (do not commit)" \
         --exclude CLAUDE.md .) | (cd "$TMP/code" && tar xf -)
+    echo "copy" > "$TMP/code/VERSION"      # its version is unknown: the page offers the latest release
     echo "from $FROM"
 else
     # the latest release ("tag_name" in GitHub's answer); the main branch when there is none (or no answer)

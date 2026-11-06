@@ -28,7 +28,8 @@ PORT = 8765
 
 
 def current(code_dir=CODE_DIR):
-    """The installed release ("v1.2"), "main", or None for a development copy (no VERSION file)."""
+    """The installed release ("v1.2"), "main", "copy" (installed from a folder, version unknown), or None for a
+    development copy (no VERSION file)."""
     try:
         with open(os.path.join(code_dir, "VERSION"), encoding="utf-8") as f:
             return f.read().strip() or None

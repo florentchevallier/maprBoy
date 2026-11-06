@@ -1552,18 +1552,19 @@ $("#btnSeeFiles").onclick = () => setStep(2);
 
 // ---------- new versions: a note at the top when GitHub has a newer release; Update runs the installer again
 let UPD = null, updLater = false;
+const updName = v => v === "copy" ? "a copy installed from a folder" : v === "main" ? "the main branch" : v;
 const updAgo = t => { const d = Math.floor((Date.now() / 1000 - t) / 86400); return d < 1 ? "today" : d < 2 ? "yesterday" : d + " days ago"; };
 function renderUpdate() {
   const u = UPD, note = $("#updNote"), st = $("#updStatus"), run = $("#btnUpdRun");
   const offer = !!(u && u.newer && u.enabled !== false);
   note.hidden = !offer || updLater;
-  if (offer) note.innerHTML = `<span><b>maprBoy ${esc(u.latest)} is out</b> (you have ${esc(u.current)}).</span>` +
+  if (offer) note.innerHTML = `<span><b>maprBoy ${esc(u.latest)} is out</b> (you have ${esc(updName(u.current))}).</span>` +
     (u.url ? ` <a href="${esc(u.url)}" target="_blank" rel="noopener">What's new</a>` : "") + '<span class="sp"></span>' +
     (u.can_update ? '<button type="button" class="primary" data-upd="run">Update</button>' : "") + '<button type="button" data-upd="later">Later</button>';
   run.hidden = !(u && u.newer && u.can_update);
   if (!u) { st.textContent = ""; return; }
   if (!u.current) { st.textContent = "This is a development copy (not installed with the installer): it is not checked for new versions."; return; }
-  let t = `Installed: ${u.current}.`;
+  let t = `Installed: ${updName(u.current)}.`;
   if (u.error) t += ` The check did not work (${u.error}).`;
   else if (u.checked) t += u.latest ? ` Latest: ${u.latest} (checked ${updAgo(u.checked)}).` : ` No release published yet (checked ${updAgo(u.checked)}).`;
   if (u.newer && !u.can_update) t += " Run the installer again to update.";

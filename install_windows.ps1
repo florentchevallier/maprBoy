@@ -89,6 +89,7 @@ function Install-MaprBoy {
             New-Item -ItemType Directory -Path $code | Out-Null
             Get-ChildItem -Force $From | Where-Object { $_.Name -notin ".git", "__pycache__", "Art (do not commit)", "CLAUDE.md", ".DS_Store" } |
                 Copy-Item -Destination $code -Recurse -Force
+            Set-Content -Path (Join-Path $code "VERSION") -Value "copy" -Encoding Ascii   # version unknown: the page offers the latest release
             Write-Host "from $From"
         } else {
             # the latest release; the main branch when there is none (GitHub answers 404) or no answer

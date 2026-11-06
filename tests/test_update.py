@@ -22,6 +22,7 @@ class VersionTest(unittest.TestCase):
         self.assertFalse(update.is_newer("v1.0", "v1.0.0"))
         self.assertFalse(update.is_newer("v1.0", "v1.1"))
         self.assertTrue(update.is_newer("v1.0", "main"))         # installed before the first release
+        self.assertTrue(update.is_newer("v1.0", "copy"))         # installed from a downloaded copy
         self.assertFalse(update.is_newer("v1.0", None))          # a development copy
         self.assertFalse(update.is_newer(None, "v1.0"))          # no release published
 

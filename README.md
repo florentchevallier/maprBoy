@@ -80,8 +80,9 @@ which one in `maprBoy-app/code/VERSION`. Once a day the page asks GitHub which r
 you is sent); when it is newer, a note at the top of the page offers to **Update**. Update stops the page, opens a
 terminal window that runs the installer again for the same folder (settings and data are kept), then starts
 maprBoy again with a new page. The check can be turned off, or done at once with "Check now", in the settings (⚙,
-"maprBoy"). A copy installed before this existed has no `VERSION` file: run the installer once by hand. A copy run
-from a clone of the repository is never offered updates (use git).
+"maprBoy"). A copy installed before this existed has no `VERSION` file: run the installer once by hand. Installed from a
+downloaded copy of the repository (the installer run from it), maprBoy is marked `copy` and offered the latest
+release. A copy run from a clone without the installer is never offered updates (use git).
 
 ## Use
 1. Start maprBoy (`maprBoy.command` on the Desktop): the page opens in your browser.

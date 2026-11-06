@@ -94,7 +94,7 @@ def latest(force=False, now=None, fetch=_fetch_latest):
         return kept
     try:
         info = {**fetch(), "checked": now}
-    except Exception as e:                            # offline, GitHub down, rate limit: tried again tomorrow
+    except (OSError, ValueError) as e:                # offline, GitHub down, rate limit, bad answer: tried again tomorrow
         info = {"tag": kept.get("tag"), "url": kept.get("url"), "checked": now, "error": str(e) or e.__class__.__name__}
     _write_cache(info)
     return info
@@ -124,8 +124,11 @@ def status(enabled=True, force=False, **kw):
 
 # ------------------------------------------------------------------ running the installer again
 
-TERMINALS = (["x-terminal-emulator", "-e"], ["gnome-terminal", "--"], ["konsole", "-e"], ["xfce4-terminal", "-x"],
-             ["mate-terminal", "-x"], ["lxterminal", "-e"], ["kitty"], ["alacritty", "-e"], ["xterm", "-e"])
+# Known terminals first, each with its own way of being given a command: x-terminal-emulator (Debian, Ubuntu) points
+# to one of them, and on Ubuntu 26.04 straight to Ptyxis, which has no -e option (seen in November 2026: nothing opened).
+TERMINALS = (["ptyxis", "--"], ["gnome-terminal", "--"], ["kgx", "--"], ["konsole", "-e"], ["xfce4-terminal", "-x"],
+             ["mate-terminal", "-x"], ["lxterminal", "-e"], ["kitty"], ["alacritty", "-e"], ["x-terminal-emulator", "-e"],
+             ["xterm", "-e"])
 
 
 def script_text(target_dir, system=None):
@@ -165,6 +168,15 @@ def script_text(target_dir, system=None):
             'echo; read -r -p "maprBoy was not updated (see above). Press Enter to close this window. "\n')
 
 
+def _opened(proc, wait=2):
+    """False when the terminal program stopped at once with an error (an option it does not know): the next one is
+    tried. Still running, or ended well (gnome-terminal hands the window over to its server), is taken as opened."""
+    try:
+        return proc.wait(timeout=wait) == 0
+    except subprocess.TimeoutExpired:
+        return True
+
+
 def start_update(system=None, which=shutil.which, popen=subprocess.Popen):
     """Write the update script into state/ and open it in a new terminal window. Returns None, or a message when
     it could not be started (the page then stays up)."""
@@ -187,8 +199,7 @@ def start_update(system=None, which=shutil.which, popen=subprocess.Popen):
             popen(["open", "-a", "Terminal", path])
         else:
             for term in TERMINALS:
-                if which(term[0]):
-                    popen(term + ["bash", path])
+                if which(term[0]) and _opened(popen(term + ["bash", path])):
                     break
             else:
                 return f"No terminal program was found: run it yourself in a terminal: bash {shlex.quote(path)}"

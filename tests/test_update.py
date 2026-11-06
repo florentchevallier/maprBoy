@@ -27,6 +27,12 @@ class VersionTest(unittest.TestCase):
         self.assertFalse(update.is_newer(None, "v1.0"))          # no release published
 
 
+class Done:
+    """A terminal program that ended well at once."""
+    def wait(self, timeout=None):
+        return 0
+
+
 class CheckTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()
@@ -92,7 +98,7 @@ class CheckTest(unittest.TestCase):
         self.make_install("v1.0")
         started = []
         problem = update.start_update(system="linux", which=lambda n: "/usr/bin/" + n if n == "gnome-terminal" else None,
-                                      popen=lambda cmd, **kw: started.append(cmd))
+                                      popen=lambda cmd, **kw: started.append(cmd) or Done())
         self.assertIsNone(problem)
         script = os.path.join(self.dir, "maprBoy-app", "state", "update.sh")
         self.assertEqual(started, [["gnome-terminal", "--", "bash", script]])
@@ -101,6 +107,21 @@ class CheckTest(unittest.TestCase):
         self.assertIn(f"--dir {self.dir} --update", text)
         self.assertIn(f"exec bash {os.path.join(self.dir, 'maprBoy-app', 'maprBoy.sh')}", text)
         self.assertIn("No terminal", update.start_update(system="linux", which=lambda n: None, popen=lambda c, **k: None))
+
+    def test_a_terminal_that_fails_at_once_is_skipped(self):
+        self.make_install("v1.0")
+        started = []
+
+        class Proc:
+            def __init__(self, cmd):
+                started.append(cmd[0])
+                self.rc = 1 if cmd[0] == "ptyxis" else 0
+
+            def wait(self, timeout=None):
+                return self.rc
+        update.start_update(system="linux", which=lambda n: n in ("ptyxis", "x-terminal-emulator") and n,
+                            popen=lambda cmd, **kw: Proc(cmd))
+        self.assertEqual(started, ["ptyxis", "x-terminal-emulator"])
 
     def test_not_installed(self):
         self.assertIn("not installed", update.start_update(system="linux"))

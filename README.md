@@ -105,8 +105,9 @@ the Karoo `.map` file. Contour lines are made for the Wahoo maps only.
 The sections below describe the command line, the code and the manual installation.
 
 ### Releases
-Installed copies are offered a release when its tag is a higher version number than theirs: tag releases `v1.0`,
-`v1.1`, `v1.2`... (GitHub > Releases > Draft a new release, a new tag on `main`, "Set as the latest release").
+Installed copies are offered a release when its tag is a higher version number than theirs. Tags follow
+`vMAJOR.MINOR.PATCH`: `v1.0.1`, `v1.0.2`... for bug fixes, `v1.1.0`, `v1.2.0`... for new features (GitHub > Releases >
+Draft a new release, a new tag on `main`, Release label "None": a published release becomes the latest one).
 A pre-release (like `land-polygons`, which only holds a data file) is not offered. The installers themselves are
 always taken from `main`, so a change to them reaches the next update even before a release.
 

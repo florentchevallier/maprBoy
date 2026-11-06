@@ -143,6 +143,7 @@ def script_text(target_dir, system=None):
                 "[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor "
                 "[Net.SecurityProtocolType]::Tls12\n"
                 f"$dir = {quoted}\n"
+                "Set-Location $env:USERPROFILE           # not in the code folder, which the installer replaces\n"
                 "$installer = Join-Path $env:TEMP 'maprboy-install.ps1'\n"
                 "try {\n"
                 f"    Invoke-WebRequest -UseBasicParsing -Uri '{RAW}/install_windows.ps1' -OutFile $installer\n"
@@ -160,6 +161,7 @@ def script_text(target_dir, system=None):
     get = f"curl -fsSL {url}" if system == "darwin" else f"{{ curl -fsSL {url} 2>/dev/null || wget -qO- {url}; }}"
     return ("#!/bin/bash\n"
             "# maprBoy update (made by the maprBoy page): installs the latest version into the same folder, then starts it.\n"
+            'cd "$HOME"           # not in the code folder, which the installer replaces (bash then warned about getcwd)\n'
             f'if installer="$({get})" && [ -n "$installer" ]; then\n'
             f'    bash -c "$installer" maprboy-install --dir {shlex.quote(target_dir)} --update && exec bash {shlex.quote(launcher)}\n'
             "else\n"
@@ -191,15 +193,16 @@ def start_update(system=None, which=shutil.which, popen=subprocess.Popen):
         f.write(script_text(target, system))
     if system != "win32":
         os.chmod(path, 0o755)
+    home_dir = os.path.expanduser("~")
     try:
         if system == "win32":
-            popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path],
+            popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path], cwd=home_dir,
                   creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0x10))
         elif system == "darwin":
-            popen(["open", "-a", "Terminal", path])
+            popen(["open", "-a", "Terminal", path], cwd=home_dir)
         else:
             for term in TERMINALS:
-                if which(term[0]) and _opened(popen(term + ["bash", path])):
+                if which(term[0]) and _opened(popen(term + ["bash", path], cwd=home_dir)):
                     break
             else:
                 return f"No terminal program was found: run it yourself in a terminal: bash {shlex.quote(path)}"

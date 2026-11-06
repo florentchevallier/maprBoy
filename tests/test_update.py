@@ -104,6 +104,7 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(started, [["gnome-terminal", "--", "bash", script]])
         with open(script) as f:
             text = f.read()
+        self.assertTrue(text.split("\n")[2].startswith('cd "$HOME"'))     # not in the code folder being replaced
         self.assertIn(f"--dir {self.dir} --update", text)
         self.assertIn(f"exec bash {os.path.join(self.dir, 'maprBoy-app', 'maprBoy.sh')}", text)
         self.assertIn("No terminal", update.start_update(system="linux", which=lambda n: None, popen=lambda c, **k: None))

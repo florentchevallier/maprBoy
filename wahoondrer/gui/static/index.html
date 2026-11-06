@@ -52,6 +52,8 @@ body.step2 .layout{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr)}   /* st
 .gear{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border-radius:10px}
 #setDlg{width:min(720px,94vw);padding:18px 20px}
 #setDlg::backdrop{background:rgba(0,0,0,.38)}
+/* the title and its close button stay at the top while the settings scroll */
+#setDlg .dlghead{position:sticky;top:-18px;z-index:5;margin:-18px -20px 6px;padding:14px 20px 10px;background:var(--card);border-bottom:1px solid var(--line)}
 .dlghead{display:flex;align-items:center;gap:10px;margin-bottom:6px}.dlghead h2{margin:0;font-size:18px}.dlghead .sp{flex:1}
 .setsub{font-size:14px;margin:16px 0 4px;padding-top:12px;border-top:1px solid var(--line)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
@@ -76,7 +78,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .envwarn{border:1px solid var(--bad);border-left-width:5px;border-radius:10px;background:var(--card);padding:12px 16px;font-size:14px}
 .envwarn b{color:var(--bad)}
 .envnote{border-color:#c98a00;font-size:13px}
-.updnote{border-color:var(--accent,#2a7de1);display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}.updnote .sp{flex:1}.updnote b{color:inherit}
+.updnote{border-color:var(--accent,#2a7de1);display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}.updnote .sp{flex:1}.updnote b{color:inherit}.updnote[hidden]{display:none}
 table{border-collapse:collapse;width:100%;font-size:13.5px}
 th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
 th{color:var(--mute);font-weight:500}
@@ -2187,6 +2189,16 @@ function setStep(n) {
 $$("[data-step]").forEach(b => b.onclick = () => setStep(+b.dataset.step));
 $("#btnGear").onclick = () => $("#setDlg").showModal();
 $("#setClose").onclick = () => $("#setDlg").close();
+// a click outside the settings closes them, like the cross; a click that starts inside (selecting text, dragging)
+// and ends outside does not
+{
+  const dlg = $("#setDlg");
+  const far = ev => { const r = dlg.getBoundingClientRect();
+    return ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom; };
+  let downFar = false;
+  dlg.addEventListener("pointerdown", ev => { downFar = ev.target === dlg && far(ev); });
+  dlg.addEventListener("click", ev => { if (downFar && ev.target === dlg && far(ev)) dlg.close(); downFar = false; });
+}
 function fitHeader() { document.documentElement.style.setProperty("--headh", $("header").offsetHeight + "px"); }
 window.addEventListener("resize", fitHeader);
 

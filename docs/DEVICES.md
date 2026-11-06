@@ -130,7 +130,11 @@ Firmware 9.75, with the same `gmapsupp.img` as on the Forerunner 955 (foot expor
   as blue dashed outlines, the Wandrer boundaries as a purple band.
 - On a ride (November 2026, next to a BOLT and a Karoo): the visited roads were readable, but the cyan unvisited roads
   looked like the track already ridden; the icons were fine, and no POI was seen twice (ours and Garmin's). Hence
-  orange with a black edge for an Edge, not checked on the device yet.
+  orange with a black edge for an Edge: readable at home, to be judged on rides.
+- Use the "Classic" map theme: with "High Contrast" or the mountain bike theme, our lines are not seen.
+- With only maprBoy's maps on (overlay and base map) and the DEM, many texts covered the icons ("Bicycle Parking",
+  "Theatre", "Childcare", company names, numbers): labels that mkgmap's default style gives to unnamed areas.
+  Removed from the base map since (see GARMIN.md), not checked on the device yet.
 
 ## Garmin Edge 530
 

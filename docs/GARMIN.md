@@ -155,6 +155,15 @@ switch the Garmin maps off and "maprBoy base" on. Changes to the default style (
   of the overlay's size, without names. Train stops (`railway=stop`) are left out, stations only.
 - Labels: places (cities, villages, suburbs...), water, parks, gardens, forests and road numbers; street names
   only with `--street-names`. No default names (mkgmap labels fences "Fence", areas "Building"...).
+- The default style also names areas and lines that have no name: by their type ("bicycle parking", "theatre",
+  "childcare"), their operator, brand or ref ("SWM: 1369", numbered huts), their sport ("soccer", "running"), and
+  it labels railways and boundaries. Seen on an Edge 830 in November 2026 (texts over the icons). These labels
+  are now deleted in the `<finalize>` rules, after every rule that could have made one; most are set by the
+  "name" action, which writes `mkgmap:label:1` itself, so that tag is deleted too. Lines keep a label only for
+  roads and waterways. The "Internet" points of the default style (`internet_access=*`) are left out too.
+  Checked by building the map of a part of Munich (around the Westpark) and reading its labels before and after:
+  lakes, parks and places keep their names; the street names stay in the file for the address search only.
+  Not checked on a device yet.
 - The area is cut with osmium into tiles of 0.15 x 0.1 degrees (about 11 km): a map tile holds at most 16 MB of
   drawing data (RGN) and mkgmap stops with "RGN section ... too big" above it. 10 km of central Munich took 2.4 MB.
 - Family id 6324 (the overlay keeps 1299), map names 63240001, 63240002... one per tile.

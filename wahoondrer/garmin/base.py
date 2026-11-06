@@ -8,7 +8,13 @@ Built as a separate, opaque map (maprboy-base.img) next to the transparent Wandr
 - only the stations of the trains: railway=stop marks every tram/S-Bahn/U-Bahn stop, often once per direction;
 - POI icons at ICON_SCALE of the overlay's size (judged readable while riding at 60-70 %);
 - labels only for places (cities, villages, suburbs...), water, parks, gardens and forests, and road numbers;
-  street names only on request; no default names ("Fence", "Building"...) and no names on other areas;
+  street names only on request; no default names ("Fence", "Building"...) and no names on other areas. The default
+  style also makes names for areas that have none: from their type ("bicycle parking", "theatre", "childcare"), or
+  from their operator, brand or ref ("SWM: 1369", numbered huts); seen on an Edge 830 (November 2026), they are
+  deleted at the end, in the <finalize> rules, after every rule that could have made one;
+- the same for lines: only roads (their numbers, names on request) and waterways keep a label, not the sports
+  tracks ("soccer", "running") or railways;
+- no "Internet" points (internet_access=*, a rule of the default style before its POIs);
 - a map tile holds at most 16 MB of drawing data (RGN), so the area is cut into a grid of tiles
   (a 10 km square of central Munich took 2.4 MB).
 """
@@ -30,6 +36,14 @@ ICON_SCALE = 0.65             # POI icons: 65 % of the overlay's (24 px -> 16 px
 NAMED_AREAS = ("natural!=water & water!=* & waterway!=* & leisure!=park & leisure!=garden"
                " & landuse!=forest & natural!=wood")
 STREET_RULE = "highway=* & name=* {set mkgmap:street='${name}'}"   # kept: address search
+FINAL_NAME = "name=* {name '${name}'}"                               # the label rule of the <finalize> rules
+# inc/name labels with the "name" action, which sets mkgmap:label:1 itself, not the name tag: both are deleted
+_DELETE_LABELS = "{delete name; delete mkgmap:label:1; delete mkgmap:label:2; delete mkgmap:label:3; delete mkgmap:label:4}"
+FINAL_DELETE = f"(name=* | mkgmap:label:1=*) & {NAMED_AREAS} {_DELETE_LABELS}"
+# lines: only the roads (numbers; names on request) and the waterways keep a label: not the sports tracks
+# ("soccer", "running"), railways or other lines
+FINAL_DELETE_LINES = f"(name=* | mkgmap:label:1=*) & highway!=* & waterway!=* {_DELETE_LABELS}"
+INTERNET = re.compile(r"^internet_access=yes .*\n(?:internet_access=.*\n\s+\{.*\n)", re.M)
 BARRIER_RULE = "barrier=wall | barrier=fence | barrier=hedge | barrier=ditch {add name='${barrier|subst:\"_=> \"}'}"
 
 
@@ -75,6 +89,17 @@ def no_labels(lines, polygons, points, street_names=False):
         raise build.GarminError("mkgmap default style: no inc/name in polygons, update garmin/base.py")
     polygons = polygons.replace(
         inc, f"name=* & {NAMED_AREAS} {{delete name; delete brand; delete operator; delete ref}}\n{inc}", 1)
+    # the rules after inc/name name more areas (by type, operator, brand, ref): their names go at the very end
+    fin = polygons.find("<finalize>")
+    if fin < 0 or FINAL_NAME not in polygons[fin:]:
+        raise build.GarminError("mkgmap default style: no name rule in the polygons <finalize>, update garmin/base.py")
+    at = polygons.index(FINAL_NAME, fin)
+    polygons = polygons[:at] + FINAL_DELETE + "\n" + polygons[at:]
+    fin = lines.find("<finalize>")
+    if fin < 0 or FINAL_NAME not in lines[fin:]:
+        raise build.GarminError("mkgmap default style: no name rule in the lines <finalize>, update garmin/base.py")
+    at = lines.index(FINAL_NAME, fin)
+    lines = lines[:at] + FINAL_DELETE_LINES + "\n" + lines[at:]
     return lines, polygons, points
 
 
@@ -89,6 +114,12 @@ def our_points(points, rules):
     except (StopIteration, ValueError):
         raise build.GarminError("mkgmap default style: points file changed, update garmin/base.py")
     peaks = [r for r in rows if r.startswith(("natural=peak", "natural=volcano"))]
+    head = "\n".join(rows[:name_inc])
+    head = INTERNET.sub("", head + "\n").rstrip("\n")       # "Internet" points: not ours, labelled
+    rows = head.split("\n") + rows[name_inc:]
+    name_inc = next(i for i, r in enumerate(rows) if r.startswith("include 'inc/name'"))
+    last_place = max(i for i, r in enumerate(rows) if r.startswith("place="))
+    fin = next(i for i, r in enumerate(rows) if r.startswith("<finalize>"))
     ours = [f"{cond} {{delete name}} [0x{t:04x} resolution {min(garmin_pois.RES_MAX, res + POI_SHIFT)}]"
             for cond, t, res in rules]
     return "\n".join(rows[:name_inc] + ["# maprBoy POIs"] + ours + rows[name_inc:last_place + 1] + peaks

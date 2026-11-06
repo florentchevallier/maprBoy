@@ -15,8 +15,14 @@ LINES = ("addr:housenumber=* {set mkgmap:execute_finalize_rules=true}\n"
          "highway=* & name=* {set mkgmap:street='${name}'}\n"
          "man_made=breakwater [0x17 resolution 22 default_name 'Breakwater']\n"
          + base.BARRIER_RULE + " [0x17 resolution 24]\n<finalize>\nname=* {name '${name}'}\n")
-POLYGONS = "include 'inc/name';\nnatural=water & water=lock [0x4c resolution 22 default_name 'Lock']\n"
-POINTS = ("addr:housenumber=* {set mkgmap:execute_finalize_rules=true}\ninclude 'inc/name';\n"
+POLYGONS = ("include 'inc/name';\nnatural=water & water=lock [0x4c resolution 22 default_name 'Lock']\n"
+            "amenity=* & area!=no & amenity!=grave_yard {add name='${amenity|subst:\"_=> \"}'} [0x23 resolution 24]\n"
+            "<finalize>\ninclude 'inc/address';\nname=* {name '${name}'}\n")
+POINTS = ("addr:housenumber=* {set mkgmap:execute_finalize_rules=true}\n"
+          "internet_access=yes {name 'Internet ${name}' | 'Internet'} [0x2f12 resolution 24 continue]\n"
+          "internet_access=* & internet_access!=no & internet_access!=yes\n"
+          "    {name 'Internet(${internet_access}) ${name}' | 'Internet(${internet_access})'} [0x2f12 resolution 24 continue]\n"
+          "\ninclude 'inc/name';\n"
           "place=city & name=* [0x0100 resolution 12]\nplace=village & name=* [0x0900 resolution 22]\n"
           "amenity=cafe [0x2a0e resolution 24]\n"
           "natural=peak {name '${name|def:}'} [0x6616 resolution 24]\n<finalize>\nname=* {name '${name}'}\n")
@@ -29,6 +35,11 @@ class StyleTest(unittest.TestCase):
         self.assertIn("barrier=ditch {delete name} [0x17 resolution 24]", lines)
         self.assertIn(f"name=* & {base.NAMED_AREAS} {{delete name", polygons)
         self.assertLess(polygons.index("delete name"), polygons.index("include 'inc/name'"))
+        # names made later from the type, operator, brand or ref of an area are deleted at the end
+        final = base.FINAL_DELETE + "\nname=* {name '${name}'}"
+        self.assertIn(final, polygons)
+        self.assertGreater(polygons.index(final), polygons.index("<finalize>"))
+        self.assertIn(base.FINAL_DELETE_LINES + "\nname=* {name '${name}'}", lines)
 
     def test_street_names_only_on_request(self):
         off, _, _ = base.no_labels(LINES, POLYGONS, POINTS)
@@ -41,6 +52,8 @@ class StyleTest(unittest.TestCase):
         rules, _ = pois.plan(base.base_pois([CAFE]))
         out = base.our_points(POINTS, rules)
         self.assertNotIn("0x2a0e", out)                            # the default cafe is gone
+        self.assertNotIn("internet_access", out)                   # nor the "Internet" points
+        self.assertIn("addr:housenumber=* {set mkgmap:execute_finalize_rules=true}", out)
         self.assertIn("place=village", out)
         self.assertIn("natural=peak", out)
         ours = [r for r in out.split("\n") if "{delete name}" in r]
@@ -63,6 +76,8 @@ class StyleTest(unittest.TestCase):
             base.no_labels("no barrier rule\n", POLYGONS, POINTS)
         with self.assertRaises(build.GarminError):
             base.our_points("nothing here\n", [])
+        with self.assertRaises(build.GarminError):
+            base.no_labels(LINES, "include 'inc/name';\n", POINTS)          # no <finalize> name rule
 
 
 class GridTest(unittest.TestCase):

@@ -76,6 +76,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .envwarn{border:1px solid var(--bad);border-left-width:5px;border-radius:10px;background:var(--card);padding:12px 16px;font-size:14px}
 .envwarn b{color:var(--bad)}
 .envnote{border-color:#c98a00;font-size:13px}
+.updnote{border-color:var(--accent,#2a7de1);display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}.updnote .sp{flex:1}
 table{border-collapse:collapse;width:100%;font-size:13.5px}
 th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
 th{color:var(--mute);font-weight:500}
@@ -247,6 +248,7 @@ tr.rgrp.folded .gsum{display:inline}
 <div class="envs">
 <div id="envWarn" class="envwarn" role="alert" hidden></div>
 <div id="envNote" class="envwarn envnote" hidden></div>
+<div id="updNote" class="envwarn envnote updnote" role="status" hidden></div>
 </div>
 <div id="colLeft">
 <section class="card pole" data-sec="basemap">
@@ -487,6 +489,8 @@ tr.rgrp.folded .gsum{display:inline}
   <label class="row" style="grid-template-columns:150px 1fr">Osmosis (Karoo)<input type="text" data-path="tools.osmosis" placeholder="found in the PATH"></label>
   <p class="note">Needed for Karoo maps only, with its mapsforge MapWriter plugin (both come with the WahooMapsCreator setup). Leave empty to use the osmosis of the PATH.</p>
   <h3 class="setsub">maprBoy</h3>
+  <label class="chk"><input type="checkbox" data-path="check_updates"><span>Tell me when a new version is out <small>asks GitHub once a day which version is the latest; nothing about you is sent</small></span></label>
+  <div class="actions" style="margin-bottom:8px"><button type="button" id="btnUpdCheck">Check now</button><button type="button" id="btnUpdRun" hidden>Update</button><span class="note" id="updStatus"></span></div>
   <div class="actions"><button type="button" id="btnQuit">Quit maprBoy</button><span class="note">Stops the page and the program behind it (a run going on is stopped too). Start it again with maprBoy on your Desktop.</span></div>
 </dialog>
 
@@ -1546,6 +1550,51 @@ $("#logCopy").onclick = async () => {             // the whole log, also its fol
 FOLD_DEFAULT.log = true;                          // the log shows its last 3 lines at first
 $("#btnSeeFiles").onclick = () => setStep(2);
 
+// ---------- new versions: a note at the top when GitHub has a newer release; Update runs the installer again
+let UPD = null, updLater = false;
+const updAgo = t => { const d = Math.floor((Date.now() / 1000 - t) / 86400); return d < 1 ? "today" : d < 2 ? "yesterday" : d + " days ago"; };
+function renderUpdate() {
+  const u = UPD, note = $("#updNote"), st = $("#updStatus"), run = $("#btnUpdRun");
+  const offer = !!(u && u.newer && u.enabled !== false);
+  note.hidden = !offer || updLater;
+  if (offer) note.innerHTML = `<span><b>maprBoy ${esc(u.latest)} is out</b> (you have ${esc(u.current)}).</span>` +
+    (u.url ? ` <a href="${esc(u.url)}" target="_blank" rel="noopener">What's new</a>` : "") + '<span class="sp"></span>' +
+    (u.can_update ? '<button type="button" class="primary" data-upd="run">Update</button>' : "") + '<button type="button" data-upd="later">Later</button>';
+  run.hidden = !(u && u.newer && u.can_update);
+  if (!u) { st.textContent = ""; return; }
+  if (!u.current) { st.textContent = "This is a development copy (not installed with the installer): it is not checked for new versions."; return; }
+  let t = `Installed: ${u.current}.`;
+  if (u.error) t += ` The check did not work (${u.error}).`;
+  else if (u.checked) t += u.latest ? ` Latest: ${u.latest} (checked ${updAgo(u.checked)}).` : ` No release published yet (checked ${updAgo(u.checked)}).`;
+  if (u.newer && !u.can_update) t += " Run the installer again to update.";
+  st.textContent = t;
+}
+async function checkUpdate(force) {
+  const box = $('[data-path="check_updates"]'), on = box ? box.checked : true;   // the box, even before it is saved
+  try { UPD = await api(`/api/update?enabled=${on ? 1 : 0}` + (force ? "&force=1" : "")); } catch (e) { UPD = null; $("#updStatus").textContent = e.message; return; }
+  renderUpdate();
+}
+async function runUpdate() {
+  if (ST && ST.job && ST.job.status === "running" && !confirm("A run is going on: stop it and update maprBoy?")) return;
+  try { await api("/api/update_run", {}); }
+  catch (e) { if (e instanceof TypeError) { /* stopped before answering */ } else { $("#updStatus").textContent = e.message; alertUpd(e.message); return; } }
+  const banner = $(".banner");
+  document.body.innerHTML = '<main style="max-width:560px;margin:56px auto;padding:0 16px;font:16px/1.5 system-ui,sans-serif">' +
+    '<h1 style="font-size:22px">maprBoy is updating</h1><p>A terminal window installs the new version (a few minutes). Then maprBoy starts again and opens its page in a new tab: you can close this one.</p>' +
+    '<p>If something goes wrong, the terminal window says what; maprBoy on your Desktop still starts the version you had.</p></main>';
+  if (banner) document.body.prepend(banner);
+}
+function alertUpd(msg) { const n = $("#updNote"); n.hidden = false; n.textContent = msg; }
+$("#updNote").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-upd]"); if (!b) return;
+  if (b.dataset.upd === "run") runUpdate(); else { updLater = true; renderUpdate(); }
+});
+$("#btnUpdRun").onclick = runUpdate;
+$('[data-path="check_updates"]').addEventListener("change", ev => {      // the note follows the box at once
+  if (ev.target.checked) checkUpdate(false); else if (UPD) { UPD.enabled = false; renderUpdate(); }
+});
+$("#btnUpdCheck").onclick = async () => { $("#updStatus").textContent = "Checking…"; await checkUpdate(true); };
+
 // ---------- quit: the program behind the page stops (its window says so)
 $("#btnQuit").onclick = async () => {
   if (ST && ST.job && ST.job.status === "running" && !confirm("A run is going on: stop it and quit maprBoy?")) return;
@@ -2153,7 +2202,7 @@ async function refresh(keepMap) {
   if (!S.folders.wandrer && !S.folders.out) $("#setDlg").showModal();     // first start: choose the folders first
   renderLogFold();
   if (ST.job.status !== "idle") { const shown = feedLog(ST.job.lines); $("#log").textContent = shown.join("\n"); $("#log").hidden = $("#logFold").hidden = $("#logCopy").hidden = !shown.length; renderLogTail(); warnLines = shown.filter(l => l.startsWith("! ")); since = ST.job.next; startPolling(); }
-  loadPois(); renderResults();
+  loadPois(); renderResults(); checkUpdate(false);
   await initMap();
   renderDerived(); drawMapLayers(true);
   renderRegions();

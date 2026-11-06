@@ -6,18 +6,20 @@
 #   Linux:  bash -c "$(wget -qO- https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_macos_linux.sh)"
 #           (wget: curl is not always there on Linux)
 # or, from a copy of the repository:
-#   bash install_macos_linux.sh [--dir FOLDER] [--from COPY]
+#   bash install_macos_linux.sh [--dir FOLDER] [--from COPY] [--update]
+#   (--update: what the page's Update button runs: waits for the page to stop, asks nothing more than needed)
 #
 # Everything goes into one folder chosen by the user (default ~/maprBoy):
 #   maprBoy-app/   the code, micromamba and its environment (Python, GDAL, osmium, Java...), Osmosis, mkgmap, adb,
 #                  the settings and caches (state/), the launcher and the uninstaller
 #   maprBoy-data/  Wandrer and Squadrats exports, OSM data, the maps made (only on a first installation)
 # A launcher is put on the Desktop (Linux: also in the applications menu). Running the installer again updates the code; the environment is made again
-# only when environment.yml changed. The code comes from GitHub, or from the copy of maprBoy that holds this
-# install_macos_linux.sh (when it is run from one), or from --from COPY.
+# only when environment.yml changed. The code comes from GitHub (the latest release; the main branch while there is
+# none), or from the copy of maprBoy that holds this install_macos_linux.sh (when it is run from one), or from --from COPY.
 set -euo pipefail
 
-REPO_ZIP="https://github.com/florentchevallier/maprboy/archive/refs/heads/main.zip"
+REPO="florentchevallier/maprboy"
+LATEST_API="https://api.github.com/repos/$REPO/releases/latest"
 MICROMAMBA_URL="https://github.com/mamba-org/micromamba-releases/releases/latest/download/micromamba"
 OSMOSIS_VERSION="0.49.2"
 OSMOSIS_URL="https://github.com/openstreetmap/osmosis/releases/download/$OSMOSIS_VERSION/osmosis-$OSMOSIS_VERSION.zip"
@@ -34,15 +36,19 @@ fetch() {
     if command -v curl >/dev/null; then curl -fL --retry 3 --progress-bar -o "$2" "$1" || fail "could not download $1"
     else wget -q --show-progress --tries=3 -O "$2" "$1" || fail "could not download $1"; fi
 }
+fetch_text() { if command -v curl >/dev/null; then curl -fsSL "$1"; else wget -qO- "$1"; fi; }
 page_up() { (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; }   # a maprBoy page answering? (bash itself, no curl)
 
 DIR=""
 FROM=""
+UPDATE=""
+TAG=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --dir) DIR="${2:-}"; shift 2 ;;
         --from) FROM="${2:-}"; shift 2 ;;
-        -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
+        --update) UPDATE=1; shift ;;
+        -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
         *) fail "unknown option $1 (see --help)" ;;
     esac
 done
@@ -74,6 +80,9 @@ else LAUNCHER="maprBoy.sh"; UNINSTALLER="uninstall.sh"; fi
 
 say "maprBoy installer ($PLATFORM, $SYSTEM)"
 
+if [ -n "$UPDATE" ]; then                                            # started by the page, which is stopping now
+    for _ in $(seq 60); do page_up || break; sleep 1; done
+fi
 if page_up; then                                                     # the code must not change under a running page
     fail "maprBoy is running: stop it with 'Quit maprBoy' in the settings of its page, then run the installer again."
 fi
@@ -108,10 +117,15 @@ if [ -n "$FROM" ]; then
         --exclude CLAUDE.md .) | (cd "$TMP/code" && tar xf -)
     echo "from $FROM"
 else
-    fetch "$REPO_ZIP" "$TMP/code.zip"
+    # the latest release ("tag_name" in GitHub's answer); the main branch when there is none (or no answer)
+    TAG="$(fetch_text "$LATEST_API" 2>/dev/null | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/' || true)"
+    if [ -n "$TAG" ]; then ZIP="https://github.com/$REPO/archive/refs/tags/$TAG.zip"
+    else ZIP="https://github.com/$REPO/archive/refs/heads/main.zip"; fi
+    fetch "$ZIP" "$TMP/code.zip"
     unzip -q "$TMP/code.zip" -d "$TMP/unzip"
     mv "$TMP/unzip"/*/ "$TMP/code"
-    echo "from GitHub (main)"
+    echo "${TAG:-main}" > "$TMP/code/VERSION"           # what the page compares with the latest release
+    echo "from GitHub (${TAG:-main branch: no release yet})"
 fi
 rm -rf "$APP/code"
 mv "$TMP/code" "$APP/code"
@@ -175,6 +189,8 @@ if command -v mtp-detect >/dev/null; then
     echo "libmtp (Garmin watches): installed"
 elif [ "$OS" = "linux" ]; then
     echo "libmtp is not installed: only needed to copy maps to a Garmin watch. On Ubuntu or Debian: sudo apt install mtp-tools"
+elif [ -n "$UPDATE" ]; then                     # an update asks no question: the installer run by hand does
+    echo "libmtp is not installed: only needed to copy maps to a Garmin watch (run the installer to install it)."
 elif command -v brew >/dev/null && brew --version >/dev/null 2>&1 \
         && [[ "$(brew list libmtp 2>&1 || true)" != *"too old"* ]]; then
     # (on macOS 10.14, brew --version works, but brew list says the system is "too old to run Homebrew", and installing
@@ -285,5 +301,6 @@ else
 fi
 
 say "Done."
+if [ -n "$UPDATE" ]; then echo "maprBoy is up to date (${TAG:-main}): it starts again."; exit 0; fi
 echo "Start maprBoy: $WHERE. The page opens in your browser; keep the terminal window open while you use it."
 echo "Uninstall: $UNDO"

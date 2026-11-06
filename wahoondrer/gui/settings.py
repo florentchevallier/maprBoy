@@ -29,6 +29,7 @@ DEFAULTS = {
     },
     "activity": None,                # "bike" | "foot" | "combined" | (pro) "any" (all types); None = type of the newest export
     "geocode": True,                 # look up the main place name of each export online
+    "check_updates": True,           # ask GitHub once a day whether a newer maprBoy is out
     "excluded_exports": [],          # export file names the user unticked
     "tiles": [],                     # ["136/88", ...]
     "area": {"mode": "manual",       # how the tiles are chosen: "manual" | "exports" | "exports_km" | "regions"

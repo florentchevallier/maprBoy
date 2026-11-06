@@ -9,7 +9,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from .. import contour, devcopy, gztiles, poi_config
+from .. import contour, devcopy, gztiles, poi_config, update
 from ..garmin import device as garmin_device
 from . import jobs, native, regions, scan, settings
 
@@ -269,6 +269,10 @@ class Handler(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         q = parse_qs(url.query)
         try:
+            if url.path == "/api/update":           # a newer release? (GitHub asked at most once a day, unless forced)
+                force = q.get("force") == ["1"]
+                enabled = q["enabled"] == ["1"] if "enabled" in q else settings.load().get("check_updates", True)
+                return self._send(200, update.status(enabled=enabled, force=force))
             if url.path == "/api/state":
                 return self._send(200, state(settings.load()))
             if url.path == "/api/scan_status":
@@ -375,6 +379,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._run(body, plan=(path == "/api/plan"))
             if path == "/api/cancel":
                 JOB.cancel()
+                return self._send(200, {"ok": True})
+            if path == "/api/update_run":           # the installer in a new terminal window, then this page stops
+                problem = update.start_update()
+                if problem:
+                    return self._send(400, {"error": problem})
+                quit_server()
                 return self._send(200, {"ok": True})
             if path == "/api/quit":
                 quit_server()

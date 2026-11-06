@@ -3,22 +3,24 @@
 # In PowerShell (Start menu > type PowerShell), paste:
 #   powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/florentchevallier/maprboy/main/install_windows.ps1 | iex"
 # or, from a copy of the repository:
-#   powershell -ExecutionPolicy Bypass -File install_windows.ps1
+#   powershell -ExecutionPolicy Bypass -File install_windows.ps1 [-Dir FOLDER] [-From COPY] [-Update]
+#   (-Update: what the page's Update button runs: waits for the page to stop)
 #
 # Same layout as install_macos_linux.sh (macOS): one folder chosen by the user (default %USERPROFILE%\maprBoy) with
 #   maprBoy-app\   the code, micromamba and its environment (Python, GDAL, osmium, Java...), Osmosis, mkgmap, adb,
 #                  pyhgtmap, the settings and caches (state\), maprBoy.bat and uninstall.bat
 #   maprBoy-data\  Wandrer and Squadrats exports, OSM data, the maps made (only on a first installation)
 # A maprBoy shortcut (to maprBoy.bat) is put on the Desktop. Running the installer again updates the code; the environment is made again
-# only when environment.yml changed. The code comes from GitHub, or from the copy of maprBoy holding install_windows.ps1.
+# only when environment.yml changed. The code comes from GitHub (the latest release; the main branch while there is none),
+# or from the copy of maprBoy holding install_windows.ps1.
 
 function Install-MaprBoy {
-    param([string]$Dir = "", [string]$From = "")
+    param([string]$Dir = "", [string]$From = "", [switch]$Update)
     $ErrorActionPreference = "Stop"
     $ProgressPreference = "SilentlyContinue"                 # Invoke-WebRequest is very slow with its progress bar
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
-    $RepoZip = "https://github.com/florentchevallier/maprboy/archive/refs/heads/main.zip"
+    $Repo = "florentchevallier/maprboy"
     $MicromambaUrl = "https://github.com/mamba-org/micromamba-releases/releases/latest/download/micromamba-win-64"
     $OsmosisVersion = "0.49.2"
     $OsmosisUrl = "https://github.com/openstreetmap/osmosis/releases/download/$OsmosisVersion/osmosis-$OsmosisVersion.zip"
@@ -53,9 +55,13 @@ function Install-MaprBoy {
             $ok = (Read-Host "maprBoy will be installed into $Dir. OK? [Y/n]") -notmatch "^[nN]"
         } until ($ok)
     }
-    $running = $false                                        # the page running keeps the code folder in use
-    try { Invoke-WebRequest -Uri "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 3 | Out-Null; $running = $true } catch { }
-    if ($running) { throw "maprBoy is running: stop it with 'Quit maprBoy' in the settings of its page, then run the installer again." }
+    function Test-Page { try { Invoke-WebRequest -Uri "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 3 | Out-Null; $true } catch { $false } }
+    if ($Update) {                                           # started by the page, which is stopping now
+        for ($i = 0; $i -lt 60 -and (Test-Page); $i++) { Start-Sleep -Seconds 1 }
+    }
+    if (Test-Page) {                                         # the page running keeps the code folder in use
+        throw "maprBoy is running: stop it with 'Quit maprBoy' in the settings of its page, then run the installer again."
+    }
     New-Item -ItemType Directory -Force -Path $Dir | Out-Null
     $Dir = (Resolve-Path $Dir).Path
     $App = Join-Path $Dir "maprBoy-app"
@@ -84,11 +90,17 @@ function Install-MaprBoy {
                 Copy-Item -Destination $code -Recurse -Force
             Write-Host "from $From"
         } else {
-            Fetch $RepoZip (Join-Path $Tmp "code.zip")
+            # the latest release; the main branch when there is none (GitHub answers 404) or no answer
+            $tag = ""
+            try { $tag = (Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -UseBasicParsing -TimeoutSec 20).tag_name } catch { }
+            $zip = if ($tag) { "https://github.com/$Repo/archive/refs/tags/$tag.zip" } else { "https://github.com/$Repo/archive/refs/heads/main.zip" }
+            Fetch $zip (Join-Path $Tmp "code.zip")
             Expand-Archive (Join-Path $Tmp "code.zip") (Join-Path $Tmp "unzip")
             if (Test-Path $code) { Remove-Item -Recurse -Force $code }
             Move-Item (Get-ChildItem (Join-Path $Tmp "unzip") -Directory | Select-Object -First 1).FullName $code
-            Write-Host "from GitHub (main)"
+            $version = if ($tag) { $tag } else { "main" }
+            Set-Content -Path (Join-Path $code "VERSION") -Value $version -Encoding Ascii   # compared with the latest release by the page
+            Write-Host ("from GitHub (" + $(if ($tag) { $tag } else { "main branch: no release yet" }) + ")")
         }
 
         # -------------------------------------------------------------- micromamba and the environment
@@ -249,6 +261,7 @@ pause
         $sc.Save()
 
         Say "Done."
+        if ($Update) { Write-Host "maprBoy is up to date."; return }
         Write-Host "Start maprBoy: double-click maprBoy on the Desktop (it runs without a window; the page opens in your"
         Write-Host "browser). Stop it with 'Quit maprBoy' in the settings of the page. Uninstall: double-click $App\uninstall.bat"
     } finally {
@@ -257,4 +270,7 @@ pause
 }
 
 try { Install-MaprBoy @args }
-catch { Write-Host ""; Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red }
+catch {
+    Write-Host ""; Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+    if ($PSCommandPath) { exit 1 }           # run as a file (the page's update): tell it; never close a window pasted into
+}

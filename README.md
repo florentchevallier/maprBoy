@@ -72,6 +72,15 @@ to allow it (seen with Panda Dome): it is that download.
 
 The installer was tested on Windows 10 (a virtual machine) and Windows 11.
 
+## Updates
+The installers install the latest release published on GitHub (the main branch while there is none) and note
+which one in `maprBoy-app/code/VERSION`. Once a day the page asks GitHub which release is the latest (nothing about
+you is sent); when it is newer, a note at the top of the page offers to **Update**. Update stops the page, opens a
+terminal window that runs the installer again for the same folder (settings and data are kept), then starts
+maprBoy again with a new page. The check can be turned off, or done at once with "Check now", in the settings (⚙,
+"maprBoy"). A copy installed before this existed has no `VERSION` file: run the installer once by hand. A copy run
+from a clone of the repository is never offered updates (use git).
+
 ## Use
 1. Start maprBoy (`maprBoy.command` on the Desktop): the page opens in your browser.
 2. Choose your device at the top: Wahoo, Garmin or Karoo.
@@ -94,6 +103,12 @@ the Karoo `.map` file. Contour lines are made for the Wahoo maps only.
 
 ## For developers
 The sections below describe the command line, the code and the manual installation.
+
+### Releases
+Installed copies are offered a release when its tag is a higher version number than theirs: tag releases `v1.0`,
+`v1.1`, `v1.2`... (GitHub > Releases > Draft a new release, a new tag on `main`, "Set as the latest release").
+A pre-release (like `land-polygons`, which only holds a data file) is not offered. The installers themselves are
+always taken from `main`, so a change to them reaches the next update even before a release.
 
 ### Code overview
 - `wahoondrer/kmz.py`: reads and merges several exports with de-duplication (newest export wins, ordered by the timestamp inside the KML; an older road disappears only when the newer export redraws it).

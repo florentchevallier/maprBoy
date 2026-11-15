@@ -385,7 +385,7 @@ tr.rgrp.folded .gsum{display:inline}
           <option value="band">only a band around my small squares</option>
           <option value="both">inside my explored big squares + the band</option>
         </select></label>
-      <label class="row" style="grid-template-columns:150px 110px 1fr">Band width (squares)<input type="number" min="0" step="1" data-path="squadrats.buffer" data-num="1"><small class="note">for the "band" choices: around what you explored</small></label>
+      <label class="row" id="sqBandRow" style="grid-template-columns:150px 110px 1fr">Band width (squares)<input type="number" min="0" step="1" data-path="squadrats.buffer" data-num="1"><small class="note">for the "band" choices: around what you explored</small></label>
     </div>
     <p class="note">Squadrats work with or without Wandrer: by default every unexplored square of the tiles you chose gets an outline, so you see each new square wherever you ride. The small squares only show when you zoom in (from about 200 m on the Wahoo), so the map stays readable.</p>
   </div>
@@ -639,7 +639,14 @@ function renderInputs() {
   $("#radiusSel").value = preset ? r : "custom";
   $("#radiusCustom").style.display = preset ? "none" : "grid";
   $("#dataNote").textContent = S.folders.data ? "Folders set up in " + S.folders.data : "";
+  renderSqBand();
 }
+// the band width only matters for the "band" choices of the Squadrats scopes: hidden otherwise (its value is kept)
+function renderSqBand() {
+  const sq = S.squadrats || {};
+  $("#sqBandRow").style.display = sq.big_scope === "band" || ["band", "both"].includes(sq.small_scope) ? "grid" : "none";
+}
+$$('[data-path="squadrats.big_scope"], [data-path="squadrats.small_scope"]').forEach(el => el.addEventListener("change", () => setTimeout(renderSqBand)));
 
 function renderExports() {
   const ex = ST.exports, box = $("#exports");

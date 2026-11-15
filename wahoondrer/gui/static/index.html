@@ -2016,7 +2016,14 @@ function showTileRow(k) {
 $("#results").addEventListener("mouseover", e => { const row = e.target.closest && e.target.closest(".rtile[data-tile]"); if (row && !row.contains(e.relatedTarget)) hiTile(row.dataset.tile, true); });
 $("#results").addEventListener("mouseout", e => { const row = e.target.closest && e.target.closest(".rtile[data-tile]"); if (row && !row.contains(e.relatedTarget)) hiTile(row.dataset.tile, false); });
 // ---------- automatic copy to the Wahoo (adb), shown at the top of step 2
-let copyLines = [];
+let copyLines = [], copyMsg = "";
+// the result of the last copy is kept: the panel is built again whenever the exports are read, which happens
+// on its own (the browser window gets the focus again), and the message would be lost right after a copy
+function setCopyMsg(text) {
+  copyMsg = text;
+  const el = $("#devCopyMsg");
+  if (el) { el.style.whiteSpace = "pre-line"; el.textContent = text; }
+}
 async function renderDevCopy() {
   const box = $("#devCopy");
   if (isGarmin()) { renderGarminDevice(box); return; }
@@ -2035,27 +2042,28 @@ async function renderDevCopy() {
     <div class="acts"><button class="primary" id="devCopyGo">Copy to the ELEMNT</button><button class="stop" id="devCopyStop" hidden>■ Stop</button><button id="devReboot" title="Restart the ELEMNT (about a minute); the new maps show afterwards">↻ Restart the ELEMNT</button>${again}</div>`;
   h += '<div id="devCopyRun" hidden><progress id="devCopyBar" max="1" value="0"></progress><div class="note" id="devCopyTxt"></div></div><div class="note" id="devCopyMsg"></div>';
   box.innerHTML = h;
+  setCopyMsg(copyMsg);
   $("#devAgain").onclick = renderDevCopy;
   const go = $("#devCopyGo");
   if (go) go.onclick = async () => {
-    go.disabled = true; $("#devCopyMsg").textContent = ""; copyLines = [];
+    go.disabled = true; setCopyMsg(""); copyLines = [];
     try { await api("/api/settings", S); await api("/api/device_copy", {}); since = 0; startPolling(); }
-    catch (e) { $("#devCopyMsg").textContent = e.message; go.disabled = false; }
+    catch (e) { setCopyMsg(e.message); go.disabled = false; }
   };
   const stop = $("#devCopyStop"); if (stop) stop.onclick = () => api("/api/cancel", {});
   const rm = $("#devRemove");
   if (rm) rm.onclick = async () => {
     if (!confirm("Take the maprBoy maps, icons and theme rules off the Karoo? The Karoo's own maps stay.")) return;
-    rm.disabled = true; $("#devCopyMsg").textContent = ""; copyLines = [];
+    rm.disabled = true; setCopyMsg(""); copyLines = [];
     try { await api("/api/device_remove", {}); since = 0; startPolling(); }
-    catch (e) { $("#devCopyMsg").textContent = e.message; rm.disabled = false; }
+    catch (e) { setCopyMsg(e.message); rm.disabled = false; }
   };
   const rb = $("#devReboot");
   if (rb) rb.onclick = async () => {
     if (!confirm(`Restart the ${dev} now? It takes a minute or two; keep it plugged in or not, as you like.`)) return;
     rb.disabled = true;
-    try { await api("/api/device_reboot", {}); $("#devCopyMsg").textContent = `The ${dev} is restarting: the new maps show once it is on again.`; }
-    catch (e) { $("#devCopyMsg").textContent = e.message; rb.disabled = false; }
+    try { await api("/api/device_reboot", {}); setCopyMsg(`The ${dev} is restarting: the new maps show once it is on again.`); }
+    catch (e) { setCopyMsg(e.message); rb.disabled = false; }
   };
 }
 // ---------- copy to a Garmin: as a disk (Edge) or by MTP (watches, with libmtp)
@@ -2090,6 +2098,7 @@ async function renderGarminDevice(box) {
   }
   h += '<div id="devCopyRun" hidden><progress id="devCopyBar" max="1" value="0"></progress><div class="note" id="devCopyTxt"></div></div><div class="note" id="devCopyMsg"></div>';
   box.innerHTML = h;
+  setCopyMsg(copyMsg);
   $("#devAgain").onclick = renderDevCopy;
   const sel = $("#garminDev"); if (sel) sel.onchange = () => { garminTarget = sel.value; showEject(); };
   const showEject = () => { const disk = garminTarget.startsWith("disk:"), ej = $("#devEject"), mn = $("#mtpNote");
@@ -2097,16 +2106,16 @@ async function renderGarminDevice(box) {
   showEject();
   const go = $("#devCopyGo");
   if (go) go.onclick = async () => {
-    go.disabled = true; $("#devCopyMsg").textContent = ""; copyLines = [];
+    go.disabled = true; setCopyMsg(""); copyLines = [];
     try { await api("/api/device_copy", {maps: [...garminPick], target: garminTarget, replace_older: $("#devReplace").checked}); since = 0; startPolling(); }
-    catch (e) { $("#devCopyMsg").textContent = e.message; renderGarminCopyBtn(); }
+    catch (e) { setCopyMsg(e.message); renderGarminCopyBtn(); }
   };
   const stop = $("#devCopyStop"); if (stop) stop.onclick = () => api("/api/cancel", {});
   const ej = $("#devEject");
   if (ej) ej.onclick = async () => {
     ej.disabled = true;
-    try { await api("/api/device_eject", {volume: garminTarget.slice(5)}); $("#devCopyMsg").textContent = "Ejected: you can unplug the Garmin."; renderDevCopy(); }
-    catch (e) { $("#devCopyMsg").textContent = e.message; ej.disabled = false; }
+    try { await api("/api/device_eject", {volume: garminTarget.slice(5)}); setCopyMsg("Ejected: you can unplug the Garmin."); renderDevCopy(); }
+    catch (e) { setCopyMsg(e.message); ej.disabled = false; }
   };
   renderGarminCopyBtn();
 }
@@ -2122,8 +2131,7 @@ function copyProgress(j, shown) {
   $("#devCopyTxt").textContent = copyLines.slice(-1)[0] || "Starting…";
   if (!running) {
     const tail = copyLines.filter(l => !l.startsWith("copied")).slice(-3).join("\n");
-    const msg = $("#devCopyMsg"); msg.style.whiteSpace = "pre-line";
-    msg.textContent = (j.status === "done" ? "✓ Done. " : j.status === "cancelled" ? "Stopped. " : "✗ The copy failed. ") + tail;
+    setCopyMsg((j.status === "done" ? "✓ Done. " : j.status === "cancelled" ? "Stopped. " : "✗ The copy failed. ") + tail);
   }
 }
 function bindGzPrep() {
@@ -2183,7 +2191,7 @@ $("#garminModel").addEventListener("change", async e => {
   try {
     await api("/api/settings", S);
     S.garmin_model = e.target.value; await api("/api/settings", S); await refresh(); drawMapLayers(true);
-    $("#doneNote").textContent = ""; $("#btnSeeFiles").hidden = true;    // they were about the other Garmin's run
+    $("#doneNote").textContent = ""; $("#btnSeeFiles").hidden = true; copyMsg = "";   // about the other Garmin's run
     if (document.body.classList.contains("step2")) { fitOutNext = true; renderResults(); }
   }
   catch (err) { $("#runMsg").textContent = err.message; }
@@ -2217,7 +2225,7 @@ $$("#devSeg button").forEach(b => b.onclick = async () => {
   try {
     await api("/api/settings", S);                     // first keep what is waiting for the device we leave
     S.device = b.dataset.device; await api("/api/settings", S); await refresh(); drawMapLayers(true);
-    $("#doneNote").textContent = ""; $("#btnSeeFiles").hidden = true;     // they were about the other device's run
+    $("#doneNote").textContent = ""; $("#btnSeeFiles").hidden = true; copyMsg = "";   // about the other device's run
     if (document.body.classList.contains("step2")) { fitOutNext = true; renderResults(); }   // step 2 of this device
   }
   catch (e) { $("#runMsg").textContent = e.message; }

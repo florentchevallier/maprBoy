@@ -197,6 +197,7 @@ label.gpick{display:flex;align-items:center;gap:8px}label.gpick>.rfile{flex:1;mi
 body.nonwahoo #btnPlan,body.nonwahoo #btnPlan2{display:none}   /* the tile plan is for the Wahoo tiles only */
 .pole .blk > h3{cursor:pointer;user-select:none}.pole .blk > h3 > button.fold{margin:0 -4px 0 -6px}
 #blkContour > h3{min-height:40px;background:url(contours.svg) right center/auto 100% no-repeat}   /* a strip of contour lines: what the block is about, at a glance */
+.pole .blk .blk.sub{margin:8px 0 0;padding:0;border-top:0}   /* the list inside the Exports block: no frame of its own */
 .pole .blk.folded > .blk-body{display:none}.pole .blk.folded > h3{margin-bottom:0}.pole .blk.folded .fsum{display:inline}
 .pro button.pro-only.inline{display:inline-block}
 .drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--ink)}
@@ -310,12 +311,15 @@ tr.rgrp.folded .gsum{display:inline}
 </section>
 <section class="card pole" data-sec="wandrer">
   <h2>Wandrer <label class="onoff"><input type="checkbox" data-path="wandrer.enabled">On</label><span class="fsum" id="poleSumWandrer"></span><span class="sp"></span><div class="seg micro" data-pole="wandrer" role="group" aria-label="Simple or Pro for this section"><button type="button" data-m="simple">Simple</button><button type="button" data-m="pro">Pro</button></div></h2>
-  <div class="blk" id="blkExports">
-  <h3>Exports <span class="seg types" id="typeSeg" role="group" aria-label="Type of export"></span><span class="fsum" id="blkSumExports"></span><span class="sp"></span><button class="icon" id="btnReload" title="Look for new or changed files">🔄</button></h3>
+  <div class="blk" id="blkExports" data-nofold>
+  <h3>Exports<span class="sp"></span><button class="icon" id="btnReload" title="Look for new or changed files">🔄</button></h3>
+  <div class="drop" id="dropWandrer">Drop your Wandrer <b>.kmz</b> files here (or click to choose them): they are copied into your Wandrer folder, named by date, town and type, never replacing a file</div>
+  <div class="blk sub" id="blkExportList" data-fold-label="List of the exports">
+  <h3><span class="seg types" id="typeSeg" role="group" aria-label="Type of export"></span><span class="fsum" id="blkSumExports"></span></h3>
   <div id="scanBox" style="display:none"><div class="note" id="scanText"></div><div class="bar" id="scanBar"><i></i></div></div>
   <div id="exports"></div>
-  <div class="drop" id="dropWandrer">Drop your Wandrer <b>.kmz</b> files here (or click to choose them): they are copied into your Wandrer folder, named by date, town and type, never replacing a file</div>
   <p class="note">Only the exports of the chosen type are listed (the type is read inside each file); ticked ones are merged, the most recent wins where they overlap, and are shown on the map. The choice is kept for each device.</p>
+  </div>
   </div>
   <div class="blk" id="blkRoads">
   <h3>Roads</h3>
@@ -595,14 +599,15 @@ function initFolds() {
   });
 }
 function initBlockFolds() {
-  $$(".pole .blk[id]").forEach(blk => {
+  $$(".pole .blk[id]:not([data-nofold])").forEach(blk => {
     const h3 = $(":scope > h3", blk); if (!h3) return;
     const body = document.createElement("div"); body.className = "blk-body"; body.id = "body-" + blk.id;
     while (h3.nextSibling) body.appendChild(h3.nextSibling);
     blk.appendChild(body);
     const b = document.createElement("button"); b.type = "button"; b.className = "fold"; b.innerHTML = TRI;
     b.setAttribute("aria-controls", body.id);
-    b.setAttribute("aria-label", [...h3.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join("").trim());
+    b.setAttribute("aria-label", [...h3.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join("").trim()
+                   || blk.dataset.foldLabel || "");        // a heading made only of controls says what it folds
     h3.insertBefore(b, h3.firstChild);
     h3.addEventListener("click", e => {
       if (e.target.closest("select, input, label, a, button:not(.fold)")) return;
@@ -612,7 +617,7 @@ function initBlockFolds() {
   });
 }
 function applyFolds(user) {
-  $$(".pole .blk[id]").forEach(blk => {
+  $$(".pole .blk[id]:not([data-nofold])").forEach(blk => {
     const off = secFolded("blk:" + blk.id), b = $(":scope > h3 > button.fold", blk);
     blk.classList.toggle("folded", off); if (b) b.setAttribute("aria-expanded", String(!off));
   });

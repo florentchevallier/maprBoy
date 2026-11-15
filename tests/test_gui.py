@@ -1560,6 +1560,14 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
         with self.assertRaises(ValueError):
             ids.check_tiles(1000)
 
+    def test_ids_stay_valid_over_a_whole_cycle(self):
+        from scripts.build_garmin import check_ids
+        from wahoondrer.garmin import ids
+        start = 1_793_000_000 // 60 * 60
+        for minute in range(0, ids.CYCLE + 5):
+            for fid, mapname in ids.build_ids(start + 60 * minute).values():
+                check_ids(fid, mapname)          # raises when out of range (seen on 15 November 2026)
+
     def test_to_fetch_missing_and_old(self):
         p = os.path.join(self.tmp, "oberbayern-latest.osm.pbf")
         self.assertEqual(regions.to_fetch(["oberbayern"], 14), ["oberbayern"])

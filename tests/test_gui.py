@@ -170,6 +170,26 @@ class DeviceSettingsTests(unittest.TestCase):
             self.assertEqual(g["activity"], "foot")
             self.assertEqual(settings.load(p)["device"], "garmin")
 
+    def test_the_two_kinds_of_garmin_keep_their_own_settings(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            s = settings.load(p); s["device"] = "garmin"; s = settings.save(s, p)
+            s["tiles"] = ["136/88"]; s["wandrer"]["radius_m"] = 999; s = settings.save(s, p)
+            s["garmin_model"] = "watch"
+            w = settings.save(s, p)                 # a watch with nothing saved yet starts from the Edge's settings
+            self.assertEqual((w["tiles"], w["wandrer"]["radius_m"]), (["136/88"], 999))
+            w["tiles"] = ["50/50"]; w["wandrer"]["radius_m"] = 111; w = settings.save(w, p)
+            w["garmin_model"] = "edge"
+            e = settings.save(w, p)                 # back to the Edge: its own settings, untouched
+            self.assertEqual((e["tiles"], e["wandrer"]["radius_m"]), (["136/88"], 999))
+            e["garmin_model"] = "watch"
+            self.assertEqual(settings.save(e, p)["tiles"], ["50/50"])
+            with open(p, encoding="utf-8") as f:
+                self.assertEqual(sorted(json.load(f)["devices"]), ["garmin", "garmin-watch", "wahoo"])
+            self.assertEqual(settings.block_of("garmin", "watch"), "garmin-watch")
+            self.assertEqual((settings.block_of("garmin", "edge"), settings.block_of("karoo", "watch")),
+                             ("garmin", "karoo"))
+
     def test_coming_back_from_a_device_never_saved_keeps_the_first_one(self):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "s.json")
@@ -510,6 +530,16 @@ class CommandTests(unittest.TestCase):
         self.assertIn("--paved-always", a); self.assertNotIn("--no-merge", a)
         self.assertIn("--no-boundaries", a); self.assertIn("--with-traveled", a)
         self.assertEqual(a[a.index("--radius-m") + 1], "0")
+
+    def test_only_the_roads_already_visited(self):
+        w = {"unvisited": False, "with_traveled": True}
+        a = jobs.build_commands(self.s(wandrer=w), ["/x/a.kmz"], None)[0][1]
+        self.assertIn("--no-unvisited", a); self.assertIn("--with-traveled", a)
+        self.assertNotIn("--no-unvisited", jobs.build_commands(self.s(), ["/x/a.kmz"], None)[0][1])
+        with self.assertRaises(jobs.SettingsError):       # neither layer: nothing would be drawn
+            jobs.build_commands(self.s(wandrer={"unvisited": False}), ["/x/a.kmz"], None)
+        jobs.build_commands(self.s(wandrer={"unvisited": False, "enabled": False},   # Wandrer off: not its problem
+                                   squadrats={"enabled": True}), ["/x/a.kmz"], "/x/sq.kml")
 
     def test_default_look_adds_no_option(self):
         b = jobs.build_commands(self.s(), ["/x/a.kmz"], None)[-1][1]
@@ -1509,6 +1539,12 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
         self.assertIn(os.path.join(self.tmp, "oberbayern-latest.osm.pbf"), base)
         self.assertNotIn("--street-names", base)
 
+    def test_only_the_roads_already_visited(self):
+        """On a Garmin the visited roads are always drawn, so this layer alone is enough: no error."""
+        cmds = jobs.garmin_commands(self.s(wandrer={"unvisited": False}), [self.EXP], None)
+        overlay = next(a for t, a in cmds if "overlay" in t.lower() or "build_garmin.py" in " ".join(a))
+        self.assertIn("--no-unvisited", overlay)
+
     def test_commands_without_base_map(self):
         cmds = jobs.garmin_commands(self.s(build={"garmin_base": False}), [self.EXP], None)
         overlay = cmds[-2][1]
@@ -1624,6 +1660,12 @@ class KarooCommandTests(_AreaFixture, unittest.TestCase):
         cmds = jobs.karoo_commands(self.s(wandrer={"with_traveled": True}), [self.EXP], None)
         self.assertIn("--with-traveled", cmds[0][1])
         self.assertIn("--with-visited", cmds[-1][1])
+
+    def test_only_the_roads_already_visited(self):
+        a = jobs.karoo_commands(self.s(wandrer={"unvisited": False, "with_traveled": True}), [self.EXP], None)[0][1]
+        self.assertIn("--no-unvisited", a)
+        with self.assertRaises(jobs.SettingsError):
+            jobs.karoo_commands(self.s(wandrer={"unvisited": False}), [self.EXP], None)
 
     def test_missing_tools_and_copy(self):
         self.k.stop()

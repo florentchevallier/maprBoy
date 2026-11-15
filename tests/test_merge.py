@@ -197,3 +197,34 @@ class OsmTagsTest(unittest.TestCase):
         self.assertIn('<tag k="wandrer" v="unvisited" />', text)
         self.assertIn('<tag k="surface" v="unpaved" />', text)
         self.assertIn('<tag k="wandrer" v="visited" />', text)
+
+
+class ProcessTest(unittest.TestCase):
+    """process(): which roads are kept."""
+
+    def segs(self):
+        far = LON + 1.0                      # about 70 km away: well outside any radius
+        return {1: Segment(coords=[(LON, LAT), (LON + D, LAT)], state="visited", unpaved=False),
+                2: Segment(coords=[(LON, LAT + D), (LON + D, LAT + D)], state="unvisited", unpaved=False),
+                3: Segment(coords=[(far, LAT), (far + D, LAT)], state="unvisited", unpaved=True)}
+
+    def states(self, opts, with_traveled=True):
+        from wahoondrer.process import process
+        segs, stats = process(self.segs(), opts, with_traveled)
+        return sorted(s.state for s in segs.values()), stats
+
+    def test_no_unvisited_keeps_only_the_roads_already_visited(self):
+        from wahoondrer.process import Options
+        states, stats = self.states(Options(unvisited=False, simplify_m=0))
+        self.assertEqual(states, ["visited"])
+        self.assertEqual(stats["dropped_unvisited"], 2)
+        # the distance and the two "always" are then ignored: the far unpaved road does not come back
+        states, _ = self.states(Options(unvisited=False, radius_m=0, unpaved_always=True, paved_always=True,
+                                        simplify_m=0))
+        self.assertEqual(states, ["visited"])
+
+    def test_the_usual_way_still_keeps_the_near_unvisited_road(self):
+        from wahoondrer.process import Options
+        states, stats = self.states(Options(simplify_m=0))
+        self.assertEqual(states, ["unvisited", "visited"])     # the far one is dropped by the radius
+        self.assertEqual(stats["dropped_far"], 1)

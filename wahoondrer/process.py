@@ -25,6 +25,7 @@ CELL_M = 50.0
 
 @dataclass
 class Options:
+    unvisited: bool = True         # False = only the roads already visited (radius and the two "always" ignored)
     radius_m: float = 250.0        # 0 = no filter: keep all unvisited roads
     unpaved_always: bool = False   # keep unpaved roads whatever the radius
     paved_always: bool = False     # keep paved roads whatever the radius
@@ -182,7 +183,11 @@ def process(segments, opts, with_traveled=False):
     """segments: dict key -> Segment. Return (dict index -> Segment, stats)."""
     segs = list(segments.values())
     stats = dict(input=len(segs))
-    if opts.radius_m and opts.radius_m > 0:
+    if not opts.unvisited:         # only the roads already visited: nothing to filter by distance
+        before = len(segs)
+        segs = [s for s in segs if s.state == "visited"]
+        stats["dropped_unvisited"] = before - len(segs)
+    elif opts.radius_m and opts.radius_m > 0:
         segs, st = filter_by_distance(segs, opts.radius_m, opts.unpaved_always, opts.paved_always)
         stats["dropped_far"] = st["dropped"]
     if not with_traveled:

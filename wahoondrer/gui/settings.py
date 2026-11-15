@@ -1,10 +1,13 @@
 """User settings, stored in settings.json of the app's own folder (wahoondrer/home.py; never in the repository).
 
-One set of settings per device (Wahoo, Garmin, Karoo) plus settings shared by both. The file holds
+One set of settings per device (Wahoo, Garmin Edge, Garmin watch, Karoo) plus settings shared by all. The
+file holds
     {"version": 2, "device": "wahoo", <shared keys>, "squadrats_file": "...",
-     "devices": {"wahoo": {<device keys>}, "garmin": {...}, "karoo": {...}}}
+     "devices": {"wahoo": {<device keys>}, "garmin": {...}, "garmin-watch": {...}, "karoo": {...}}}
 load() returns a flat view: the shared keys plus the keys of the current device (so the rest of the
 code reads s["tiles"], s["wandrer"]... as before); save() writes the device keys back to that device only.
+The two kinds of Garmin keep their own settings ("garmin" is the Edge, for the files written before they
+were apart); a watch without its own block yet starts from the Edge's.
 A file of the first version (no "devices") becomes the Wahoo settings."""
 import copy
 import json
@@ -14,7 +17,8 @@ from .. import home, theme_style
 
 SETTINGS_PATH = home.path("settings.json")
 
-DEVICES = ("wahoo", "garmin", "karoo")
+DEVICES = ("wahoo", "garmin", "karoo")        # what the page's buttons choose
+BLOCKS = ("wahoo", "garmin", "garmin-watch", "karoo")   # one set of settings each (see block_of)
 ACTIVITIES = ("bike", "foot", "combined")
 
 DEFAULTS = {
@@ -39,6 +43,7 @@ DEFAULTS = {
     "wandrer": {
         "enabled": True,
         "boundaries": True,
+        "unvisited": True,           # False = only the roads already visited (radius_m and the two "always" ignored)
         "radius_m": 250,
         "with_traveled": False,
         "unpaved_always": False,
@@ -105,6 +110,13 @@ def garmin_model(s):
     return v if v in GARMIN_MODELS else "edge"
 
 
+def block_of(device, model):
+    """The name of the settings block of a device: a Garmin watch has its own, apart from the Edge's."""
+    if device != "garmin":
+        return device if device in DEVICES else "wahoo"
+    return "garmin-watch" if model == "watch" else "garmin"
+
+
 OSM_MAX_DAYS = (7, 14, 30, 60, 90, 0)   # the choices of the page (0 = never renew)
 
 
@@ -127,9 +139,9 @@ def _read(path):
 
 
 def _split(raw):
-    """(device, shared keys, {device: device keys}, squadrats file) of a stored file, either version."""
+    """(device, shared keys, {block: device keys}, squadrats file) of a stored file, either version."""
     if isinstance(raw.get("devices"), dict):
-        devices = {d: v for d, v in raw["devices"].items() if d in DEVICES and isinstance(v, dict)}
+        devices = {d: v for d, v in raw["devices"].items() if d in BLOCKS and isinstance(v, dict)}
         sq_file = raw.get("squadrats_file", "")
     else:                                   # first version: everything was for the Wahoo
         devices = {"wahoo": {k: raw[k] for k in DEVICE_KEYS if k in raw}}
@@ -152,31 +164,38 @@ def _view(device, shared, block, sq_file):
     return data
 
 
+def _block(devices, device, shared):
+    """The stored settings of this device; a Garmin watch that has none yet starts from the Edge's."""
+    key = block_of(device, garmin_model(shared))
+    return devices.get(key) if key in devices else (devices.get("garmin") if key == "garmin-watch" else None)
+
+
 def load(path=SETTINGS_PATH):
     """The settings of the current device, with the shared ones (a flat dict shaped like DEFAULTS)."""
     device, shared, devices, sq_file = _split(_read(path))
-    return _view(device, shared, devices.get(device), sq_file)
+    return _view(device, shared, _block(devices, device, shared), sq_file)
 
 
 def save(data, path=SETTINGS_PATH):
     """Store the page's settings and return the view to use from now on.
 
-    When data["device"] names another device than the stored one, the page is switching device: only the
-    shared keys are kept from data, and the other device's own settings are returned."""
-    stored_device, _, devices, _ = _split(_read(path))
+    When data names another device than the stored one (or another kind of Garmin), the page is switching
+    device: only the shared keys are kept from data, and the other device's own settings are returned."""
+    stored_device, stored_shared, devices, _ = _split(_read(path))
     merged = _merge(DEFAULTS, data)
     device = merged["device"] if merged["device"] in DEVICES else "wahoo"
     shared = {k: v for k, v in merged.items() if k not in DEVICE_KEYS and k != "device"}
     sq_file = merged["squadrats"].get("file", "") or ""
-    if device == stored_device:             # switching device: the page sends the other device's values, keep them out
-        block = {k: copy.deepcopy(merged[k]) for k in DEVICE_KEYS}
+    key = block_of(device, garmin_model(shared))
+    if key == block_of(stored_device, garmin_model(stored_shared)):   # switching: the page sends the values of the
+        block = {k: copy.deepcopy(merged[k]) for k in DEVICE_KEYS}    # device we leave, so they are kept out
         block["squadrats"].pop("file", None)
-        devices[device] = block
+        devices[key] = block
     out = {"version": 2, "device": device, **shared, "squadrats_file": sq_file, "devices": devices}
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(out, f, indent=2)
-    return _view(device, shared, devices.get(device), sq_file)
+    return _view(device, shared, _block(devices, device, shared), sq_file)
 
 
 STANDARD_FOLDERS = {"wandrer": "Wandrer_exports", "squadrats": "Squadrats_exports",

@@ -73,7 +73,7 @@ button.icon{padding:4px 9px}
 button:disabled{opacity:.45;cursor:not-allowed}
 .chk{display:flex;gap:8px;align-items:flex-start;margin:7px 0}
 .chk input{margin-top:4px}
-.chk small,.note{color:var(--mute);font-size:12.5px;display:block}.note[hidden]{display:none}   /* display:block would show a hidden note */
+.chk small,.note{color:var(--mute);font-size:12.5px;display:block}.note[hidden]{display:none}.note.bad{color:var(--bad)}   /* display:block would show a hidden note */
 .warn{color:var(--bad);font-size:13px;margin:6px 0}
 .envwarn{border:1px solid var(--bad);border-left-width:5px;border-radius:10px;background:var(--card);padding:12px 16px;font-size:14px}
 .envwarn b{color:var(--bad)}
@@ -325,15 +325,22 @@ tr.rgrp.folded .gsum{display:inline}
           <option value="500">within 500 m</option>
           <option value="1000">within 1 km</option>
           <option value="0">everywhere in my exports</option>
-          <option value="custom">custom distance…</option></select></label>
+          <option value="custom">custom distance…</option>
+          <option value="none">not at all: only the roads I visited</option></select></label>
       <label class="row" id="radiusCustom" style="grid-template-columns:150px 110px 1fr;display:none">Distance (m)<input type="number" min="0" step="10" data-path="wandrer.radius_m" data-num="1"><small class="note">0 = everywhere</small></label>
+      <div id="unvisitedOpts">
       <p class="note">Roads farther than this from a road you rode are left out to keep the tiles light. <b>In an area where you have ridden nothing yet, no unvisited road is shown</b>: choose a larger distance or "everywhere" (heavier tiles). Wandrer only counts roads open to the public, so the orange layer shows which ones count.</p>
-      <label class="chk"><input type="checkbox" data-path="wandrer.with_traveled"><span>Show visited roads <small>thin green lines; makes tiles heavier</small></span></label>
+      <div class="pro-only">
+      <label class="chk" style="margin-left:26px"><input type="checkbox" data-path="wandrer.unpaved_always"><span>Keep every unvisited unpaved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
+      <label class="chk" style="margin-left:26px"><input type="checkbox" data-path="wandrer.paved_always"><span>Keep every unvisited paved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
+      </div>
+      </div>
+      <p class="note" id="onlyRidden" hidden>Only the roads you have already visited are drawn (with the boundaries and the Squadrats): for a region where you have visited almost nothing, where the unvisited roads would be the whole map.</p>
+      <label class="chk"><input type="checkbox" data-path="wandrer.with_traveled" id="optTraveled"><span><b>Show visited roads</b> <small>thin green lines; makes tiles heavier</small></span></label>
+      <p class="note bad" id="noRoads" hidden>Nothing would be drawn: tick "Show visited roads", or choose a distance for the unvisited ones.</p>
       <label class="chk"><input type="checkbox" data-path="wandrer.boundaries" id="optBoundaries"><span>Achievement boundaries <small id="boundNote">subtle violet dashed lines</small></span></label>
     <div class="pro-only">
       <label class="row" style="grid-template-columns:150px 110px 1fr">Simplify (m)<input type="number" min="0" step="0.5" data-path="wandrer.simplify_m" data-num="1"><small class="note">0 = none</small></label>
-      <label class="chk"><input type="checkbox" data-path="wandrer.unpaved_always"><span>Keep every unvisited unpaved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
-      <label class="chk"><input type="checkbox" data-path="wandrer.paved_always"><span>Keep every unvisited paved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
     </div>
   </div>
   <div class="blk" id="blkLook">
@@ -635,9 +642,11 @@ function renderInputs() {
   applyModes();
   $$("#modeSeg button").forEach(b => b.classList.toggle("on", b.dataset.mode === S.mode));
   $("#tilesText").value = S.tiles.join(", ");
+  const unvisited = S.wandrer.unvisited !== false;
   const r = String(S.wandrer.radius_m), preset = ["250", "500", "1000", "0"].includes(r);
-  $("#radiusSel").value = preset ? r : "custom";
-  $("#radiusCustom").style.display = preset ? "none" : "grid";
+  $("#radiusSel").value = !unvisited ? "none" : preset ? r : "custom";
+  $("#radiusCustom").style.display = unvisited && !preset ? "grid" : "none";
+  renderRoads();
   $("#dataNote").textContent = S.folders.data ? "Folders set up in " + S.folders.data : "";
   renderSqBand();
 }
@@ -1466,9 +1475,22 @@ $("#btnLookReset").onclick = () => {
   S.wandrer.look = JSON.parse(JSON.stringify(LOOK_DEFAULT)); renderInputs(); scheduleSave(false);
 };
 $("#radiusSel").onchange = e => {
-  if (e.target.value === "custom") { $("#radiusCustom").style.display = "grid"; return; }
-  S.wandrer.radius_m = Number(e.target.value); $("#radiusCustom").style.display = "none"; scheduleSave(false);
+  const v = e.target.value;
+  S.wandrer.unvisited = v !== "none";
+  $("#radiusCustom").style.display = v === "custom" ? "grid" : "none";
+  renderRoads();
+  if (v !== "none" && v !== "custom") S.wandrer.radius_m = Number(v);   // "custom": the distance box holds the value
+  scheduleSave(false);
 };
+$("#optTraveled").addEventListener("change", () => setTimeout(renderRoads));
+// what depends on the "Show unvisited roads" choice: the options of the unvisited roads, and the warning when
+// neither layer would be drawn (the run stops with the same message)
+function renderRoads() {
+  const unvisited = S.wandrer.unvisited !== false;
+  $("#unvisitedOpts").style.display = unvisited ? "" : "none";
+  $("#onlyRidden").hidden = unvisited;
+  $("#noRoads").hidden = unvisited || $("#optTraveled").checked;
+}
 $$("[data-level]").forEach(el => el.addEventListener("change", () => {
   S.squadrats.levels = $$("[data-level]").filter(c => c.checked).map(c => c.dataset.level); scheduleSave(false);
 }));
@@ -2148,9 +2170,18 @@ function garminSum() {
 }
 const tileFormat = () => (S && S.tile_format === "gz") ? "gz" : "lzma";
 const garminModel = () => (S && S.garmin_model === "watch") ? "watch" : "edge";
-$("#garminModel").addEventListener("change", async e => {   // the default look of the roads on this kind of Garmin
-  S.garmin_model = e.target.value;
-  try { await api("/api/settings", S); } catch (err) { $("#runMsg").textContent = err.message; }
+// an Edge and a watch keep their own settings, like the three devices: the same two saves, so that what is
+// waiting goes to the kind of Garmin we leave and the other one's settings come back
+$("#garminModel").addEventListener("change", async e => {
+  if (e.target.value === garminModel()) return;
+  clearTimeout(saveTimer); unsaved = false;
+  try {
+    await api("/api/settings", S);
+    S.garmin_model = e.target.value; await api("/api/settings", S); await refresh(); drawMapLayers(true);
+    $("#doneNote").textContent = ""; $("#btnSeeFiles").hidden = true;    // they were about the other Garmin's run
+    if (document.body.classList.contains("step2")) { fitOutNext = true; renderResults(); }
+  }
+  catch (err) { $("#runMsg").textContent = err.message; }
   renderMakeSum(); fitHeader();
 });
 $("#tileFormat").addEventListener("change", async e => {

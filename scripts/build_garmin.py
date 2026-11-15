@@ -3,7 +3,8 @@
 
 Usage:
     python3 scripts/build_garmin.py --mkgmap /path/to/mkgmap.jar -o out/gmapsupp.img export1.kmz [export2.kmz ...]
-            [--device watch|edge] [--look look.json] [--radius-m 250] [--unpaved-always] [--paved-always]
+            [--device watch|edge] [--look look.json] [--no-unvisited] [--radius-m 250]
+            [--unpaved-always] [--paved-always]
             [--simplify-m 1.5] [--no-merge] [--no-boundaries] [--area LAT,LON,KM | --bbox W,S,E,N] [--keep-osm file.osm]
             [--name TEXT --family-id N --mapname NNNNNNNN]
             [--pois --osm region.osm.pbf [--osm other.osm.pbf] [--poi-rules rules.json]] [--no-wandrer]
@@ -66,6 +67,8 @@ def main():
     ap.add_argument("--device", choices=look.MODELS, default="watch",
                     help="the kind of Garmin: its default look (the track already ridden is not drawn alike)")
     ap.add_argument("--look", metavar="JSON", help="colours, widths, edge, dashes (only what differs from the default)")
+    ap.add_argument("--no-unvisited", action="store_true",
+                    help="draw no unvisited road at all (--radius-m and the two --*-always are then ignored)")
     ap.add_argument("--radius-m", type=float, default=250.0,
                     help="keep unvisited roads only within this radius (m) of traveled roads; 0 = keep all")
     ap.add_argument("--unpaved-always", action="store_true")
@@ -113,7 +116,7 @@ def main():
         box = tiling.parse_bbox(args.bbox) if args.bbox else None
         chosen = look.load(args.look, args.device) if args.look else look.defaults(args.device)
         poi_list = garmin_pois.load(args.poi_rules) if args.pois else []
-        opts = Options(radius_m=args.radius_m, unpaved_always=args.unpaved_always,
+        opts = Options(unvisited=not args.no_unvisited, radius_m=args.radius_m, unpaved_always=args.unpaved_always,
                        paved_always=args.paved_always, simplify_m=args.simplify_m, merge=not args.no_merge)
         with tempfile.TemporaryDirectory(prefix="maprboy-garmin-") as tmp:
             exps = build.read_exports(args.kmz) if args.kmz else []

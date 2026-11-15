@@ -165,6 +165,14 @@ def _inside(path, parent):
     return path == parent or path.startswith(parent + os.sep)
 
 
+def check_roads(w):
+    """Both road layers off (no unvisited road, visited roads not shown) would draw no Wandrer line at all.
+    Garmin always draws the visited roads, so this only concerns the Wahoo and the Karoo."""
+    if not w.get("unvisited", True) and not w["with_traveled"]:
+        raise SettingsError('Wandrer: no road would be drawn (unvisited roads are off and the visited ones are '
+                            'not shown). Tick "Show visited roads", or choose a distance for the unvisited ones.')
+
+
 def look_args(w, q=None):
     """['--theme-look', json] when the look of the Wandrer roads is not the default one, and
     ['--theme-squadrats', json] when the look of the Squadrats outlines is not; else []."""
@@ -242,6 +250,8 @@ def build_commands(s, exports, squadrats_file, plan=False):
     w, q = s["wandrer"], s["squadrats"]
     use_wandrer = bool(w["enabled"] and exports)
     use_squadrats = bool(q["enabled"])          # independent of Wandrer
+    if use_wandrer:
+        check_roads(w)
     cmds = []
     if use_squadrats and not squadrats_file:
         use_squadrats = False           # no KML: build without the layer (a note says so) instead of stopping
@@ -269,6 +279,8 @@ def build_commands(s, exports, squadrats_file, plan=False):
             a += ["--tiles", ",".join(tiles)]       # Squadrats do not need Wandrer: draw them on every chosen tile
         if w["with_traveled"]:
             a.append("--with-traveled")
+        if not w.get("unvisited", True):
+            a.append("--no-unvisited")
         if w["unpaved_always"]:
             a.append("--unpaved-always")
         if w["paved_always"]:
@@ -486,6 +498,8 @@ def garmin_commands(s, export_infos, squadrats_file):
              "--device", settings_mod.garmin_model(s)]
         if use_wandrer:
             a += [*exports, "--radius-m", str(w["radius_m"]), "--simplify-m", str(w["simplify_m"])]
+            if not w.get("unvisited", True):
+                a.append("--no-unvisited")
             if w["unpaved_always"]:
                 a.append("--unpaved-always")
             if w["paved_always"]:
@@ -602,6 +616,8 @@ def karoo_commands(s, export_infos, squadrats_file):
     exports = [i["path"] for i in export_infos]
     use_wandrer = bool(w["enabled"] and exports)
     use_squadrats = bool(q["enabled"] and squadrats_file)
+    if use_wandrer:
+        check_roads(w)
     pois = poi_args(s)
     use_pois = bool([p for p in poi_config.effective_pois(poi_config.read_rules(), s.get("pois") or {})
                      if p.get("enabled", True)])
@@ -625,7 +641,8 @@ def karoo_commands(s, export_infos, squadrats_file):
              "--tiles", ",".join(f"{x}/{y}" for x, y in tiles_for_bbox(*bbox))]
         if use_wandrer:
             a += [*exports, "--radius-m", str(w["radius_m"]), "--simplify-m", str(w["simplify_m"])]
-            a += [f for f, on in (("--unpaved-always", w["unpaved_always"]), ("--paved-always", w["paved_always"]),
+            a += [f for f, on in (("--no-unvisited", not w.get("unvisited", True)),
+                                  ("--unpaved-always", w["unpaved_always"]), ("--paved-always", w["paved_always"]),
                                   ("--no-merge", not w.get("merge", True)), ("--no-boundaries", not w["boundaries"]),
                                   ("--with-traveled", w["with_traveled"])) if on]
         if use_squadrats:

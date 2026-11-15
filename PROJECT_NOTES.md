@@ -315,6 +315,18 @@ Style (the Bolt line width does not scale with zoom): small squares dashed `6,6`
 
 The Squadrats export is global: the most recent one is used.
 
+## Settings: export and import (for later)
+
+Each device keeps its own settings in `settings.json` (`wahoondrer/gui/settings.py`). Asked in November 2026:
+send them to another computer, or keep several sets for the same device. Nothing decided; to be judged once the
+per-device settings have been used for a while.
+
+## The page in a browser already open (for later)
+
+Starting maprBoy when its page is already open adds a tab instead of coming back to the one that is there, and on
+Linux Firefox stays behind the other windows. Nothing a program can fix from outside the browser: a browser gives
+no way to find an open tab, and GNOME stops a program from taking the focus. Left as it is (November 2026).
+
 ## Other tile services (for later)
 
 Not integrated: Squadrats is free, fast and widely used, and it is the only one with the small squares. Kept in case

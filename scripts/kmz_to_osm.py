@@ -3,7 +3,7 @@
 
 Usage:
     python3 scripts/kmz_to_osm.py -o wandrer.osm export1.kmz export2.kmz ...
-            [--with-traveled] [--radius-m 250] [--unpaved-always] [--paved-always]
+            [--with-traveled] [--no-unvisited] [--radius-m 250] [--unpaved-always] [--paved-always]
             [--simplify-m 1.5] [--no-merge] [--no-boundaries]
             [--tiles 137/83,137/84]
             [--squadrats squadrats.kml] [--squadrats-levels big,small]
@@ -53,6 +53,9 @@ def main():
                          "the tiles touched by the exports (needed for a Squadrats-only run)")
     ap.add_argument("-o", "--output", required=True)
     ap.add_argument("--with-traveled", action="store_true")
+    ap.add_argument("--no-unvisited", action="store_true",
+                    help="draw no unvisited road at all (--radius-m and the two --*-always are then ignored): "
+                         "for an area where almost nothing has been visited yet")
     ap.add_argument("--radius-m", type=float, default=250.0,
                     help="keep unvisited roads only within this radius (m) of "
                          "traveled roads; 0 = keep all (default 250)")
@@ -105,11 +108,12 @@ def main():
               f"(redrawn by this export), {r['kept_absent']} older roads kept "
               f"(absent but not redrawn), +{r['new_boundaries']} boundaries")
 
-    opts = Options(radius_m=args.radius_m, unpaved_always=args.unpaved_always,
+    opts = Options(unvisited=not args.no_unvisited, radius_m=args.radius_m, unpaved_always=args.unpaved_always,
                    paved_always=args.paved_always,
                    simplify_m=args.simplify_m, merge=not args.no_merge)
     segments, ps = process(segments, opts, args.with_traveled)
     print(f"\nProcessing: {ps['input']} segments -> "
+          f"{ps.get('dropped_unvisited', 0)} dropped (unvisited), "
           f"{ps.get('dropped_far', 0)} dropped (outside radius), "
           f"{ps['before_merge']} -> {ps['after_merge']} after merging; "
           f"{ps['nodes_before_simplify']} -> {ps['nodes_after_simplify']} points after simplification")

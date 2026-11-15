@@ -116,7 +116,7 @@ always taken from `main`, so a change to them reaches the next update even befor
 
 ### Code overview
 - `wahoondrer/kmz.py`: reads and merges several exports with de-duplication (newest export wins, ordered by the timestamp inside the KML; an older road disappears only when the newer export redraws it).
-- `wahoondrer/process.py`: keeps unvisited roads only within a radius of traveled roads (default 250 m; options to keep every unpaved or every paved road), merges chained segments (always), simplifies geometry.
+- `wahoondrer/process.py`: keeps unvisited roads only within a radius of traveled roads (default 250 m; options to keep every unpaved or every paved road, or to keep none of them at all), merges chained segments (always), simplifies geometry.
 - `scripts/build_tiles.py`: classic WMC tiles + Wandrer tiles, output folder with a copy guide for the Bolt.
 - `wahoondrer/progress.py`: download progress bar (replaces WMC's silent download function) and "step n of N" counter; in the GUI they are sent as log lines starting with the character `\x01` (`P|text` bar, `S|n|total|label` step).
 - `wahoondrer/squadrats.py`: rebuilds the explored squares from the Squadrats KML and outlines the unexplored ones in a band around them.
@@ -202,7 +202,7 @@ with the command to fix it; a newer WMC only shows a note (it may work, it was n
    the last run, then the other tiles (see "Output folder" below).
 
 Settings are remembered in `~/.wahoondrer/settings.json` (with the installer: `maprBoy-app/state/`), one set per
-device (Wahoo, Garmin, Karoo) plus the shared ones (folders, Simple/Pro, online town lookup, Squadrats file), and a
+device (Wahoo, Garmin Edge, Garmin watch, Karoo) plus the shared ones (folders, Simple/Pro, online town lookup, Squadrats file), and a
 reading cache in `cache.json` next to it (outside the repository). The page only listens on your own computer (127.0.0.1). The map background needs
 an internet connection; without it, type the tiles in the box. Step 2 copies the maps to the device, or lists the
 files to copy by hand (see also `README.txt` in the output folder).

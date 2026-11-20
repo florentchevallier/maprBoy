@@ -1682,7 +1682,8 @@ async function tick() {
   $("#runState").hidden = j.status === "idle";
   const left = j.status === "running" && runEst ? runEst - j.seconds : 0;
   $("#runLeft").textContent = left > 60 ? `· about ${fmtMin(left)} left` : left > 0 ? "· less than a minute left" : "";
-  const st = $("#status"); st.textContent = j.status === "running" ? j.title : j.status; st.className = "pill " + j.status; st.title = st.textContent;
+  // the badge shows the last job, a copy too: say so, or a failed copy reads as a failed build
+  const st = $("#status"); st.textContent = j.status === "running" ? j.title : (j.kind === "copy" ? "copy " : "") + j.status; st.className = "pill " + j.status; st.title = st.textContent;
   $("#elapsed").textContent = j.seconds ? (j.status === "running" ? "" : "took ") + (j.seconds >= 3600 ? Math.floor(j.seconds / 3600) + " h " + String(Math.floor(j.seconds % 3600 / 60)).padStart(2, "0") + " min" : j.seconds >= 60 ? Math.floor(j.seconds / 60) + " min " + String(j.seconds % 60).padStart(2, "0") + " s" : j.seconds + " s") : "";
   const running = j.status === "running";
   $("#btnRun").disabled = running || envBad() || deviceBlocked();

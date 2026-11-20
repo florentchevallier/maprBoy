@@ -405,15 +405,65 @@ class Retry(Exception):
 GEOFABRIK_INDEX = "https://download.geofabrik.de/index-v1.json"
 
 
+INDEX_MAX_DAYS = 7      # Geofabrik's region list is renewed after this many days
+
+
+def normalize_index(path=None):
+    """Make Geofabrik's region list readable by WMC 4.4.0, which takes a region without "parent" for a continent.
+    The list of November 2026 writes "parent": null instead, and WMC stopped on it ("'<' not supported between
+    instances of 'NoneType' and 'str'"): those null parents are taken out. Returns how many; the file is only
+    written again when there was one."""
+    path = path or GEOFABRIK
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    n = 0
+    for ft in data.get("features", []):
+        props = ft.get("properties") or {}
+        if "parent" in props and props["parent"] is None:
+            del props["parent"]
+            n += 1
+    if n:
+        with open(path + ".part", "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        os.replace(path + ".part", path)
+    return n
+
+
+def refresh_index(max_days=INDEX_MAX_DAYS, log=print):
+    """Geofabrik's region list, which gives the address of each region: downloaded when it is missing or older
+    than max_days (in November 2026 Geofabrik moved every region to a folder of its own, and a list of the week
+    before only gave HTTP 404), the old one kept when the download fails, then made readable by WMC
+    (normalize_index). Raises OSError only when there is no list at all. Used by every run, WMC's or not (WMC
+    downloads the list only when it is missing, and never renews it)."""
+    old = os.path.isfile(GEOFABRIK)
+    if not old or (time.time() - os.path.getmtime(GEOFABRIK)) / 86400 > max_days:
+        part = GEOFABRIK + ".part"
+        try:
+            os.makedirs(DL_DIR, exist_ok=True)
+            req = urllib.request.Request(GEOFABRIK_INDEX, headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(req, timeout=60) as r, open(part, "wb") as f:
+                shutil.copyfileobj(r, f)
+            with open(part, encoding="utf-8") as f:
+                json.load(f)                       # a whole list, not an error page or a cut download
+            os.replace(part, GEOFABRIK)
+        except (OSError, ValueError) as exc:
+            try:
+                os.remove(part)
+            except OSError:
+                pass
+            if not old:
+                raise OSError(f"Geofabrik's region list could not be downloaded: {exc}")
+            log(f"! Geofabrik's region list could not be renewed ({exc}): the copy on disk is used.")
+    try:
+        normalize_index()
+    except (OSError, ValueError) as exc:
+        log(f"! Geofabrik's region list could not be read ({exc}).")
+
+
 def ensure_catalog():
-    """Download Geofabrik's region list when WMC has not done it yet (a Garmin user may never run WMC)."""
-    if os.path.isfile(GEOFABRIK):
-        return
-    os.makedirs(DL_DIR, exist_ok=True)
-    req = urllib.request.Request(GEOFABRIK_INDEX, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=60) as r, open(GEOFABRIK + ".part", "wb") as f:
-        shutil.copyfileobj(r, f)
-    os.replace(GEOFABRIK + ".part", GEOFABRIK)
+    """Geofabrik's region list, renewed when it is old (see refresh_index); the Garmin and Karoo runs and the
+    names of the maps use it."""
+    refresh_index()
 
 
 SAMPLES = 40        # points per side of the area when choosing its regions (about 2.5 km apart on a z8 tile)

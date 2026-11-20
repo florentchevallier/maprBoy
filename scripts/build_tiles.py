@@ -42,6 +42,7 @@ sys.path.insert(0, REPO)
 from wahoondrer import contour as contour_lines  # noqa: E402
 from wahoondrer import home  # noqa: E402
 from wahoondrer import landpoly  # noqa: E402
+from wahoondrer.gui import regions  # noqa: E402
 from wahoondrer import poi_config  # noqa: E402
 from wahoondrer import progress  # noqa: E402
 from wahoondrer import reuse  # noqa: E402
@@ -411,6 +412,11 @@ def main():
 
     if args.contour and not args.plan:
         check_contour_prerequisites()
+    # WMC reads Geofabrik's region list but never renews it, and could not read the list of November 2026
+    try:
+        regions.refresh_index()
+    except OSError as exc:              # no list at all: WMC tries to download it itself
+        print(f"! {exc}", flush=True)
     data = prepare(args.xy, args)
     for w, _ in data.skipped:
         print(f"! Tile {w['x']}/{w['y']} left out: no OpenStreetMap region covers it (open sea?).")

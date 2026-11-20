@@ -1639,6 +1639,44 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
         self.assertEqual(regions.to_fetch(["oberbayern"], 14), ["oberbayern"])
         self.assertEqual(regions.to_fetch(["oberbayern"], 0), [])
 
+    def test_region_list_is_renewed_and_made_readable_by_wmc(self):
+        """November 2026: Geofabrik moved its regions (an old list gave HTTP 404) and its new list writes
+        "parent": null, on which WMC 4.4.0 stopped."""
+        import io
+        new = {"type": "FeatureCollection", "features": [
+            {"type": "Feature", "properties": {"id": "europe", "parent": None, "urls": {"pbf": "https://x/europe.pbf"}}},
+            {"type": "Feature", "properties": {"id": "bayern", "parent": "germany", "urls": {"pbf": "https://x/b.pbf"}}}]}
+        path = os.path.join(self.tmp, "_download", "geofabrik.json")
+        calls = []
+
+        def answer(req, timeout=0):
+            calls.append(req.full_url)
+            return io.BytesIO(json.dumps(new).encode())
+        with mock.patch.object(regions, "GEOFABRIK", path), mock.patch.object(regions, "DL_DIR", os.path.dirname(path)), \
+                mock.patch.object(regions.urllib.request, "urlopen", answer):
+            regions.refresh_index(log=lambda m: None)                 # missing: downloaded
+            with open(path, encoding="utf-8") as f:
+                props = [ft["properties"] for ft in json.load(f)["features"]]
+            self.assertNotIn("parent", props[0])                       # the continent, as WMC expects it
+            self.assertEqual(props[1]["parent"], "germany")
+            regions.refresh_index(log=lambda m: None)                 # recent: not downloaded again
+            self.assertEqual(len(calls), 1)
+            old = time.time() - 8 * 86400
+            os.utime(path, (old, old))
+            regions.refresh_index(log=lambda m: None)                 # a week old: renewed
+            self.assertEqual(len(calls), 2)
+
+            def offline(req, timeout=0):
+                raise OSError("no network")
+            os.utime(path, (old, old))
+            said = []
+            with mock.patch.object(regions.urllib.request, "urlopen", offline):
+                regions.refresh_index(log=said.append)                # the old list is kept
+                self.assertTrue(os.path.isfile(path) and "the copy on disk is used" in said[0])
+                os.remove(path)
+                with self.assertRaises(OSError):                      # no list at all
+                    regions.refresh_index(log=said.append)
+
     def test_a_region_that_cannot_be_renewed_keeps_the_copy_on_disk(self):
         """Seen in November 2026: Geofabrik redirected Oberbayern to a page that did not exist (HTTP 404)."""
         import contextlib, io

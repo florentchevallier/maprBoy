@@ -319,6 +319,9 @@ WMC hard-codes `~/wahooMapsCreatorData`; the GUI makes it a symbolic link to `OS
   6 months, not with the OSM regions. When the site does not answer, a copy kept in this repository's releases
   ("land-polygons", same data, (c) OpenStreetMap contributors, ODbL) is downloaded instead, and when neither answers,
   the copy on disk is used (`wahoondrer/landpoly.py`).
+- Geofabrik's region list (`_download/geofabrik.json`, which gives the address of each OSM region) is renewed every
+  7 days before a run; WMC only downloads it when it is missing. Its null parents (list of November 2026) are taken
+  out so that WMC 4.4.0 can read it. When a region cannot be downloaded again, the copy on disk is used.
 - Do not commit KMZ files or generated maps (personal data, not redistributable); `.gitignore` covers them, but keep the exports outside the repository.
 - On the Bolt, copy files one by one (not whole folders) and back up `maps/tiles/8` first; `build_tiles.py` writes a README with the exact list.
 - Licence: maprBoy is free software under the GNU General Public License v3.0 (`LICENSE`), like WMC, on which it

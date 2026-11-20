@@ -1614,6 +1614,23 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
         self.assertEqual(regions.to_fetch(["oberbayern"], 14), ["oberbayern"])
         self.assertEqual(regions.to_fetch(["oberbayern"], 0), [])
 
+    def test_a_region_that_cannot_be_renewed_keeps_the_copy_on_disk(self):
+        """Seen in November 2026: Geofabrik redirected Oberbayern to a page that did not exist (HTTP 404)."""
+        import contextlib, io
+        _write(os.path.join(self.tmp, "oberbayern-latest.osm.pbf"), "x")
+        cat = {k: {"url": "https://example.invalid/" + k, "name": k.title()} for k in ("oberbayern", "tirol")}
+
+        def gone(self_, key, url, target):
+            raise regions.Unavailable("Geofabrik does not offer this region any more (HTTP 404).")
+        with mock.patch.object(regions, "catalog", lambda: cat), mock.patch.object(regions.Downloader, "_fetch", gone):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                regions._fetch_now(["oberbayern"])          # on disk: a note, and the run goes on
+            self.assertIn("The copy already on disk", out.getvalue())
+            self.assertIn("1 kept as they were", out.getvalue())
+            with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+                regions._fetch_now(["oberbayern", "tirol"])  # Tirol was never downloaded: the run stops
+
 
 class KarooCommandTests(_AreaFixture, unittest.TestCase):
     def setUp(self):

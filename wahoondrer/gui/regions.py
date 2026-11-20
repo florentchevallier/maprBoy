@@ -519,11 +519,23 @@ def _fetch_now(keys):
     if bar:
         print(f"{MARK}P|", flush=True)             # clears the bar
     st = d.status()
-    if st["failed"] or st["error"]:
-        for k, why in st["failed"].items():
-            print(f"! {pretty_name(k)}: {why}", flush=True)
-        sys.exit("Some OSM regions could not be downloaded: " + (st["error"] or "see above"))
-    print(f"Downloaded {len(st['done'])} region(s)", flush=True)
+    if st["error"] == "cancelled":
+        sys.exit("Cancelled.")
+    failed = dict(st["failed"])
+    if st["error"]:                       # stopped as a whole: every region not downloaded failed
+        failed.update({k: st["error"] for k in keys if k not in st["done"] and k not in failed})
+    # a region that could not be renewed but is already on disk is used as it is (seen in November 2026: Geofabrik
+    # redirected Oberbayern to a page that did not exist); the run only stops for a region it does not have at all
+    kept = [k for k in failed if os.path.isfile(region_path(k))]
+    for k in kept:
+        day = time.strftime("%Y-%m-%d", time.localtime(os.path.getmtime(region_path(k))))
+        print(f"! {pretty_name(k)}: {failed[k]} The copy already on disk (from {day}) is used.", flush=True)
+    missing = [k for k in failed if k not in kept]
+    if missing:
+        for k in missing:
+            print(f"! {pretty_name(k)}: {failed[k]}", flush=True)
+        sys.exit("Some OSM regions could not be downloaded: see above")
+    print(f"Downloaded {len(st['done'])} region(s)" + (f"; {len(kept)} kept as they were" if kept else ""), flush=True)
 
 
 if __name__ == "__main__":

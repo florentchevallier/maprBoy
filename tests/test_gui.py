@@ -155,7 +155,7 @@ class DeviceSettingsTests(unittest.TestCase):
             self.assertEqual(g["squadrats"]["file"], "sq.kml")                     # shared
             self.assertFalse(g["squadrats"]["enabled"])                            # per device
             raw = json.load(open(p))
-            self.assertEqual(raw["version"], 2)
+            self.assertEqual(raw["version"], 3)
             self.assertEqual(raw["devices"]["wahoo"]["tiles"], ["136/88"])
 
     def test_each_device_keeps_its_own_export_type(self):
@@ -189,6 +189,27 @@ class DeviceSettingsTests(unittest.TestCase):
             self.assertEqual(settings.block_of("garmin", "watch"), "garmin-watch")
             self.assertEqual((settings.block_of("garmin", "edge"), settings.block_of("karoo", "watch")),
                              ("garmin", "karoo"))
+
+    def test_garmin_visited_roads_stay_on_for_earlier_settings(self):
+        """Before version 3 a Garmin map always had the visited roads: the box is ticked once for it, not for others."""
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            off = {"wandrer": {"with_traveled": False}}
+            _write(p, json.dumps({"version": 2, "device": "garmin", "garmin_model": "watch",
+                                  "devices": {"wahoo": off, "garmin": off, "garmin-watch": off}}))
+            s = settings.load(p)
+            self.assertTrue(s["wandrer"]["with_traveled"])                      # the watch
+            s["wandrer"]["with_traveled"] = False; s = settings.save(s, p)       # unticked by the user: kept
+            self.assertFalse(settings.load(p)["wandrer"]["with_traveled"])
+            s["device"] = "wahoo"; self.assertFalse(settings.save(s, p)["wandrer"]["with_traveled"])
+            with open(p, encoding="utf-8") as f:
+                raw = json.load(f)
+            self.assertEqual(raw["version"], 3)
+            self.assertTrue(raw["devices"]["garmin"]["wandrer"]["with_traveled"])   # the Edge, migrated
+        with tempfile.TemporaryDirectory() as d:                                 # a Garmin never set up: ticked
+            p = os.path.join(d, "s.json")
+            s = settings.load(p); s["device"] = "garmin"
+            self.assertTrue(settings.save(s, p)["wandrer"]["with_traveled"])
 
     def test_coming_back_from_a_device_never_saved_keeps_the_first_one(self):
         with tempfile.TemporaryDirectory() as d:
@@ -1540,10 +1561,14 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
         self.assertNotIn("--street-names", base)
 
     def test_only_the_roads_already_visited(self):
-        """On a Garmin the visited roads are always drawn, so this layer alone is enough: no error."""
-        cmds = jobs.garmin_commands(self.s(wandrer={"unvisited": False}), [self.EXP], None)
-        overlay = next(a for t, a in cmds if "overlay" in t.lower() or "build_garmin.py" in " ".join(a))
-        self.assertIn("--no-unvisited", overlay)
+        cmds = jobs.garmin_commands(self.s(wandrer={"unvisited": False, "with_traveled": True}), [self.EXP], None)
+        overlay = next(a for t, a in cmds if "build_garmin.py" in " ".join(a))
+        self.assertIn("--no-unvisited", overlay); self.assertNotIn("--no-visited", overlay)
+        overlay = next(a for t, a in jobs.garmin_commands(self.s(wandrer={"with_traveled": False}), [self.EXP], None)
+                       if "build_garmin.py" in " ".join(a))
+        self.assertIn("--no-visited", overlay)
+        with self.assertRaises(jobs.SettingsError):       # neither layer: nothing would be drawn
+            jobs.garmin_commands(self.s(wandrer={"unvisited": False, "with_traveled": False}), [self.EXP], None)
 
     def test_commands_without_base_map(self):
         cmds = jobs.garmin_commands(self.s(build={"garmin_base": False}), [self.EXP], None)

@@ -94,7 +94,8 @@ Details and the build recipe are in [GARMIN.md](GARMIN.md).
 - The map theme is set per activity profile (Navigation > Map > Map Theme): use **Classic**.
 - Default look: unvisited roads cyan `#00E1FF` with a white edge on a watch, orange `#FF8800` with a black edge on an
   Edge (chosen under the Garmin button of the page), visited roads magenta `#FF00FF`, unpaved roads
-  dashed, boundaries a purple band under the roads, Squadrats blue. Visited roads are always drawn.
+  dashed, boundaries a purple band under the roads, Squadrats blue. Visited roads are drawn when "Show visited roads"
+  is ticked (until November 2026 they were always drawn; earlier Garmin settings get the box ticked).
 
 ### Copy from the page
 

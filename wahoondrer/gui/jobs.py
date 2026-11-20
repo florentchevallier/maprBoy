@@ -166,8 +166,7 @@ def _inside(path, parent):
 
 
 def check_roads(w):
-    """Both road layers off (no unvisited road, visited roads not shown) would draw no Wandrer line at all.
-    Garmin always draws the visited roads, so this only concerns the Wahoo and the Karoo."""
+    """Both road layers off (no unvisited road, visited roads not shown) would draw no Wandrer line at all."""
     if not w.get("unvisited", True) and not w["with_traveled"]:
         raise SettingsError('Wandrer: no road would be drawn (unvisited roads are off and the visited ones are '
                             'not shown). Tick "Show visited roads", or choose a distance for the unvisited ones.')
@@ -467,6 +466,8 @@ def garmin_commands(s, export_infos, squadrats_file):
     exports = [i["path"] for i in export_infos]
     use_wandrer = bool(w["enabled"] and exports)
     use_squadrats = bool(q["enabled"] and squadrats_file)
+    if use_wandrer:
+        check_roads(w)
     use_base = bool(b.get("garmin_base", True))
     bbox = garmin_bbox(s, export_infos)
     box = ",".join(str(v) for v in bbox)
@@ -500,6 +501,8 @@ def garmin_commands(s, export_infos, squadrats_file):
             a += [*exports, "--radius-m", str(w["radius_m"]), "--simplify-m", str(w["simplify_m"])]
             if not w.get("unvisited", True):
                 a.append("--no-unvisited")
+            if not w["with_traveled"]:
+                a.append("--no-visited")
             if w["unpaved_always"]:
                 a.append("--unpaved-always")
             if w["paved_always"]:

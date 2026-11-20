@@ -2,13 +2,15 @@
 
 One set of settings per device (Wahoo, Garmin Edge, Garmin watch, Karoo) plus settings shared by all. The
 file holds
-    {"version": 2, "device": "wahoo", <shared keys>, "squadrats_file": "...",
+    {"version": 3, "device": "wahoo", <shared keys>, "squadrats_file": "...",
      "devices": {"wahoo": {<device keys>}, "garmin": {...}, "garmin-watch": {...}, "karoo": {...}}}
 load() returns a flat view: the shared keys plus the keys of the current device (so the rest of the
 code reads s["tiles"], s["wandrer"]... as before); save() writes the device keys back to that device only.
 The two kinds of Garmin keep their own settings ("garmin" is the Edge, for the files written before they
 were apart); a watch without its own block yet starts from the Edge's.
-A file of the first version (no "devices") becomes the Wahoo settings."""
+A file of the first version (no "devices") becomes the Wahoo settings. Version 3: the visited roads of a Garmin
+follow "Show visited roads" (before, they were always drawn), so that box is ticked once in the Garmin settings of
+an earlier file, and a Garmin without settings yet starts with it ticked: no Garmin map loses them."""
 import copy
 import json
 import os
@@ -146,6 +148,11 @@ def _split(raw):
     else:                                   # first version: everything was for the Wahoo
         devices = {"wahoo": {k: raw[k] for k in DEVICE_KEYS if k in raw}}
         sq_file = (raw.get("squadrats") or {}).get("file", "") if isinstance(raw.get("squadrats"), dict) else ""
+    if isinstance(raw.get("version"), int) and raw["version"] < 3:
+        for key in ("garmin", "garmin-watch"):
+            w = (devices.get(key) or {}).get("wandrer")
+            if isinstance(w, dict):
+                w["with_traveled"] = True
     device = raw.get("device") if raw.get("device") in DEVICES else "wahoo"
     shared = {k: v for k, v in raw.items() if k not in DEVICE_KEYS and k not in ("devices", "device", "version")}
     return device, shared, devices, sq_file if isinstance(sq_file, str) else ""
@@ -167,7 +174,10 @@ def _view(device, shared, block, sq_file):
 def _block(devices, device, shared):
     """The stored settings of this device; a Garmin watch that has none yet starts from the Edge's."""
     key = block_of(device, garmin_model(shared))
-    return devices.get(key) if key in devices else (devices.get("garmin") if key == "garmin-watch" else None)
+    block = devices.get(key) if key in devices else (devices.get("garmin") if key == "garmin-watch" else None)
+    if block is None and device == "garmin":           # a Garmin map has always shown the visited roads
+        block = {"wandrer": {"with_traveled": True}}
+    return block
 
 
 def load(path=SETTINGS_PATH):
@@ -191,7 +201,7 @@ def save(data, path=SETTINGS_PATH):
         block = {k: copy.deepcopy(merged[k]) for k in DEVICE_KEYS}    # device we leave, so they are kept out
         block["squadrats"].pop("file", None)
         devices[key] = block
-    out = {"version": 2, "device": device, **shared, "squadrats_file": sq_file, "devices": devices}
+    out = {"version": 3, "device": device, **shared, "squadrats_file": sq_file, "devices": devices}
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(out, f, indent=2)

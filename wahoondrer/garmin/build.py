@@ -100,11 +100,11 @@ def squadrat_lines(kml, bbox, levels=("big", "small"), buffer_cells=3, scope="al
     return out
 
 
-def wandrer_osm(exports, osm_path, opts, boundaries=True, area=None, log=print, squadrats=None):
+def wandrer_osm(exports, osm_path, opts, boundaries=True, area=None, log=print, squadrats=None, visited=True):
     """Merge the exports (paths or read exports, any order, the most recent wins) and write the .osm, with the
     Squadrats outlines when given. Returns the write_osm statistics.
 
-    Visited roads are always written: the Garmin overlay draws them too (magenta by default).
+    Visited roads are written unless `visited` is False: the Garmin overlay draws them (magenta by default).
     `opts` is a process.Options. `area` = (lat, lon, km) keeps only what touches that circle.
     No exports: only the Squadrats lines are written."""
     from ..kmz import merge_exports
@@ -123,7 +123,7 @@ def wandrer_osm(exports, osm_path, opts, boundaries=True, area=None, log=print, 
         segments = {k: v for k, v in segments.items() if _inside(v.coords, area)}
         bounds = {k: v for k, v in bounds.items() if _inside(v, area)}
         log(f"Area {area[2]:g} km around {area[0]:.5f}, {area[1]:.5f}: {before} -> {len(segments)} segments")
-    segments, ps = process(segments, opts, True)
+    segments, ps = process(segments, opts, visited)
     log(f"Processing: {ps['input']} -> {ps['after_merge']} segments, {ps['nodes_after_simplify']} points")
     stats = write_osm(osm_path, segments, bounds if boundaries else {}, True, squadrats)
     stats["bbox"] = exports_bbox(exps)

@@ -340,7 +340,7 @@ tr.rgrp.folded .gsum{display:inline}
       </div>
       </div>
       <p class="note" id="onlyRidden" hidden>Only the roads you have already visited are drawn (with the boundaries and the Squadrats): for a region where you have visited almost nothing, where the unvisited roads would be the whole map.</p>
-      <label class="chk"><input type="checkbox" data-path="wandrer.with_traveled" id="optTraveled"><span><b>Show visited roads</b> <small>thin green lines; makes tiles heavier</small></span></label>
+      <label class="chk"><input type="checkbox" data-path="wandrer.with_traveled" id="optTraveled"><span><b>Show visited roads</b> <small id="visitedNote">thin green lines; makes tiles heavier</small></span></label>
       <p class="note bad" id="noRoads" hidden>Nothing would be drawn: tick "Show visited roads", or choose a distance for the unvisited ones.</p>
       <label class="chk"><input type="checkbox" data-path="wandrer.boundaries" id="optBoundaries"><span>Achievement boundaries <small id="boundNote">subtle violet dashed lines</small></span></label>
     <div class="pro-only">
@@ -1483,16 +1483,19 @@ $("#radiusSel").onchange = e => {
   const v = e.target.value;
   S.wandrer.unvisited = v !== "none";
   $("#radiusCustom").style.display = v === "custom" ? "grid" : "none";
-  renderRoads();
   if (v !== "none" && v !== "custom") S.wandrer.radius_m = Number(v);   // "custom": the distance box holds the value
+  renderRoads();
   scheduleSave(false);
 };
 $("#optTraveled").addEventListener("change", () => setTimeout(renderRoads));
+$('[data-path="wandrer.radius_m"]').addEventListener("change", () => setTimeout(renderRoads));
 // what depends on the "Show unvisited roads" choice: the options of the unvisited roads, and the warning when
 // neither layer would be drawn (the run stops with the same message)
 function renderRoads() {
-  const unvisited = S.wandrer.unvisited !== false;
-  $("#unvisitedOpts").style.display = unvisited ? "" : "none";
+  const unvisited = S.wandrer.unvisited !== false, everywhere = !Number(S.wandrer.radius_m);
+  // the distance note and the two "keep every..." boxes only matter with a distance
+  $("#unvisitedOpts").style.display = unvisited && !everywhere ? "" : "none";
+  $("#visitedNote").textContent = isGarmin() ? "magenta lines" : "thin green lines; makes tiles heavier";
   $("#onlyRidden").hidden = unvisited;
   $("#noRoads").hidden = unvisited || $("#optTraveled").checked;
 }

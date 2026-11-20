@@ -67,6 +67,7 @@ def main():
     ap.add_argument("--device", choices=look.MODELS, default="watch",
                     help="the kind of Garmin: its default look (the track already ridden is not drawn alike)")
     ap.add_argument("--look", metavar="JSON", help="colours, widths, edge, dashes (only what differs from the default)")
+    ap.add_argument("--no-visited", action="store_true", help="leave out the roads already visited")
     ap.add_argument("--no-unvisited", action="store_true",
                     help="draw no unvisited road at all (--radius-m and the two --*-always are then ignored)")
     ap.add_argument("--radius-m", type=float, default=250.0,
@@ -133,7 +134,7 @@ def main():
             if not args.no_wandrer or squadrats:
                 osm = args.keep_osm or os.path.join(tmp, "wandrer.osm")
                 build.wandrer_osm([] if args.no_wandrer else exps, osm, opts, boundaries=not args.no_boundaries,
-                                  area=area, squadrats=squadrats)
+                                  area=area, squadrats=squadrats, visited=not args.no_visited)
                 inputs.append(osm)
             poi_rules, poi_typ = "", []
             if poi_list:

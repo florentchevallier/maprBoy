@@ -88,7 +88,8 @@ python3 scripts/build_garmin.py --mkgmap /path/to/mkgmap.jar -o out/gmapsupp.img
 ```
 Same options as `kmz_to_osm.py` for the exports (`--radius-m`, `--unpaved-always`, `--paved-always`, `--simplify-m`,
 `--no-merge`), `--no-boundaries`, `--area LAT,LON,KM` (only the roads within KM km of a point, e.g.
-`48.136,11.555,5`) or `--bbox W,S,E,N` (only this rectangle), and `--keep-osm FILE`. Visited roads are always drawn.
+`48.136,11.555,5`) or `--bbox W,S,E,N` (only this rectangle), and `--keep-osm FILE`. Visited roads are drawn unless
+`--no-visited` is given ("Show visited roads" in the page; `--no-unvisited`: only the visited ones).
 The Wandrer and Squadrats lines are cut into tiles of about 11 km like the base map (`wahoondrer/garmin/tiling.py`):
 the four large exports of a 230 x 120 km area went over mkgmap's 16 MB per tile in one piece.
 Default look: unvisited cyan (#00E1FF) 4 px with white edge on a watch, orange (#FF8800) with a black edge on an Edge, visited magenta (#FF00FF) 4 px, unpaved roads the same colour

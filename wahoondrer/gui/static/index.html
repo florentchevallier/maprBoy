@@ -528,6 +528,9 @@ const mb = n => n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : n >= 1e6 ? (n / 1e6).t
 const num = n => (n ?? 0).toLocaleString("en");
 
 // ---------- tiles (zoom 8)
+// a click on a copy of the world beside the first one (Leaflet repeats it east and west) gives a longitude past
+// ±180: the tile is taken back into the 0-255 grid (seen in November 2026: "-9/141" for a click on Vanuatu)
+const wrapTile = ([x, y]) => [((x % 256) + 256) % 256, Math.min(255, Math.max(0, y))];
 const tileOf = (lon, lat) => [Math.floor((lon + 180) / 360 * 256), Math.floor((1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * 256)];
 const tileBbox = (x, y) => { const la = yy => Math.atan(Math.sinh(Math.PI * (1 - 2 * yy / 256))) * 180 / Math.PI; return [[la(y + 1), x / 256 * 360 - 180], [la(y), (x + 1) / 256 * 360 - 180]]; };
 const parseTiles = t => [...new Set(t.split(/[\s,;]+/).filter(Boolean))].sort((a, b) => { const [ax, ay] = a.split("/").map(Number), [bx, by] = b.split("/").map(Number); return ax - bx || ay - by; });
@@ -952,7 +955,7 @@ async function initMap() {
     if (document.body.classList.contains("step2")) return;     // step 2 shows the files made: no tile choice there
     if (notWahoo()) return;                       // Garmin / Karoo: a rectangle, drawn with ✏️
     toManual();                                   // a click adjusts the tiles a mode chose: the selection is kept, as Manual
-    const [x, y] = tileOf(e.latlng.lng, e.latlng.lat), k = x + "/" + y, i = S.tiles.indexOf(k);
+    const [x, y] = wrapTile(tileOf(e.latlng.lng, e.latlng.lat)), k = x + "/" + y, i = S.tiles.indexOf(k);
     if (i >= 0) S.tiles.splice(i, 1); else S.tiles.push(k);
     S.tiles = parseTiles(S.tiles.join(","));
     scheduleSave(false); renderDerived();
@@ -1148,7 +1151,7 @@ function drawTileMenus() {
     layerRect2 = L.layerGroup().addTo(map2); layerMenus2 = L.layerGroup().addTo(map2);
     map2.on("zoomend", () => drawTileMenus());
     map2.on("click", e => {                              // click a tile to take it out or put it back, as on the big map
-      const [x, y] = tileOf(e.latlng.lng, e.latlng.lat), k = x + "/" + y, i = S.tiles.indexOf(k);
+      const [x, y] = wrapTile(tileOf(e.latlng.lng, e.latlng.lat)), k = x + "/" + y, i = S.tiles.indexOf(k);
       if (i >= 0) { S.tiles.splice(i, 1); dropped.add(k); } else S.tiles.push(k);
       S.tiles = parseTiles(S.tiles.join(","));
       scheduleSave(false); renderDerived();
@@ -2261,6 +2264,8 @@ window.addEventListener("resize", fitHeader);
 async function refresh(keepMap) {
   const fresh = await api("/api/state"); ST = fresh;
   if (!unsaved) S = fresh.settings; else ST.settings = S;
+  const tiles = S.tiles.map(t => { const p = String(t).split("/").map(Number); return p.length === 2 && p.every(Number.isInteger) ? wrapTile(p).join("/") : t; });
+  if (tiles.join() !== S.tiles.join()) { S.tiles = [...new Set(tiles)]; scheduleSave(false); }   // tiles clicked before the fix
   renderInputs(); renderDevice(); renderActivity(); renderExports(); renderDerived(); renderEnv();
   if (!keepMap) { renderOsm().catch(() => {}); renderContour(); }
   renderPois();

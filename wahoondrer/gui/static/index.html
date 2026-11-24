@@ -799,7 +799,17 @@ function setBox(b) {                              // a drawn or adjusted rectang
   const a = area(); a.box = box; a.mode = "manual"; S.tiles = tilesInBox(...box);
   scheduleSave(false); renderDerived();
 }
+let boxCorners = [];
+// zoomed far out, the four 16 px corners of a small rectangle overlap into a meaningless icon and hide it: they are
+// shown only when the rectangle is at least three corners wide and high on screen (it cannot be adjusted below that)
+function fitBoxCorners() {
+  if (!map || boxCorners.length !== 4) return;
+  const [a, b] = [boxCorners[0].getLatLng(), boxCorners[3].getLatLng()].map(ll => map.latLngToContainerPoint(ll));
+  const show = Math.abs(b.x - a.x) >= 48 && Math.abs(b.y - a.y) >= 48;
+  boxCorners.forEach(m => { const el = m.getElement(); if (el) el.style.display = show ? "" : "none"; });
+}
 function drawBox() {
+  boxCorners = [];
   const b = mapBox(); if (!b) return;
   const [w, s, e, n] = b, rect = L.rectangle([[s, w], [n, e]], {color: "#b85a1e", weight: 3, fillOpacity: .08, interactive: false}).addTo(layerTiles);
   L.marker([s, (w + e) / 2], {icon: L.divIcon({className: "", iconSize: [0, 0]}), interactive: false, keyboard: false})
@@ -811,7 +821,9 @@ function drawBox() {
       icon: L.divIcon({className: "boxcorner", iconSize: [16, 16]})}).addTo(layerTiles);
     m.on("drag", () => rect.setBounds([m.getLatLng(), corners[3 - i]]));
     m.on("dragend", () => { const p = m.getLatLng(), o = corners[3 - i]; setBox([p.lng, p.lat, o[1], o[0]]); });
+    boxCorners.push(m);
   });
+  fitBoxCorners();
 }
 let drawing = null;                               // the ✏️ mode: press, drag, release draws the rectangle
 function setDrawing(on) {
@@ -964,7 +976,7 @@ async function initMap() {
     scheduleSave(false); renderDerived();
   });
   map.on("moveend", drawGrid);
-  map.on("zoomend", () => { updatePatterns(); drawTileMenus(); tileLabels(); });
+  map.on("zoomend", () => { updatePatterns(); drawTileMenus(); tileLabels(); fitBoxCorners(); });
   initMapGrip(); applyLayers();
   drawMapLayers(true);
 }

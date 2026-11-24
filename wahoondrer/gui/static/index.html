@@ -1581,8 +1581,10 @@ function renderLogTail() {                        // the folded log: its last 3 
   t.hidden = log.hidden || !log.classList.contains("short");
 }
 $("#logFold").onclick = () => { setFolded("log", !isFolded("log")); renderLogFold(); };
-$("#logCopy").onclick = async () => {             // the whole log, also its folded part (testers send it with a question)
-  const b = $("#logCopy"), text = $("#log").textContent;
+// the whole log, also its folded part (testers send it with a question); the same link ends the "Done." line of
+// step 2, so that the log can be copied without going back to step 1
+async function copyLog(b) {
+  const text = $("#log").textContent;
   let ok = false;
   try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
     const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select();
@@ -1591,7 +1593,13 @@ $("#logCopy").onclick = async () => {             // the whole log, also its fol
   }
   b.textContent = ok ? "Copied ✓" : "Copy failed: select the log and copy it by hand";
   setTimeout(() => { b.textContent = "Copy the log"; }, 2500);
-};
+}
+$("#logCopy").onclick = () => copyLog($("#logCopy"));
+const LOG_LINK = ' <a href="#" class="doneLog">Copy the log</a>';
+$("#doneNote").addEventListener("click", ev => {
+  const a = ev.target.closest(".doneLog"); if (!a) return;
+  ev.preventDefault(); copyLog(a);
+});
 FOLD_DEFAULT.log = true;                          // the log shows its last 3 lines at first
 $("#btnSeeFiles").onclick = () => setStep(2);
 
@@ -1700,8 +1708,8 @@ async function tick() {
   $("#planStatus").textContent = running && j.kind === "plan" ? "Working… (details in the log, under the map)" : (j.status === "failed" && j.kind === "plan" ? "The plan failed: see the log under the map." : ""); $("#btnCancel").hidden = !running;
   if (!running) { clearInterval(poll); poll = null; $("#dlBar").hidden = true; renderRegions();
     if (warnLines.length && j.status === "done") { $("#runMsg").style.whiteSpace = "pre-line"; $("#runMsg").textContent = "To know:\n" + warnLines.map(l => "• " + l.slice(2)).join("\n"); }
-    if (j.status === "done" && j.kind === "run" && notWahoo()) $("#doneNote").innerHTML = `Done. The ${isKaroo() ? "Karoo" : "Garmin"} maps are in <span class="path">${esc(S.folders.out)}/${isKaroo() ? "karoo" : "garmin"}</span>: see step 2 to put them on your device.`;
-    else if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to your device (one by one, after a backup), or use the list below.`; renderResults();
+    if (j.status === "done" && j.kind === "run" && notWahoo()) $("#doneNote").innerHTML = `Done. The ${isKaroo() ? "Karoo" : "Garmin"} maps are in <span class="path">${esc(S.folders.out)}/${isKaroo() ? "karoo" : "garmin"}</span>: see step 2 to put them on your device.` + LOG_LINK;
+    else if (j.status === "done" && j.kind === "run") $("#doneNote").innerHTML = `Done. Open <b>README.txt</b> in <span class="path">${esc(S.folders.out)}</span> for the files to copy to your device (one by one, after a backup), or use the list below.` + LOG_LINK; renderResults();
     if (j.status === "done" && j.kind === "run") { $("#btnSeeFiles").hidden = false; for (const k in estCache) delete estCache[k]; renderMakeSum(); }
     if (watchingRun && j.status === "done" && j.kind === "run") setStep(2);
     watchingRun = false; }

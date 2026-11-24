@@ -128,5 +128,6 @@ def write_map(inputs, bbox, out_map, tag_conf, work, osmosis="osmosis", log=prin
           f"tag-conf-file={tag_conf}", "type=ram"], "Osmosis MapWriter")
     if not os.path.isfile(out_map) or os.path.getsize(out_map) < 100:
         raise MapError("Osmosis wrote no map file (is the MapWriter plugin installed?)")
-    log(f"Wrote {out_map} ({os.path.getsize(out_map) // 1024} KB)")
+    size = os.path.getsize(out_map)          # a map with only a few POIs is under 1 KB: not "0 KB", which looked empty
+    log(f"Wrote {out_map} ({size // 1024} KB)" if size >= 1024 else f"Wrote {out_map} ({size} bytes)")
     return out_map

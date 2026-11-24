@@ -790,6 +790,9 @@ function mapBox() {
 const boxKm = b => `≈ ${Math.round((b[2] - b[0]) * 111.32 * Math.cos((b[1] + b[3]) / 2 * Math.PI / 180))} × ${Math.round((b[3] - b[1]) * 111.2)} km`;
 function setBox(b) {                              // a drawn or adjusted rectangle: Manual, with the tiles it touches
   const cl = (v, m) => Math.max(-m, Math.min(m, v)), r = v => Math.round(v * 1e5) / 1e5;
+  // drawn on a copy of the world (beyond ±180°): moved back by whole turns, not squeezed against ±180°
+  const turns = Math.floor((Math.min(b[0], b[2]) + 180) / 360) * 360;
+  b = [b[0] - turns, b[1], b[2] - turns, b[3]];
   const w = cl(Math.min(b[0], b[2]), 180), e = cl(Math.max(b[0], b[2]), 180), s = cl(Math.min(b[1], b[3]), 85), n = cl(Math.max(b[1], b[3]), 85);
   const box = [r(w), r(s), r(e), r(n)];
   if (!validBox(box)) return;

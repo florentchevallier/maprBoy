@@ -313,7 +313,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 return
             if url.path == "/api/garmin_device":    # a Garmin plugged in, as a disk or by MTP
-                return self._send(200, garmin_device.status())
+                return self._send(200, garmin_status())
             if url.path == "/api/device":           # adb and the ELEMNT plugged in (automatic copy)
                 return self._send(200, devcopy.status((settings.load().get("tools") or {}).get("adb") or ""))
             if url.path == "/api/estimate":
@@ -570,6 +570,18 @@ class Handler(BaseHTTPRequestHandler):
 
 
 _SERVER = []          # the running server, for "Quit maprBoy"
+_GARMIN_SEEN = {}     # the last answer of garmin_status()
+
+
+def garmin_status():
+    """The Garmin plugged in. Not looked for during a copy: mtp-detect opens the watch, and the copy then failed
+    ("libusb_claim_interface() = -3", seen in November 2026 when the page was built again because its window got
+    the focus back); the last answer is given instead."""
+    if JOB.running() and JOB.kind == "copy" and _GARMIN_SEEN:
+        return _GARMIN_SEEN
+    _GARMIN_SEEN.clear()
+    _GARMIN_SEEN.update(garmin_device.status())
+    return _GARMIN_SEEN
 
 
 def stop_adb():

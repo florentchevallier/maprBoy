@@ -887,6 +887,26 @@ class HintTests(unittest.TestCase):
     def test_submodule_name_is_kept(self):
         self.assertIn("osgeo._gdal", jobs.hint_for(["ModuleNotFoundError: No module named 'osgeo._gdal'"])[0])
 
+    def test_watch_held_by_another_program(self):
+        lines = ["error returned by libusb_claim_interface() = -3LIBMTP PANIC: Unable to initialize device"]
+        self.assertIn("another program", jobs.hint_for(lines)[0])
+
+    def test_no_garmin_detection_during_a_copy(self):
+        """mtp-detect opens the watch: run during a copy, it made the copy fail (November 2026)."""
+        calls = []
+
+        def status():
+            calls.append(1)
+            return {"devices": [{"kind": "mtp", "name": "Forerunner 955"}], "mtp": True, "windows": False}
+        server._GARMIN_SEEN.clear()
+        with mock.patch.object(server.garmin_device, "status", status):
+            self.assertEqual(server.garmin_status()["devices"][0]["name"], "Forerunner 955")
+            with mock.patch.object(server.JOB, "status", "running"), mock.patch.object(server.JOB, "kind", "copy"):
+                self.assertEqual(server.garmin_status()["devices"][0]["name"], "Forerunner 955")
+            self.assertEqual(len(calls), 1)                       # not looked for during the copy
+            server.garmin_status()
+            self.assertEqual(len(calls), 2)
+
     def test_disk_full(self):
         for line in ("OSError: [Errno 28] No space left on device", "OSError: [Errno 112] There is not enough space on the disk"):
             self.assertIn("disk is full", jobs.hint_for(["x", line])[0])

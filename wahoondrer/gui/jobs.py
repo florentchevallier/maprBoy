@@ -128,6 +128,10 @@ HINTS = (
      "Download failed: {0} does not answer.",
      "Hint: a download from {0} failed (no internet connection, or the site does not answer for now). Check the "
      "connection or try again later; the files already on disk are kept."),
+    (re.compile(r"libusb_claim_interface\(\) = -3|Unable to initialize device"),
+     "The watch is used by another program.",
+     "Hint: another program holds the watch (Android File Transfer or Garmin Express, which may open by themselves "
+     "when it is plugged in). Close them, unplug the watch and plug it in again, press \"Check again\", then copy."),
     (re.compile(r"No space left on device|not enough space on the disk", re.I),
      "The disk is full.",
      "Hint: the disk is full. Delete OSM regions (Map data section) or old tiles, then run again: the finished steps are not redone."),

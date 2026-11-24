@@ -318,6 +318,35 @@ class RegionTests(unittest.TestCase):
                 dl.start(["nope"])
 
 
+class ContinentTests(unittest.TestCase):
+    """A whole continent (chosen for an area partly in open sea) is downloaded with a warning, if the disk has room."""
+    CAT = {"asia": {"url": "https://x/asia.pbf", "parent": None, "name": "Asia"},
+           "japan": {"url": "https://x/japan.pbf", "parent": "asia", "name": "Japan"}}
+
+    def check(self, free, size=15_000_000_000):
+        with mock.patch.object(regions, "catalog", lambda: self.CAT):
+            return regions.continent_check(["japan", "asia"], size_of=lambda url: size, free=free)
+
+    def test_enough_room(self):
+        notes, stop = self.check(free=50_000_000_000)
+        self.assertIsNone(stop)
+        self.assertEqual(len(notes), 1)
+        self.assertTrue(notes[0].startswith("! Asia: the whole continent is downloaded (15.0 GB)"))
+
+    def test_not_enough_room(self):
+        notes, stop = self.check(free=40_000_000_000)                  # under 3 times 15 GB
+        self.assertIn("only 40.0 GB are free (45 GB needed)", stop)
+
+    def test_size_unknown(self):
+        notes, stop = self.check(free=1, size=None)                     # warned, not stopped
+        self.assertIsNone(stop)
+        self.assertIn("Press Stop", notes[0])
+
+    def test_no_continent(self):
+        with mock.patch.object(regions, "catalog", lambda: self.CAT):
+            self.assertEqual(regions.continent_check(["japan"], size_of=lambda u: 1 / 0), ([], None))
+
+
 class RegionShapeTests(unittest.TestCase):
     """Outlines and tiles of the Regions area mode."""
     def _catalog(self, d, geoms):

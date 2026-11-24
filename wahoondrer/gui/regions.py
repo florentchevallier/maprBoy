@@ -518,6 +518,49 @@ def to_fetch(keys, max_days):
     return out
 
 
+SPACE_FACTOR = 3                          # free space needed for a whole continent: 3 times its size
+
+
+def remote_size(url, timeout=20):
+    """Size in bytes of the file at url (HEAD request), or None when it cannot be known."""
+    req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": USER_AGENT})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return int(r.headers.get("Content-Length") or 0) or None
+    except (OSError, ValueError):
+        return None
+
+
+def continent_check(keys, size_of=remote_size, free=None):
+    """Lines to print before downloading `keys`, and the reason to stop (or None). A continent (a region with no
+    parent) is only chosen when part of the area lies outside every smaller region, mostly open sea: it is
+    downloaded all the same, with a warning, when the disk has SPACE_FACTOR times its size free."""
+    cat = catalog()
+    notes = []
+    for k in keys:
+        it = cat.get(k)
+        if not it or it.get("parent"):
+            continue
+        size = size_of(it["url"])
+        if size is None:
+            notes.append(f"! {pretty_name(k)}: the whole continent is downloaded, because part of the area lies "
+                         "outside every smaller region (open sea?). Press Stop if this is not what you want.")
+            continue
+        if free is None:
+            os.makedirs(MAPS_DIR, exist_ok=True)
+            free = shutil.disk_usage(MAPS_DIR).free
+        gb = size / 1e9
+        if free < SPACE_FACTOR * size:
+            return notes, (f"{pretty_name(k)}: the whole continent ({gb:.1f} GB) would be downloaded, because part "
+                           f"of the area lies outside every smaller region (open sea?), but only {free / 1e9:.1f} GB "
+                           f"are free ({SPACE_FACTOR * gb:.0f} GB needed). Draw the area closer to the coast, or "
+                           "free some space.")
+        notes.append(f"! {pretty_name(k)}: the whole continent is downloaded ({gb:.1f} GB), because part of the "
+                     "area lies outside every smaller region (open sea?). Press Stop if this is not what you want.")
+        free -= size
+    return notes, None
+
+
 def main(argv=None):
     """python3 -m wahoondrer.gui.regions --fetch KEY [KEY ...] [--max-days N]: download the missing regions
     (and those older than N days) now, with progress lines; used by the Garmin build of the page."""
@@ -531,6 +574,11 @@ def main(argv=None):
     if not keys:
         print("OSM data: every region is on disk and recent enough")
         return
+    notes, stop = continent_check(keys)
+    for line in notes:
+        print(line, flush=True)
+    if stop:
+        sys.exit(stop)
     print("Downloading the OSM data of: " + ", ".join(pretty_name(k) for k in keys), flush=True)
     import signal
     signal.signal(signal.SIGTERM, lambda *_: sys.exit("Stopped: the unfinished download was removed."))

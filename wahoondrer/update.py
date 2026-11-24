@@ -56,6 +56,9 @@ def is_newer(latest, installed):
     return new + (0,) * (width - len(new)) > old + (0,) * (width - len(old))
 
 
+NOTES_MAX = 20000                                 # characters of the release text kept for the page
+
+
 def _fetch_latest(timeout=8):
     req = urllib.request.Request(API_LATEST, headers={"Accept": "application/vnd.github+json", "User-Agent": "maprBoy"})
     try:
@@ -65,7 +68,8 @@ def _fetch_latest(timeout=8):
         if e.code == 404:                             # no release published yet
             return {"tag": None, "url": None}
         raise
-    return {"tag": data.get("tag_name"), "url": data.get("html_url")}
+    notes = data.get("body") if isinstance(data.get("body"), str) else ""
+    return {"tag": data.get("tag_name"), "url": data.get("html_url"), "notes": notes[:NOTES_MAX]}
 
 
 def _read_cache():
@@ -86,8 +90,9 @@ def _write_cache(data):
 
 
 def latest(force=False, now=None, fetch=_fetch_latest):
-    """{"tag", "url", "checked", "error"?}: the latest release, asked from GitHub when the kept answer is a day old
-    (or when forced). A failed check (no internet) is kept too, so that it is not retried at every page load."""
+    """{"tag", "url", "notes", "checked", "error"?}: the latest release (notes: its text, in Markdown), asked from
+    GitHub when the kept answer is a day old (or when forced). A failed check (no internet) is kept too, so that
+    it is not retried at every page load."""
     now = time.time() if now is None else now
     kept = _read_cache()
     if not force and kept and 0 <= now - kept.get("checked", 0) < DAY:
@@ -95,7 +100,8 @@ def latest(force=False, now=None, fetch=_fetch_latest):
     try:
         info = {**fetch(), "checked": now}
     except (OSError, ValueError) as e:                # offline, GitHub down, rate limit, bad answer: tried again tomorrow
-        info = {"tag": kept.get("tag"), "url": kept.get("url"), "checked": now, "error": str(e) or e.__class__.__name__}
+        info = {"tag": kept.get("tag"), "url": kept.get("url"), "notes": kept.get("notes", ""), "checked": now,
+                "error": str(e) or e.__class__.__name__}
     _write_cache(info)
     return info
 
@@ -117,8 +123,8 @@ def status(enabled=True, force=False, **kw):
     if installed is None or not (enabled or force):
         return out
     info = latest(force=force, **kw)
-    out.update(latest=info.get("tag"), url=info.get("url"), checked=info.get("checked"), error=info.get("error"),
-               newer=is_newer(info.get("tag"), installed))
+    out.update(latest=info.get("tag"), url=info.get("url"), notes=info.get("notes") or "", checked=info.get("checked"),
+               error=info.get("error"), newer=is_newer(info.get("tag"), installed))
     return out
 
 

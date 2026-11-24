@@ -78,6 +78,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .envwarn{border:1px solid var(--bad);border-left-width:5px;border-radius:10px;background:var(--card);padding:12px 16px;font-size:14px}
 .envwarn b{color:var(--bad)}
 .envnote{border-color:#c98a00;font-size:13px}
+.relnotes{font-size:13.5px;line-height:1.45;flex-basis:100%;margin:0 0 8px}.relnotes h4{margin:8px 0 2px;font-size:13.5px}.relnotes ul{margin:2px 0;padding-left:20px}.relnotes p{margin:4px 0}.relnotes summary{cursor:pointer}.relnotes[hidden]{display:none}
+dialog .relnotes ul{list-style:disc;max-height:none;overflow:visible;border:0;border-radius:0;padding-left:20px;margin:2px 0}dialog .relnotes li{padding:0;cursor:auto;border:0}dialog .relnotes li:hover{background:none}   /* not the folder lists of the dialog */
 .updnote{border-color:var(--accent,#2a7de1);display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}.updnote .sp{flex:1}.updnote b{color:inherit}.updnote[hidden]{display:none}
 table{border-collapse:collapse;width:100%;font-size:13.5px}
 th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
@@ -507,6 +509,7 @@ tr.rgrp.folded .gsum{display:inline}
   <h3 class="setsub">maprBoy</h3>
   <label class="chk"><input type="checkbox" data-path="check_updates"><span>Tell me when a new version is out <small>asks GitHub once a day which version is the latest; nothing about you is sent</small></span></label>
   <div class="actions" style="margin-bottom:8px"><button type="button" id="btnUpdCheck">Check now</button><button type="button" id="btnUpdRun" hidden>Update</button><span class="note" id="updStatus"></span></div>
+  <details id="updNotes" class="relnotes" hidden><summary></summary><div></div></details>
   <div class="actions"><button type="button" id="btnQuit">Quit maprBoy</button><span class="note">Stops the page and the program behind it (a run going on is stopped too). Start it again with maprBoy on your Desktop.</span></div>
 </dialog>
 
@@ -1685,7 +1688,22 @@ FOLD_DEFAULT.log = true;                          // the log shows its last 3 li
 $("#btnSeeFiles").onclick = () => setStep(2);
 
 // ---------- new versions: a note at the top when GitHub has a newer release; Update runs the installer again
-let UPD = null, updLater = false;
+let UPD = null, updLater = false, updOpen = false;
+// the release text (Markdown) shown in the page: headings, lists, bold, links; anything else stays plain text
+function mdLite(md) {
+  const inline = t => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\[([^\]]+)\]\((https:\/\/[^)\s]+)\)/g, (m, txt, url) => `<a href="${url}" target="_blank" rel="noopener">${txt}</a>`);
+  const out = []; let list = false;
+  for (const raw of String(md || "").replace(/\r/g, "").split("\n")) {
+    const line = raw.trim(), item = line.match(/^[-*]\s+(.*)/), head = line.match(/^#{1,6}\s+(.*)/);
+    if (!item && list) { out.push("</ul>"); list = false; }
+    if (item) { if (!list) { out.push("<ul>"); list = true; } out.push(`<li>${inline(item[1])}</li>`); }
+    else if (head) out.push(`<h4>${inline(head[1])}</h4>`);
+    else if (line) out.push(`<p>${inline(line)}</p>`);
+  }
+  if (list) out.push("</ul>");
+  return out.join("");
+}
 const updName = v => v === "copy" ? "a copy installed from a folder" : v === "main" ? "the main branch" : v;
 const updAgo = t => { const d = Math.floor((Date.now() / 1000 - t) / 86400); return d < 1 ? "today" : d < 2 ? "yesterday" : d + " days ago"; };
 function renderUpdate() {
@@ -1693,8 +1711,13 @@ function renderUpdate() {
   const offer = !!(u && u.newer && u.enabled !== false);
   note.hidden = !offer || updLater;
   if (offer) note.innerHTML = `<span><b>maprBoy ${esc(u.latest)} is out</b> (you have ${esc(updName(u.current))}).</span>` +
-    (u.url ? ` <a href="${esc(u.url)}" target="_blank" rel="noopener">What's new</a>` : "") + '<span class="sp"></span>' +
-    (u.can_update ? '<button type="button" class="primary" data-upd="run">Update</button>' : "") + '<button type="button" data-upd="later">Later</button>';
+    (u.notes ? ` <button type="button" class="small" data-upd="notes" aria-expanded="${updOpen}">What's new ${updOpen ? "▴" : "▾"}</button>`
+      : u.url ? ` <a href="${esc(u.url)}" target="_blank" rel="noopener">What's new</a>` : "") + '<span class="sp"></span>' +
+    (u.can_update ? '<button type="button" class="primary" data-upd="run">Update</button>' : "") + '<button type="button" data-upd="later">Later</button>' +
+    (u.notes && updOpen ? `<div class="relnotes">${mdLite(u.notes)}${u.url ? `<p><a href="${esc(u.url)}" target="_blank" rel="noopener">See it on GitHub</a></p>` : ""}</div>` : "");
+  const rn = $("#updNotes");                     // in the settings: the text of the latest release, folded
+  rn.hidden = !(u && u.notes && u.latest);
+  if (!rn.hidden) { $("summary", rn).textContent = `What's new in maprBoy ${u.latest.replace(/^v/, "")}`; $("div", rn).innerHTML = mdLite(u.notes); }
   run.hidden = !(u && u.newer && u.can_update);
   if (!u) { st.textContent = ""; return; }
   if (!u.current) { st.textContent = "This is a development copy (not installed with the installer): it is not checked for new versions."; return; }
@@ -1722,7 +1745,7 @@ async function runUpdate() {
 function alertUpd(msg) { const n = $("#updNote"); n.hidden = false; n.textContent = msg; }
 $("#updNote").addEventListener("click", ev => {
   const b = ev.target.closest("[data-upd]"); if (!b) return;
-  if (b.dataset.upd === "run") runUpdate(); else { updLater = true; renderUpdate(); }
+  if (b.dataset.upd === "run") runUpdate(); else if (b.dataset.upd === "notes") { updOpen = !updOpen; renderUpdate(); } else { updLater = true; renderUpdate(); }
 });
 $("#btnUpdRun").onclick = runUpdate;
 $('[data-path="check_updates"]').addEventListener("change", ev => {      // the note follows the box at once

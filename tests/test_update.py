@@ -46,7 +46,7 @@ class CheckTest(unittest.TestCase):
 
     def fetch(self):
         self.calls += 1
-        return {"tag": "v1.1", "url": "https://github.com/x/releases/tag/v1.1"}
+        return {"tag": "v1.1", "url": "https://github.com/x/releases/tag/v1.1", "notes": "## New\n- **GPX**"}
 
     def test_once_a_day_unless_forced(self):
         self.assertEqual(update.latest(now=1000, fetch=self.fetch)["tag"], "v1.1")
@@ -65,6 +65,7 @@ class CheckTest(unittest.TestCase):
         info = update.latest(now=1000 + update.DAY, fetch=offline)
         self.assertEqual(info["tag"], "v1.1")
         self.assertIn("no network", info["error"])
+        self.assertEqual(info["notes"], "## New\n- **GPX**")             # the release text is kept too
         self.assertEqual(update.latest(now=1000 + update.DAY + 60, fetch=self.fetch)["error"], "no network")  # not retried
 
     def make_install(self, version):
@@ -81,6 +82,7 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(update.install_dir(), self.dir)
         st = update.status(code_dir=code, now=5000, fetch=self.fetch)
         self.assertEqual((st["current"], st["latest"], st["newer"], st["can_update"]), ("v1.0", "v1.1", True, True))
+        self.assertEqual(st["notes"], "## New\n- **GPX**")
         off = update.status(enabled=False, code_dir=code, fetch=self.fetch)
         self.assertNotIn("latest", off)
         self.assertEqual(update.status(enabled=False, force=True, code_dir=code, fetch=self.fetch)["latest"], "v1.1")

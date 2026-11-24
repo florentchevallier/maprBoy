@@ -561,6 +561,24 @@ def continent_check(keys, size_of=remote_size, free=None):
     return notes, None
 
 
+def continent_question(keys, max_days, size_of=remote_size, free=None):
+    """The whole continents a run fetching `keys` would download, asked about in the page before the run starts:
+    [{"name", "gb"}] (gb None when unknown). [] when none would be downloaded, or when the run would stop before
+    the download for lack of room (it says why)."""
+    keys = to_fetch(keys, max_days)
+    sizes = {}
+
+    def size(url):
+        if url not in sizes:
+            sizes[url] = size_of(url)
+        return sizes[url]
+    if continent_check(keys, size, free)[1]:
+        return []
+    cat = catalog()
+    return [{"name": pretty_name(k), "gb": None if size(cat[k]["url"]) is None else round(size(cat[k]["url"]) / 1e9, 1)}
+            for k in keys if cat.get(k) and not cat[k].get("parent")]
+
+
 def main(argv=None):
     """python3 -m wahoondrer.gui.regions --fetch KEY [KEY ...] [--max-days N]: download the missing regions
     (and those older than N days) now, with progress lines; used by the Garmin build of the page."""

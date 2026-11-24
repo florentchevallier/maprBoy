@@ -88,6 +88,7 @@ tr.hl td{background:color-mix(in srgb,var(--viol) 12%,transparent)}
 .badge{display:inline-block;padding:1px 7px;border-radius:99px;font-size:12px;margin:1px 2px 1px 0;background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ink)}
 .badge.no{background:transparent;color:var(--mute);text-decoration:line-through;opacity:.6}
 #map{height:400px;border-radius:10px;border:1px solid var(--line);margin:8px 0}
+#map.leaflet-container,#map2.leaflet-container{background:#000}   /* one Earth only: around it, black */
 .tilebar,.pro div.tilebar.pro-only{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .tilebar input[type=text]{flex:1;min-width:200px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
@@ -952,11 +953,16 @@ function loadLeaflet() {
     s.onload = () => res(true); s.onerror = () => res(false); document.head.appendChild(s);
   });
 }
+// one Earth only, not repeated left and right (the areas stop at ±180° and the Wahoo tiles at 0 and 255):
+// the map cannot be dragged beyond it, and around it the map is black
+const EARTH = [[-85.06, -180], [85.06, 180]];
+const WORLD = {maxBounds: EARTH, maxBoundsViscosity: 1};
+const OSM_TILES = {maxZoom: 12, attribution: "© OpenStreetMap", noWrap: true, bounds: EARTH};
 async function initMap() {
   if (!await loadLeaflet()) { $("#map").outerHTML = '<p class="note">The map could not be loaded (no internet?). Type the tiles in the box above, e.g. 136/88.</p>'; $("#mapFit").disabled = $("#mapLocate").disabled = true; return; }
-  map = L.map("map", {worldCopyJump: true}).setView([48.3, 11.5], 6);
+  map = L.map("map", WORLD).setView([48.3, 11.5], 6);
   map._hiddenInit = !$("#map").offsetWidth;      // created inside a folded section: fit it when the section opens
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 12, attribution: "© OpenStreetMap"}).addTo(map);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", OSM_TILES).addTo(map);
   layerExp = L.layerGroup().addTo(map); layerTiles = L.layerGroup().addTo(map); layerGrid = L.layerGroup().addTo(map);
   layerReg = L.layerGroup().addTo(map); layerOsm = L.layerGroup(); layerGpx = L.layerGroup().addTo(map);
   layerMenus = L.layerGroup().addTo(map);
@@ -1165,8 +1171,8 @@ function drawTileMenus() {
   if (!on || !window.L) return;
   S.tiles.forEach(k => dropped.delete(k));
   if (!map2) {                                           // a second, smaller map right under the option (a mirror of the first)
-    map2 = L.map("map2", {worldCopyJump: true}).setView([48.3, 11.5], 6);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 12, attribution: "© OpenStreetMap"}).addTo(map2);
+    map2 = L.map("map2", WORLD).setView([48.3, 11.5], 6);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", OSM_TILES).addTo(map2);
     layerRect2 = L.layerGroup().addTo(map2); layerMenus2 = L.layerGroup().addTo(map2);
     map2.on("zoomend", () => drawTileMenus());
     map2.on("click", e => {                              // click a tile to take it out or put it back, as on the big map
@@ -1742,8 +1748,17 @@ async function start(kind) {
   $("#runMsg").textContent = ""; $("#doneNote").textContent = "";
   const e = kind === "run" && !notWahoo() ? await perTile() : null; runEst = e ? e.seconds_per_tile * S.tiles.length : 0;
   $("#btnSeeFiles").hidden = true;
+  if (kind === "run" && notWahoo() && !await continentsOk()) return;
   try { await api("/api/settings", S); await api("/api/" + kind, S); since = 0; warnLines = []; $("#log").textContent = ""; $("#dlBar").hidden = true; $("#stepWrap").hidden = true; $("#runMsg").textContent = ""; startPolling(); }
   catch (e) { $("#runMsg").textContent = e.message; }
+}
+// Garmin / Karoo: an area partly in open sea makes the run download a whole continent; asked before it starts
+async function continentsOk() {
+  let c = [];
+  try { c = (await api("/api/continents", S)).continents || []; } catch (e) { return true; }   // the run says what is wrong
+  if (!c.length) return true;
+  const what = c.map(x => `${x.name}: the whole continent${x.gb != null ? ` (${x.gb.toFixed(1)} GB)` : ""}`).join("\n");
+  return confirm(`${what}\nwill be downloaded, because part of the area lies outside every smaller region (open sea?).\n\nDownload it and make the maps?`);
 }
 function startPolling() { clearInterval(poll); poll = setInterval(tick, 700); tick(); }
 // Lines from the build script that start with \x01 are not text: P| = download bar (empty = clear), S|n|total|label = step counter.

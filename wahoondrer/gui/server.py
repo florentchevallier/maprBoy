@@ -375,6 +375,8 @@ class Handler(BaseHTTPRequestHandler):
             path = url.path
             if path == "/api/settings":
                 return self._send(200, {"settings": settings.save(body)})
+            if path == "/api/continents":
+                return self._continents(body)
             if path in ("/api/run", "/api/plan"):
                 return self._run(body, plan=(path == "/api/plan"))
             if path == "/api/cancel":
@@ -505,6 +507,28 @@ class Handler(BaseHTTPRequestHandler):
             raise jobs.SettingsError("The exports are still being read: wait a moment.")
         if DOWNLOADER.status()["running"]:
             raise jobs.SettingsError("A region download is running: wait for it to finish.")
+        cmds = self._commands(s, plan)
+        if s["folders"]["work"]:
+            os.makedirs(os.path.expanduser(s["folders"]["work"]), exist_ok=True)
+        os.makedirs(os.path.expanduser(s["folders"]["out"]), exist_ok=True)
+        JOB.start(cmds, "plan" if plan else "run", notify=bool(s["build"].get("notify", True)),
+                  profile=jobs.run_profile(s))
+        return self._send(200, {"started": True, "commands": [c[1] for c in cmds]})
+
+    def _continents(self, body):
+        """Before a Garmin or Karoo run: the whole continents it would download, so the page asks first.
+        Anything that keeps the run from starting gives [] here: the run itself says what is wrong."""
+        try:
+            s = settings.save(body)
+            if s.get("device") not in ("garmin", "karoo"):
+                return self._send(200, {"continents": []})
+            keys, max_days = jobs.fetch_keys(self._commands(s, False))
+            return self._send(200, {"continents": regions.continent_question(keys, max_days)})
+        except Exception:
+            return self._send(200, {"continents": []})
+
+    def _commands(self, s, plan):
+        """[(title, argv), ...] of a run with the settings s."""
         infos = scan.scan_wandrer(s["folders"]["wandrer"])
         annotate(s, infos)
         chosen = [i["path"] for i in infos if i["active"]]
@@ -519,12 +543,7 @@ class Handler(BaseHTTPRequestHandler):
             cmds = jobs.karoo_commands(s, [i for i in infos if i["active"]], sq["path"] if sq else None)
         else:
             cmds = jobs.build_commands(s, chosen, sq["path"] if sq else None, plan=plan)
-        if s["folders"]["work"]:
-            os.makedirs(os.path.expanduser(s["folders"]["work"]), exist_ok=True)
-        os.makedirs(os.path.expanduser(s["folders"]["out"]), exist_ok=True)
-        JOB.start(cmds, "plan" if plan else "run", notify=bool(s["build"].get("notify", True)),
-                  profile=jobs.run_profile(s))
-        return self._send(200, {"started": True, "commands": [c[1] for c in cmds]})
+        return cmds
 
     def _upload(self, q):
         """Drag-and-drop: the page sends each dropped file as the raw request body."""

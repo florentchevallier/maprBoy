@@ -443,6 +443,19 @@ def garmin_place(s, export_infos, bbox):
     return name or " ".join(regions.catalog().get(k, {}).get("name", k) for k in (keys or [])[:2])
 
 
+def fetch_keys(cmds):
+    """The OSM regions the commands of a run download (the arguments of "regions --fetch"), and their max age."""
+    keys, max_days = [], 0
+    for _, argv in cmds:
+        if "wahoondrer.gui.regions" in argv and "--fetch" in argv:
+            rest = argv[argv.index("--fetch") + 1:]
+            cut = rest.index("--max-days") if "--max-days" in rest else len(rest)
+            keys += [k for k in rest[:cut] if k not in keys]
+            if cut < len(rest):
+                max_days = int(rest[cut + 1])
+    return keys, max_days
+
+
 def map_activity(export_infos):
     """bike / foot / combined of the exports used (from their inner file name), "all" when they differ (the "all
     types" choice), "" when unknown: put after the place in the names of the maps that hold Wandrer roads."""

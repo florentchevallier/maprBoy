@@ -347,6 +347,26 @@ class ContinentTests(unittest.TestCase):
             self.assertEqual(regions.continent_check(["japan"], size_of=lambda u: 1 / 0), ([], None))
 
 
+    def test_question_before_the_run(self):
+        with mock.patch.object(regions, "catalog", lambda: self.CAT), \
+                mock.patch.object(regions, "to_fetch", lambda keys, days: keys):
+            ask = lambda free, size=15_000_000_000: regions.continent_question(["japan", "asia"], 14, size_of=lambda u: size, free=free)
+            self.assertEqual(ask(50_000_000_000), [{"name": "Asia", "gb": 15.0}])
+            self.assertEqual(ask(40_000_000_000), [])                    # the run stops before, and says why
+            self.assertEqual(ask(1, size=None), [{"name": "Asia", "gb": None}])
+
+    def test_no_question_when_the_continent_is_on_disk(self):
+        with mock.patch.object(regions, "catalog", lambda: self.CAT), \
+                mock.patch.object(regions, "to_fetch", lambda keys, days: [k for k in keys if k != "asia"]):
+            self.assertEqual(regions.continent_question(["japan", "asia"], 14, size_of=lambda u: 1 / 0), [])
+
+    def test_fetch_keys_of_the_commands(self):
+        cmds = [("Lines", ["py", "kmz_to_osm.py"]),
+                ("Get the OSM data", ["py", "-m", "wahoondrer.gui.regions", "--fetch", "europe", "japan", "--max-days", "14"])]
+        self.assertEqual(jobs.fetch_keys(cmds), (["europe", "japan"], 14))
+        self.assertEqual(jobs.fetch_keys(cmds[:1]), ([], 0))
+
+
 class RegionShapeTests(unittest.TestCase):
     """Outlines and tiles of the Regions area mode."""
     def _catalog(self, d, geoms):

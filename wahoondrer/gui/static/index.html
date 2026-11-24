@@ -231,6 +231,8 @@ button.fold.sm{width:20px;height:20px;margin:0 5px 0 -5px}button.fold.sm svg{wid
 .card.folded h2{margin-bottom:0}
 .fsum{display:none;font-weight:400;font-size:12.5px;color:var(--mute)}
 .card.folded .fsum{display:inline}
+.secdrop{display:none;font-weight:400;margin-left:10px}.card.folded .secdrop{display:inline-flex}   /* a folded section still takes a new export */
+#map.dropover{outline:2px dashed var(--accent);outline-offset:-2px}
 tr.rgrp{cursor:pointer}
 tr.rgrp .gsum{display:none;color:var(--mute);font-size:12.5px;white-space:nowrap}
 tr.rgrp.folded .gsum{display:inline}
@@ -314,7 +316,7 @@ tr.rgrp.folded .gsum{display:inline}
   </div>
 </section>
 <section class="card pole" data-sec="wandrer">
-  <h2>Wandrer <label class="onoff"><input type="checkbox" data-path="wandrer.enabled">On</label><span class="fsum" id="poleSumWandrer"></span><span class="sp"></span><div class="seg micro" data-pole="wandrer" role="group" aria-label="Simple or Pro for this section"><button type="button" data-m="simple">Simple</button><button type="button" data-m="pro">Pro</button></div></h2>
+  <h2>Wandrer <label class="onoff"><input type="checkbox" data-path="wandrer.enabled">On</label><span class="fsum" id="poleSumWandrer"></span><button type="button" class="small gpxdrop secdrop" id="dropWandrerMini" title="Drop your Wandrer .kmz files here (or click to choose them)">Drop Wandrer export</button><span class="sp"></span><div class="seg micro" data-pole="wandrer" role="group" aria-label="Simple or Pro for this section"><button type="button" data-m="simple">Simple</button><button type="button" data-m="pro">Pro</button></div></h2>
   <div class="blk" id="blkExports" data-nofold>
   <h3>Exports<span class="sp"></span><button class="icon" id="btnReload" title="Look for new or changed files">🔄</button></h3>
   <div class="drop" id="dropWandrer">Drop your Wandrer <b>.kmz</b> files here (or click to choose them): they are copied into your Wandrer folder, named by date, town and type, never replacing a file</div>
@@ -329,7 +331,7 @@ tr.rgrp.folded .gsum{display:inline}
   <h3>Roads</h3>
       <label class="row" style="grid-template-columns:150px 1fr">Show unvisited roads
         <select id="radiusSel">
-          <option value="250">within 250 m of roads I rode</option>
+          <option value="250">within 250 m of roads I visited</option>
           <option value="500">within 500 m</option>
           <option value="1000">within 1 km</option>
           <option value="0">everywhere in my exports</option>
@@ -337,10 +339,10 @@ tr.rgrp.folded .gsum{display:inline}
           <option value="none">not at all: only the roads I visited</option></select></label>
       <label class="row" id="radiusCustom" style="grid-template-columns:150px 110px 1fr;display:none">Distance (m)<input type="number" min="0" step="10" data-path="wandrer.radius_m" data-num="1"><small class="note">0 = everywhere</small></label>
       <div id="unvisitedOpts">
-      <p class="note">Roads farther than this from a road you rode are left out to keep the tiles light. <b>In an area where you have ridden nothing yet, no unvisited road is shown</b>: choose a larger distance or "everywhere" (heavier tiles). Wandrer only counts roads open to the public, so the orange layer shows which ones count.</p>
+      <p class="note">Roads farther than this from a road you visited are left out to keep the tiles light. <b>In an area where you have visited nothing yet, no unvisited road is shown</b>: choose a larger distance or "everywhere" (heavier tiles). Wandrer only counts roads open to the public, so the orange layer shows which ones count.</p>
       <div class="pro-only">
-      <label class="chk" style="margin-left:26px"><input type="checkbox" data-path="wandrer.unpaved_always"><span>Keep every unvisited unpaved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
-      <label class="chk" style="margin-left:26px"><input type="checkbox" data-path="wandrer.paved_always"><span>Keep every unvisited paved road <small>even far from the roads I rode (heavier tiles)</small></span></label>
+      <label class="chk" style="margin-left:26px"><input type="checkbox" data-path="wandrer.unpaved_always"><span>Keep every unvisited unpaved road <small>even far from the roads I visited (heavier tiles)</small></span></label>
+      <label class="chk" style="margin-left:26px"><input type="checkbox" data-path="wandrer.paved_always"><span>Keep every unvisited paved road <small>even far from the roads I visited (heavier tiles)</small></span></label>
       </div>
       </div>
       <p class="note" id="onlyRidden" hidden>Only the roads you have already visited are drawn (with the boundaries and the Squadrats): for a region where you have visited almost nothing, where the unvisited roads would be the whole map.</p>
@@ -375,12 +377,12 @@ tr.rgrp.folded .gsum{display:inline}
   </div>
 </section>
 <section class="card pole" data-sec="squadrats">
-  <h2>Squadrats <label class="onoff"><input type="checkbox" data-path="squadrats.enabled">On</label><span class="fsum" id="poleSumSq"></span><span class="sp"></span><div class="seg micro" data-pole="squadrats" role="group" aria-label="Simple or Pro for this section"><button type="button" data-m="simple">Simple</button><button type="button" data-m="pro">Pro</button></div></h2>
-  <div class="blk" id="blkSqFile">
+  <h2>Squadrats <label class="onoff"><input type="checkbox" data-path="squadrats.enabled">On</label><span class="fsum" id="poleSumSq"></span><button type="button" class="small gpxdrop secdrop" id="dropSquadratsMini" title="Drop a Squadrats .kml file here (or click to choose it)">Drop Squadrats export</button><span class="sp"></span><div class="seg micro" data-pole="squadrats" role="group" aria-label="Simple or Pro for this section"><button type="button" data-m="simple">Simple</button><button type="button" data-m="pro">Pro</button></div></h2>
+  <div class="blk" id="blkSqFile" data-nofold>
   <h3>File <span class="fsum" id="blkSumSqFile"></span><span class="sp"></span><button class="icon" id="btnReload2" title="Look for a newer file">🔄</button></h3>
+  <div class="drop" id="dropSquadrats">Drop a Squadrats <b>.kml</b> file here (or click to choose it): it is copied into your Squadrats folder, never replacing a file; the most recent one is used</div>
     <p class="note" id="sqFile"></p>
   <label class="row pro-only" style="grid-template-columns:150px 1fr">File to use<select id="sqSel" data-path="squadrats.file"></select></label>
-  <div class="drop" id="dropSquadrats">Drop a Squadrats <b>.kml</b> file here (or click to choose it): it is copied into your Squadrats folder, never replacing a file; the most recent one is used</div>
   </div>
   <div class="blk" id="blkSqSquares">
   <h3>Squares to outline</h3>
@@ -433,11 +435,11 @@ tr.rgrp.folded .gsum{display:inline}
     <span class="seg areaseg" id="areaSeg" role="group" aria-label="How to choose the tiles">
       <button type="button" data-area="manual">Manual</button><button type="button" data-area="exports">From Wandrer exports</button><button type="button" data-area="exports_km">Exports +</button><span class="kmbox"><input type="number" id="areaKm" min="0" max="200" step="1" aria-label="Margin around the exports in km">km</span><button type="button" data-area="regions">Regions</button>
     </span>
-    <button type="button" class="small gpxdrop" id="dropGpx" title="Drop a GPX file here (or click to choose it): the area becomes the rectangle around the track, plus a margin">Drop GPX</button><input type="file" id="gpxPick" accept=".gpx" hidden>
-    <span class="sp"></span><button type="button" class="small" id="mapReset" title="Clear the tiles or the area, and the GPX track">↺ Reset</button><button type="button" class="small" id="mapFit">🔍 Zoom to my data</button><button type="button" class="small" id="mapLocate">📍 My location</button><button type="button" class="small boxonly" id="mapDraw" aria-pressed="false" title="Press on the map, drag, release">✏️ Draw the area</button>
+    <button type="button" class="small gpxdrop" id="dropGpx" title="Drop GPX files here or on the map (or click to choose them): each one is added, and the area covers the tracks plus a margin">Drop GPX</button><button type="button" class="small" id="gpxClear" title="Take the GPX tracks off the map (the area stays)" hidden>Clear GPX</button><input type="file" id="gpxPick" accept=".gpx" multiple hidden>
+    <span class="sp"></span><button type="button" class="small" id="mapReset" title="Clear the selected tiles or the area (the GPX tracks stay)">↺ Reset</button><button type="button" class="small" id="mapFit">🔍 Zoom to my data</button><button type="button" class="small" id="mapLocate">📍 My location</button><button type="button" class="small boxonly" id="mapDraw" aria-pressed="false" title="Press on the map, drag, release">✏️ Draw the area</button>
   </div>
   <div class="maptools mt2">
-    <span class="pro-only inline-flex lays"><span class="note">On the map:</span><label><input type="checkbox" id="layExp" checked> Wandrer coverage</label><label><input type="checkbox" id="layTiles" checked> <span class="wahooonly">Selected tiles</span><span class="boxonly">Area</span></label><label><input type="checkbox" id="layOsm" checked> OSM regions</label><label id="layGpxRow" hidden><input type="checkbox" id="layGpx" checked> GPX track</label></span>
+    <span class="pro-only inline-flex lays"><span class="note">On the map:</span><label><input type="checkbox" id="layExp" checked> Wandrer coverage</label><label><input type="checkbox" id="layTiles" checked> <span class="wahooonly">Selected tiles</span><span class="boxonly">Area</span></label><label><input type="checkbox" id="layOsm" checked> OSM regions</label><label id="layGpxRow" hidden><input type="checkbox" id="layGpx" checked> GPX tracks</label></span>
     <span class="sp"></span><span class="note" id="areaHint"></span>
   </div>
   <div class="maptools" id="areaRegions" hidden>
@@ -519,7 +521,7 @@ tr.rgrp.folded .gsum{display:inline}
 
 <script>
 "use strict";
-let layerGpx = null, gpxTrack = null;            // the dropped GPX: {name, segs: [[[lat, lon], ...], ...]}, kept in the page only
+let layerGpx = null, gpxTracks = [];             // the dropped GPX files: {name, segs: [[[lat, lon], ...], ...], box}, kept in the page only
 let layerReg = null, layerOsm = null, layerOut = null, outRects = {}, lastRes = null, fitOutNext = false;
 let S = null, ST = null, saveTimer = null, map = null, map2 = null, layerMenus = null, layerMenus2 = null, layerRect2 = null, layerTiles = null, layerExp = null, layerGrid = null, expRects = {}, locMarker = null;
 const $ = (q, r = document) => r.querySelector(q), $$ = (q, r = document) => [...r.querySelectorAll(q)];
@@ -1096,7 +1098,9 @@ function renderLegend() {
     } else parts.push("Wandrer exports: " + usedTypes.map(t => `${legendSwatch(t)} ${esc(t)}`).join(" &nbsp; "));
   }
   if (area().mode === "regions" && area().regions.length) parts.push(line("#6a3fb0", "chosen regions"));
-  if (gpxTrack && (!map || layerOn("layGpx"))) parts.push(`<span style="display:inline-block;width:20px;height:4px;background:${GPX_COL};border:1.5px solid ${GPX_EDGE};vertical-align:2px"></span> GPX track ${esc(gpxTrack.name)}`);
+  if (gpxTracks.length && (!map || layerOn("layGpx"))) parts.push(`<span style="display:inline-block;width:20px;height:4px;background:${GPX_COL};border:1.5px solid ${GPX_EDGE};vertical-align:2px"></span> ` +
+    (gpxTracks.length === 1 ? `GPX track ${esc(gpxTracks[0].name)}`
+      : `<span title="${esc(gpxTracks.map(t => t.name).join("\n"))}" style="text-decoration:underline dotted;cursor:help">GPX tracks: ${gpxTracks.length}</span>`));
   if (map && osmInfo && layerOn("layOsm")) {
     const o = [];
     if (osmInfo.recent) o.push(line("#2e7d32", "up to date"));
@@ -1261,7 +1265,9 @@ function setupDrop(el, kind) {
     if (!box || !box.classList.contains("dropmsgs")) { box = document.createElement("div"); box.className = "dropmsgs"; el.after(box); }
     box.innerHTML = done.map(([k, t]) => `<div class="dropmsg ${k}" role="status">${esc(t)}</div>`).join("");
     await refresh(); await rescan();
+    return done;
   };
+  el._send = send;
   el.dataset.label = el.innerHTML;
   el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("over"); });
   el.addEventListener("dragleave", () => el.classList.remove("over"));
@@ -1269,9 +1275,29 @@ function setupDrop(el, kind) {
   el.addEventListener("click", () => { pick.accept = kind === "wandrer" ? ".kmz,.kml" : ".kml"; pick.onchange = () => { send([...pick.files]); pick.value = ""; }; pick.click(); });
 }
 setupDrop($("#dropWandrer"), "wandrer"); setupDrop($("#dropSquadrats"), "squadrats");
+// the small "Drop ... export" button of a folded section: the same sending as the big drop zone inside it; the
+// outcome is said on the button, and the section opens when a file could not be copied (its message is there)
+function setupMiniDrop(el, big, sec) {
+  const label = el.textContent, pick = $("#filePick");
+  const go = async files => {
+    if (!files.length) return;
+    el.textContent = "Sending…";
+    const done = (await big._send(files)) || [];
+    const n = k => done.filter(d => d[0] === k).length;
+    if (n("bad") || !done.length) { el.textContent = label; setFolded("sec:" + sec, false); applyFolds(true); return; }
+    el.textContent = n("ok") ? `✓ ${n("ok")} copied` : "Already there";
+    setTimeout(() => { el.textContent = label; }, 4000);
+  };
+  el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("over"); });
+  el.addEventListener("dragleave", () => el.classList.remove("over"));
+  el.addEventListener("drop", e => { e.preventDefault(); el.classList.remove("over"); go([...e.dataTransfer.files]); });
+  el.addEventListener("click", () => { pick.accept = sec === "wandrer" ? ".kmz,.kml" : ".kml"; pick.onchange = () => { go([...pick.files]); pick.value = ""; }; pick.click(); });
+}
+setupMiniDrop($("#dropWandrerMini"), $("#dropWandrer"), "wandrer"); setupMiniDrop($("#dropSquadratsMini"), $("#dropSquadrats"), "squadrats");
 
-// ---------- a GPX dropped on "Drop GPX": the area becomes the rectangle around the track, plus a margin
-// (10 % of its width and height on each side, at least 250 m, at most 5 km); the file is read here, not copied
+// ---------- GPX files dropped on "Drop GPX" or on the map: each one is added to those already there. Each track gets a
+// margin (10 % of its width and height on each side, at least 250 m, at most 5 km); Garmin / Karoo: the area is the
+// rectangle around all of them; Wahoo: only the tiles of each one. The files are read here, not copied.
 const GPX_COL = "#00bcd4";                        // cyan, as on the Garmin watches
 const GPX_EDGE = "#0b2540";                       // dark navy edge around it
 const GPX_MARGIN = {share: 0.10, min_km: 0.25, max_km: 5};
@@ -1296,36 +1322,64 @@ function gpxArea(segs) {                          // [W, S, E, N] around the poi
   return [Math.max(-180, w - dx), Math.max(-85, s - dy), Math.min(180, e + dx), Math.min(85, n + dy)];
 }
 function drawGpx() {
-  if (!layerGpx) return;
+  $("#layGpxRow").hidden = !gpxTracks.length; $("#gpxClear").hidden = !gpxTracks.length;
+  if (!layerGpx) { renderLegend(); return; }
   layerGpx.clearLayers();
-  $("#layGpxRow").hidden = !gpxTrack;
-  if (gpxTrack) for (const [col, w] of [[GPX_EDGE, 7], [GPX_COL, 4]])   // a dark edge under the cyan: seen on any background, whatever the colour vision
-    for (const g of gpxTrack.segs) L.polyline(g, {color: col, weight: w, opacity: 1, interactive: false}).addTo(layerGpx);
+  for (const [col, w] of [[GPX_EDGE, 7], [GPX_COL, 4]])   // a dark edge under the cyan: seen on any background, whatever the colour vision
+    for (const t of gpxTracks) for (const g of t.segs) L.polyline(g, {color: col, weight: w, opacity: 1, interactive: false}).addTo(layerGpx);
   applyLayers();
 }
-async function loadGpx(f) {
-  const note = $("#locNote");
-  if (!f) return;
-  try {
-    const segs = gpxSegments(await f.text()), box = gpxArea(segs);
-    gpxTrack = {name: f.name, segs};
-    setBox(box); drawMapLayers(); drawGpx();
-    if (map) map.fitBounds([[box[1], box[0]], [box[3], box[2]]], {padding: [20, 20]});
-    note.textContent = `${f.name}: the area is the rectangle around the track plus a margin (${boxKm(mapBox() || box)}); drag a corner to adjust.`;
-  } catch (e) { note.textContent = `${f.name} not used: ${e.message}.`; }
+function gpxApplyArea() {                         // the area (or the tiles) of every track
+  const boxes = gpxTracks.map(t => t.box), all = unionBox(boxes);
+  if (notWahoo()) setBox(all);
+  else { const a = area(); a.mode = "manual"; delete a.box; S.tiles = parseTiles(boxes.flatMap(b => tilesInBox(...b)).join(",")); scheduleSave(false); renderDerived(); }
+  drawMapLayers(); drawGpx();
+  if (map) map.fitBounds([[all[1], all[0]], [all[3], all[2]]], {padding: [20, 20]});
+  return all;
+}
+async function loadGpx(files) {
+  const added = [], bad = [];
+  for (const f of files) {
+    if (!/\.gpx$/i.test(f.name)) { bad.push(`${f.name}: not a GPX file`); continue; }
+    if (gpxTracks.some(t => t.name === f.name)) continue;          // the same file dropped again counts once
+    try { const segs = gpxSegments(await f.text()); gpxTracks.push({name: f.name, segs, box: gpxArea(segs)}); added.push(f.name); }
+    catch (e) { bad.push(`${f.name} not used: ${e.message}`); }
+  }
+  if (added.length) gpxApplyArea();
+  gpxNote(added.length ? (added.length === 1 ? `${added[0]} added` : `${added.length} GPX tracks added`) : (!bad.length && files.length ? "Already on the map" : ""), bad);
+}
+function gpxNote(head = "", bad = []) {          // what the tracks set, under the buttons (the names are in the legend)
+  const n = gpxTracks.length, msg = [];
+  if (n) msg.push(`${head ? head + ": " : ""}the ${notWahoo() ? "area covers" : "tiles cover"} ${n === 1 ? "the track" : `the ${n} tracks`} plus a margin` +
+                  (notWahoo() ? ` (${boxKm(mapBox() || unionBox(gpxTracks.map(t => t.box)))}); drag a corner to adjust.` : ` (${S.tiles.length} tile${S.tiles.length === 1 ? "" : "s"}).`));
+  else if (head) msg.push(head + ".");
+  if (bad.length) msg.push(bad.join("; ") + ".");
+  $("#locNote").textContent = msg.join(" ");
 }
 (() => {
   const el = $("#dropGpx"), pick = $("#gpxPick");
   el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("over"); });
   el.addEventListener("dragleave", () => el.classList.remove("over"));
-  el.addEventListener("drop", e => { e.preventDefault(); el.classList.remove("over"); loadGpx(e.dataTransfer.files[0]); });
+  el.addEventListener("drop", e => { e.preventDefault(); el.classList.remove("over"); loadGpx([...e.dataTransfer.files]); });
   el.addEventListener("click", () => pick.click());
-  pick.onchange = () => { loadGpx(pick.files[0]); pick.value = ""; };
+  pick.onchange = () => { loadGpx([...pick.files]); pick.value = ""; };
 })();
-$("#mapReset").onclick = () => {                  // every tile or area chosen goes, and the GPX track
-  if (!confirm("Clear the " + (notWahoo() ? "area" : "selected tiles") + (gpxTrack ? " and the GPX track" : "") + "?\nThis cannot be undone.")) return;
+(() => {                                         // GPX files dropped on the map: the same as on "Drop GPX"
+  const m = $("#map"), off = () => document.body.classList.contains("step2");
+  if (!m) return;
+  m.addEventListener("dragover", e => { if (off()) return; e.preventDefault(); m.classList.add("dropover"); });
+  m.addEventListener("dragleave", e => { if (!m.contains(e.relatedTarget)) m.classList.remove("dropover"); });
+  m.addEventListener("drop", e => {
+    m.classList.remove("dropover"); if (off()) return;
+    e.preventDefault();
+    const fs = [...e.dataTransfer.files]; if (!fs.length) return;
+    if (fs.some(f => /\.gpx$/i.test(f.name))) loadGpx(fs); else $("#locNote").textContent = "Only GPX files can be dropped on the map.";
+  });
+})();
+$("#gpxClear").onclick = () => { gpxTracks = []; drawGpx(); $("#locNote").textContent = ""; };   // the area stays; dropping the files again brings them back
+$("#mapReset").onclick = () => {                  // every tile or area chosen goes (the GPX tracks stay: "Clear GPX")
+  if (!confirm("Clear the " + (notWahoo() ? "area" : "selected tiles") + "?\nThis cannot be undone.")) return;
   const a = area(); delete a.box; a.mode = "manual"; S.tiles = [];
-  gpxTrack = null; drawGpx(); $("#locNote").textContent = "";
   scheduleSave(false); renderDerived(); drawMapLayers();
 };
 window.addEventListener("dragover", e => e.preventDefault()); window.addEventListener("drop", e => e.preventDefault());
@@ -2356,6 +2410,7 @@ $$("#devSeg button").forEach(b => b.onclick = async () => {
   try {
     await api("/api/settings", S);                     // first keep what is waiting for the device we leave
     S.device = b.dataset.device; await api("/api/settings", S); await refresh(); drawMapLayers(true);
+    if (gpxTracks.length) { gpxApplyArea(); gpxNote(); }   // the GPX tracks set the area of this device too (Wahoo: tiles; Garmin / Karoo: a rectangle)
     $("#doneNote").textContent = ""; $("#btnSeeFiles").hidden = true; copyMsg = "";   // about the other device's run
     if (document.body.classList.contains("step2")) { fitOutNext = true; renderResults(); }   // step 2 of this device
   }

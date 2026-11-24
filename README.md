@@ -3,11 +3,11 @@
 
 
 maprBoy makes custom OpenStreetMap maps for bike computers and watches, with the points of interest you choose,
-your **[Wandrer](https://wandrer.earth)** roads (the ones you have not ridden yet, in orange) and your
+your **[Wandrer](https://wandrer.earth)** roads (the ones you have not visited yet, in orange) and your
 **[Squadrats](https://squadrats.com)** squares (the ones not explored yet, outlined in red). Everything is set from a
 local web page.
 
-<img src="docs/images/bolt-wandrer-squadrats.jpg" alt="Two pictures of a Wahoo BOLT screen during a ride: Wandrer's unridden roads in orange and the Squadrats small squares outlined with dashed red lines" width="560">
+<img src="docs/images/bolt-wandrer-squadrats.jpg" alt="Two pictures of a Wahoo BOLT screen during a ride: Wandrer's unvisited roads in orange and the Squadrats small squares outlined with dashed red lines" width="560">
 
 <img src="docs/images/legend.svg" alt="Legend of the layers added to the map: orange roads, dashed when unpaved, subtle violet boundary dashes, red solid and dashed Squadrats outlines, and green, red and blue toilet icons" width="560">
 

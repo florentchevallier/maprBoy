@@ -169,6 +169,24 @@ def _inside(path, parent):
     return path == parent or path.startswith(parent + os.sep)
 
 
+def touching(export_infos, bbox):
+    """The exports whose bounding box meets the area (W, S, E, N); an export without one is kept. The others are not
+    read at all (seen in November 2026: a map of the Azores read 400,000 roads around Munich, all left out at the end)."""
+    w0, s0, e0, n0 = bbox
+
+    def meets(info):
+        b = info.get("bbox")
+        return not b or len(b) != 4 or (b[0] <= e0 and b[2] >= w0 and b[1] <= n0 and b[3] >= s0)
+    return [i for i in export_infos if meets(i)]
+
+
+def skipped_note(py, left):
+    """A run step that only says which exports were left out because they do not reach the area."""
+    names = ", ".join(os.path.basename(i["path"]) for i in left)
+    return (f"Wandrer exports outside the area: not read ({len(left)})",
+            [py, "-c", "import sys; print('Not read, they do not reach the area: ' + sys.argv[1])", names])
+
+
 def check_roads(w):
     """Both road layers off (no unvisited road, visited roads not shown) would draw no Wandrer line at all."""
     if not w.get("unvisited", True) and not w["with_traveled"]:
@@ -475,8 +493,14 @@ def garmin_commands(s, export_infos, squadrats_file):
     use_base = bool(b.get("garmin_base", True))
     bbox = garmin_bbox(s, export_infos)
     box = ",".join(str(v) for v in bbox)
-    names = garmin_names(s, export_infos, bbox, activity=map_activity(export_infos) if use_wandrer else "")
     cmds = []
+    if use_wandrer:
+        near = touching(export_infos, bbox)
+        if len(near) < len(export_infos):
+            cmds.append(skipped_note(py, [i for i in export_infos if i not in near]))
+            exports = [i["path"] for i in near]
+            use_wandrer = bool(exports)
+    names = garmin_names(s, export_infos, bbox, activity=map_activity(near) if use_wandrer else "")
     if q["enabled"] and not squadrats_file:
         cmds.append(("No Squadrats file: the layer is left out",
                      [py, "-c", "print('! Squadrats: no KML file found in the Squadrats folder, so this layer is left out.')"]))
@@ -634,9 +658,17 @@ def karoo_commands(s, export_infos, squadrats_file):
     box = ",".join(str(v) for v in bbox)
     place = garmin_place(s, export_infos, bbox)
     place = " ".join(unicodedata.normalize("NFKD", place).encode("ascii", "ignore").decode().split())
-    act = map_activity(export_infos) if use_wandrer else ""
-    tag = "-".join(p for p in (scan.slug(place), scan.slug(act), time.strftime("%Y-%m-%d")) if p)
     cmds = []
+    if use_wandrer:
+        near = touching(export_infos, bbox)
+        if len(near) < len(export_infos):
+            cmds.append(skipped_note(py, [i for i in export_infos if i not in near]))
+            exports = [i["path"] for i in near]
+            use_wandrer = bool(exports)
+    if not (use_wandrer or use_squadrats or use_pois):
+        raise SettingsError("No ticked Wandrer export reaches the area, and Squadrats and POIs are off: nothing to make.")
+    act = map_activity(near) if use_wandrer else ""
+    tag = "-".join(p for p in (scan.slug(place), scan.slug(act), time.strftime("%Y-%m-%d")) if p)
     if q["enabled"] and not squadrats_file:
         cmds.append(("No Squadrats file: the layer is left out",
                      [py, "-c", "print('! Squadrats: no KML file found in the Squadrats folder, so this layer is left out.')"]))

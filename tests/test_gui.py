@@ -1590,6 +1590,16 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
         with self.assertRaises(jobs.SettingsError):       # neither layer: nothing would be drawn
             jobs.garmin_commands(self.s(wandrer={"unvisited": False, "with_traveled": False}), [self.EXP], None)
 
+    def test_exports_outside_the_area_are_not_read(self):
+        far = {"path": "/x/azores.kmz", "bbox": [-28.1, 39.0, -27.9, 39.1]}
+        munich = {"mode": "manual", "box": [11.4, 48.05, 11.7, 48.2]}            # a drawn area: Munich only
+        cmds = jobs.garmin_commands(self.s(area=munich), [self.EXP, far], None)
+        overlay = next(a for t, a in cmds if "build_garmin.py" in " ".join(a))
+        self.assertIn("/x/a.kmz", overlay); self.assertNotIn("/x/azores.kmz", overlay)
+        self.assertTrue(any(t.startswith("Wandrer exports outside the area") for t, _ in cmds))
+        self.assertEqual(jobs.touching([self.EXP, far, {"path": "/x/unknown.kmz"}], (-28.2, 38.9, -27.8, 39.2)),
+                         [far, {"path": "/x/unknown.kmz"}])                  # an export without a box is kept
+
     def test_commands_without_base_map(self):
         cmds = jobs.garmin_commands(self.s(build={"garmin_base": False}), [self.EXP], None)
         overlay = cmds[-2][1]

@@ -101,7 +101,8 @@ def main():
 
     segments, boundaries, report = merge_exports(exports)
 
-    print("\nMerge (most recent wins):")
+    if exports:                       # Squadrats only: no export, nothing to merge or process (the lines said 0)
+        print("\nMerge (most recent wins):")
     for r in report:
         print(f"  {os.path.basename(r['export'])}: +{r['added']} new, "
               f"{r['state_changed']} state changes, {r['removed_stale']} replaced "
@@ -112,11 +113,12 @@ def main():
                    paved_always=args.paved_always,
                    simplify_m=args.simplify_m, merge=not args.no_merge)
     segments, ps = process(segments, opts, args.with_traveled)
-    print(f"\nProcessing: {ps['input']} segments -> "
-          f"{ps.get('dropped_unvisited', 0)} dropped (unvisited), "
-          f"{ps.get('dropped_far', 0)} dropped (outside radius), "
-          f"{ps['before_merge']} -> {ps['after_merge']} after merging; "
-          f"{ps['nodes_before_simplify']} -> {ps['nodes_after_simplify']} points after simplification")
+    if exports:
+        print(f"\nProcessing: {ps['input']} segments -> "
+              f"{ps.get('dropped_unvisited', 0)} dropped (unvisited), "
+              f"{ps.get('dropped_far', 0)} dropped (outside radius), "
+              f"{ps['before_merge']} -> {ps['after_merge']} after merging; "
+              f"{ps['nodes_before_simplify']} -> {ps['nodes_after_simplify']} points after simplification")
     tiles = {t for e in exports for t in tiles_for_bbox(*e.bbox)}
     for t in [t for t in args.tiles.split(",") if t.strip()]:
         x, y = t.strip().split("/")

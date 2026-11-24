@@ -309,7 +309,8 @@ def eject(volume):
 def mark(out_dir, names):
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, LAST_RUN), "w", encoding="utf-8") as f:
-        json.dump({"maps": [os.path.basename(n) for n in names]}, f)
+        json.dump({"maps": [os.path.basename(n) for n in names          # a base map of open sea is not made
+                            if os.path.isfile(os.path.join(out_dir, os.path.basename(n)))]}, f)
 
 
 def main(argv=None):

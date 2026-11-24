@@ -176,6 +176,10 @@ def tiles(osm_files, bbox, work, log=print):
 
 
 # ------------------------------------------------------------------ build
+class NoData(build.GarminError):
+    """The OSM extracts hold nothing in the area: open sea, or an extract that does not cover it."""
+
+
 def build_base(osm_files, bbox, out_img, mkgmap_jar, poi_list, street_names=False, java="java", log=print,
                family_id=FAMILY_ID, mapname=MAPNAME, description="maprBoy base"):
     """Write the base map (OSM + our POIs) of bbox (W, S, E, N) to out_img. Returns out_img.
@@ -195,7 +199,7 @@ def build_base(osm_files, bbox, out_img, mkgmap_jar, poi_list, street_names=Fals
             f.write(typ_text(icons, family_id))
         inputs = tiles(osm_files, bbox, work, log)
         if not inputs:
-            raise build.GarminError("no OSM data in the area: is it covered by the OSM extracts?")
+            raise NoData("no OSM data in the area: is it covered by the OSM extracts?")
         ids.check_tiles(len(inputs))
         out_dir = os.path.join(work, "out")
         cmd = [java, "-jar", os.path.abspath(mkgmap_jar), f"--style-file={style_dir}",

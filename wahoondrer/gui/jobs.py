@@ -561,6 +561,8 @@ def garmin_commands(s, export_infos, squadrats_file):
              *[x for f in osm for x in ("--osm", f)], *pois]
         if b.get("street_names"):
             c.append("--street-names")
+        if not use_wandrer:                  # no visited road in the area: an empty one is open sea, not a missing extract
+            c.append("--sea-ok")
         cmds.append(("Make the Garmin base map (OpenStreetMap + POIs)", c))
     made = [a[a.index("-o") + 1] for t, a in cmds if t.startswith("Make the Garmin")]
     if not made:

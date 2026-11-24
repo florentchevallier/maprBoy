@@ -178,9 +178,11 @@ class MtpTest(unittest.TestCase):
     def test_mark(self):
         tmp = tempfile.mkdtemp()
         try:
-            device.mark(tmp, ["/x/maprboy-a-overlay.img", "maprboy-a-base.img"])
+            for n in ("maprboy-a-overlay.img", "maprboy-a-base.img"):
+                open(os.path.join(tmp, n), "w").close()
+            device.mark(tmp, ["/x/maprboy-a-overlay.img", "maprboy-a-base.img", "maprboy-sea-base.img"])
             import json
-            with open(os.path.join(tmp, "last_run.json")) as f:
+            with open(os.path.join(tmp, "last_run.json")) as f:     # the base map of open sea was not made
                 self.assertEqual(json.load(f), {"maps": ["maprboy-a-overlay.img", "maprboy-a-base.img"]})
         finally:
             shutil.rmtree(tmp, ignore_errors=True)

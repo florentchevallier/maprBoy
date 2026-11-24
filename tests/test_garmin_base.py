@@ -169,5 +169,33 @@ class BuildTest(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+class SeaTest(unittest.TestCase):
+    """An area of open sea: no OSM data, so no base map; with --sea-ok the step ends without an error."""
+
+    def run_script(self, *extra):
+        import contextlib
+        import io
+        import sys
+        from unittest import mock
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts"))
+        import build_garmin_base
+
+        def empty(*a, **k):
+            raise base.NoData("no OSM data in the area")
+        argv = ["build_garmin_base.py", "--mkgmap", "x.jar", "-o", "out.img", "--osm", "tuvalu.osm.pbf",
+                "--bbox=-179.0,-10.1,-178.7,-9.9", *extra]
+        out = io.StringIO()
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(base, "build_base", empty), \
+                contextlib.redirect_stdout(out):
+            build_garmin_base.main()
+        return out.getvalue()
+
+    def test_open_sea(self):
+        self.assertIn("open sea", self.run_script("--sea-ok"))
+        with self.assertRaises(SystemExit) as ctx:
+            self.run_script()
+        self.assertIn("no OSM data in the area", str(ctx.exception.code))
+
+
 if __name__ == "__main__":
     unittest.main()

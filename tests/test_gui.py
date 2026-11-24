@@ -1579,6 +1579,7 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
         self.assertEqual(base[base.index("--mapname") + 1], f"{fb}001")
         self.assertIn(os.path.join(self.tmp, "oberbayern-latest.osm.pbf"), base)
         self.assertNotIn("--street-names", base)
+        self.assertNotIn("--sea-ok", base)                     # visited roads there: no data is an error
 
     def test_only_the_roads_already_visited(self):
         cmds = jobs.garmin_commands(self.s(wandrer={"unvisited": False, "with_traveled": True}), [self.EXP], None)
@@ -1611,6 +1612,7 @@ class GarminCommandTests(_AreaFixture, unittest.TestCase):
         base = jobs.garmin_commands(self.s(build={"street_names": True}, wandrer={"enabled": False}), [self.EXP], None)
         self.assertEqual(len(base), 3)                         # no overlay: OSM data, the base map, the note
         self.assertIn("--street-names", base[-2][1])
+        self.assertIn("--sea-ok", base[-2][1])                 # no Wandrer roads: an empty area may be open sea
 
     def test_missing_tools_stop_the_run(self):
         with mock.patch.object(jobs, "garmin_missing", lambda s: ["Java is not installed"]):

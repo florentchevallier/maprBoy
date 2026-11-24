@@ -45,6 +45,8 @@ def main():
                     help=f"Garmin family id (default {base.FAMILY_ID}); give each map on a device its own")
     ap.add_argument("--mapname", default=base.MAPNAME, help="number of the first map tile (8 digits)")
     ap.add_argument("--street-names", action="store_true", help="also label the streets (off by default)")
+    ap.add_argument("--sea-ok", action="store_true",
+                    help="no OSM data in the area (open sea): write no base map and end without an error")
     args = ap.parse_args()
     try:
         check_ids(args.family_id, args.mapname)
@@ -61,6 +63,11 @@ def main():
         base.build_base(args.osm, bbox, args.output, args.mkgmap, garmin_pois.load(args.poi_rules),
                         street_names=args.street_names, java=args.java, family_id=args.family_id,
                         mapname=args.mapname, description=args.name)
+    except base.NoData:
+        if not args.sea_ok:
+            sys.exit("Error: no OSM data in the area: is it covered by the OSM extracts?")
+        print("! No OpenStreetMap data in the area (open sea?): no base map made. "
+              "On the device, the overlay is drawn over the Garmin map.")
     except (build.GarminError, garmin_pois.PoiError, ValueError) as e:
         sys.exit(f"Error: {e}")
 

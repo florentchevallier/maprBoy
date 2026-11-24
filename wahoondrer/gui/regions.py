@@ -155,8 +155,17 @@ def pretty_name(key):
     return f'{item["name"]} ({", ".join(chain)})' if chain else item["name"]
 
 
+def continent_of(key):
+    """Name of the continent a region belongs to (the region itself for a continent), "" when unknown."""
+    cat = catalog()
+    item, guard = cat.get(key), 0
+    while item and item.get("parent") and guard < 8:
+        item, guard = cat.get(file_key(item["parent"])), guard + 1
+    return item["name"] if item else ""
+
+
 def downloaded():
-    """Regions present on disk: [{key, name, size, date, age_days}], oldest first."""
+    """Regions present on disk: [{key, name, continent, size, date, age_days}], oldest first."""
     out = []
     if os.path.isdir(MAPS_DIR):
         for n in os.listdir(MAPS_DIR):
@@ -164,7 +173,7 @@ def downloaded():
                 p = os.path.join(MAPS_DIR, n)
                 st = os.stat(p)
                 key = n[:-len(SUFFIX)]
-                out.append({"key": key, "name": pretty_name(key), "size": st.st_size,
+                out.append({"key": key, "name": pretty_name(key), "continent": continent_of(key), "size": st.st_size,
                             "date": time.strftime("%Y-%m-%d", time.localtime(st.st_mtime)),
                             "age_days": int((time.time() - st.st_mtime) // 86400)})
     return sorted(out, key=lambda r: r["age_days"], reverse=True)

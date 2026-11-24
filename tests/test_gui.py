@@ -299,6 +299,9 @@ class RegionTests(unittest.TestCase):
             _write(regions.GEOFABRIK, json.dumps({"features": feats}))
             regions._catalog.update(mtime=None, items={})
             self.assertEqual(regions.downloaded()[0]["name"], "Oberbayern (Bayern)")
+            self.assertEqual(regions.downloaded()[0]["continent"], "Europe")      # the first level of the list
+            self.assertEqual(regions.continent_of("europe"), "Europe")
+            self.assertEqual(regions.continent_of("nowhere"), "")
             self.assertEqual(len(regions.downloaded()), 1)
 
     def test_download_from_file_url(self):

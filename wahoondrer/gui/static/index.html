@@ -1473,8 +1473,9 @@ async function renderRegions(fresh) {
     h += `<div class="actions" style="margin:0 0 6px"><button class="small" id="regListToggle" aria-expanded="${!listOff}">${listOff ? "Show the list" : "Hide the list"}</button><!--foldall--></div>
     <div class="actions" style="margin:0 0 6px"><span class="note" id="regSelNote"></span><span class="sp"></span><button class="small danger" id="regDelSel" disabled>Delete the ticked regions</button>${R.max_days > 0 ? `<button class="small danger" id="regDelOld" title="Delete the regions older than ${R.max_days} days (WMC would renew them anyway when a map needs them)" ${R.downloaded.some(isOld) ? "" : "disabled"}>Delete outdated (${R.downloaded.filter(isOld).length} · ${mb(R.downloaded.filter(isOld).reduce((n, r) => n + r.size, 0))})</button>` : ""}<button class="small danger" id="regDelAll" title="Delete every downloaded region">Delete all (${mb(R.downloaded.reduce((n, r) => n + r.size, 0))})</button></div>
     <table id="regTable"${listOff ? " hidden" : ""}><tr><th><input type="checkbox" id="regSelAll" title="Tick / untick all"></th><th>Region</th><th class="n">Size</th><th>Downloaded</th><th class="n">Age</th><th>Needed by my tiles</th><th></th></tr>`;
-    // tree: Country > (sub-regions) > region, taken from the name "Oberfranken (Bayern, Germany)"
-    const pathOf = r => { const m = /^(.*) \(([^()]*)\)$/.exec(r.name); if (!m) return [r.name]; return [...m[2].split(", ").reverse(), m[1]]; };
+    // tree: Continent > Country > (sub-regions) > region, taken from the name "Oberfranken (Bayern, Germany)" and the continent
+    const pathOf = r => { const m = /^(.*) \(([^()]*)\)$/.exec(r.name), p = m ? [...m[2].split(", ").reverse(), m[1]] : [r.name];
+      return r.continent && p[0] !== r.continent ? [r.continent, ...p] : p; };
     const items = R.downloaded.map(r => ({r, p: pathOf(r)})).sort((x, y) => x.p.join("\u0001").localeCompare(y.p.join("\u0001")));
     const total = (pre) => items.filter(i => pre.every((v, k) => i.p[k] === v)).reduce((n, i) => n + i.r.size, 0);
     let prev = [];

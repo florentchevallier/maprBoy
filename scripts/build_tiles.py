@@ -564,15 +564,19 @@ def main():
     print(f"\nDone. Output folder: {args.out}")
 
 
+SMALL_TILE = 100_000      # bytes: under this the tile is almost empty (open sea, desert) and a percentage means nothing
+
+
 def mo(n):
-    return f"{n / 1e6:.1f} MB"
+    """A tile size for the report: in KB when it is small (a sea tile is only a few KB, shown "0.0 MB" before)."""
+    return f"{n / 1e3:.0f} KB" if n < SMALL_TILE else f"{n / 1e6:.1f} MB"
 
 
 def write_docs(out, tiles, changed, report, contour=False, nowandrer=()):
     lines = ["Tile sizes (.map.lzma)", ""]
     lines.append(f"{'tile':10}{'classic':>12}{'with layer':>12}{'change':>10}")
     for x, y, c, w in report:
-        pct = f"{100 * (w - c) / c:+.0f} %" if c else "-"
+        pct = f"{100 * (w - c) / c:+.0f} %" if c >= SMALL_TILE else "-"   # +1357 % for a few KB added to a sea tile
         lines.append(f"{x}/{y:<7}{mo(c):>12}{mo(w):>12}{pct:>10}")
     with open(os.path.join(out, "size_report.txt"), "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
